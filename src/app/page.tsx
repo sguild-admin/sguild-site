@@ -26,7 +26,7 @@ const LOCATIONS: LocationItem[] = [
   },
   {
     key: 'dallas',
-    name: 'Dallas–Fort Worth',
+    name: 'Dallas, TX',
     href: '/locations/dallas/',
     image: '/assets/dallas.jpg',
     imageAlt: 'DFW summer swim lessons — residential and community pools',
@@ -160,7 +160,7 @@ export default function LocationSelectorPage() {
 
       <section className="relative">
         <div className="mx-auto max-w-6xl px-4 py-20 md:py-28 text-center">
-          <h1 className="text-4xl md:text-6xl font-extrabold leading-tight">Select your location</h1>
+          <h2 className="text-4xl md:text-6xl font-extrabold leading-tight">Select your location</h2>
           <p className="mt-3 text-lg text-slate-600">
             We come to your pool—home, condo, HOA, or resort. Choose your area to see schedules and pricing.
           </p>
