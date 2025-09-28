@@ -19,7 +19,7 @@ const LOCATIONS: LocationItem[] = [
   {
     key: 'oahu',
     name: 'O‘ahu',
-    href: '/locations/oahu/',
+    href: '/oahu/',
     image: '/assets/oahu.jpg',
     imageAlt: 'O‘ahu swim lessons in Honolulu — private, year-round coaching',
     description: 'Private in-home lessons island-wide. Hotels, condos, and community pools welcome.',
@@ -29,7 +29,7 @@ const LOCATIONS: LocationItem[] = [
   {
     key: 'dallas',
     name: 'Dallas, TX',
-    href: '/locations/dallas/',
+    href: '/dallas/',
     image: '/assets/dallas.jpg',
     imageAlt: 'DFW summer swim lessons — residential and community pools',
     description: 'Our original home base. Book at your home or community pool.',
@@ -50,8 +50,8 @@ function Header() {
           </span>
         </Link>
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium">
-          <Link href="/locations/oahu/" className="hover:text-sky-600">O&apos;ahu</Link>
-          <Link href="/locations/dallas/" className="hover:text-sky-600">Dallas, TX</Link>
+          <Link href="/oahu/" className="hover:text-sky-600">O&apos;ahu</Link>
+          <Link href="/dallas/" className="hover:text-sky-600">Dallas, TX</Link>
         </nav>
         <button
           type="button"
@@ -69,8 +69,8 @@ function Header() {
 
       <div id="mobile-menu" className={`md:hidden border-t border-slate-200 bg-white ${open ? '' : 'hidden'}`}>
         <div className="px-4 py-3 grid gap-3 text-base">
-          <Link href="/locations/oahu/" className="block hover:text-sky-600">O&apos;ahu</Link>
-          <Link href="/locations/dallas/" className="block hover:text-sky-600">Dallas, TX</Link>
+          <Link href="/oahu/" className="block hover:text-sky-600">O&apos;ahu</Link>
+          <Link href="/dallas/" className="block hover:text-sky-600">Dallas, TX</Link>
         </div>
       </div>
     </header>
