@@ -1,5 +1,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
+import Link from "next/link";
+
 
 type LocKey = 'oahu' | 'dallas';
 type LocationItem = {
@@ -41,12 +43,12 @@ function Header() {
   return (
     <header className="sticky top-0 z-50 bg-white/80 backdrop-blur border-b border-slate-200">
       <div className="mx-auto max-w-6xl px-4 flex items-center justify-between h-16">
-        <a href="/" className="flex items-center gap-3" aria-label="Sguild Swim Instruction home">
+        <link href="/" className="flex items-center gap-3" aria-label="Sguild Swim Instruction home">
           <img src="/assets/logo-graphic.png" alt="Sguild Swim Instruction logo" className="h-9 w-auto" />
           <span className="text-base font-semibold tracking-tight text-slate-900">
             Sguild <span className="text-slate-500">Swim Instruction</span>
           </span>
-        </a>
+        </link>
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium">
           <a href="/locations/oahu/" className="hover:text-sky-600">O&apos;ahu</a>
           <a href="/locations/dallas/" className="hover:text-sky-600">Dallas, TX</a>
@@ -67,8 +69,8 @@ function Header() {
 
       <div id="mobile-menu" className={`md:hidden border-t border-slate-200 bg-white ${open ? '' : 'hidden'}`}>
         <div className="px-4 py-3 grid gap-3 text-base">
-          <a href="/locations/oahu/" className="block hover:text-sky-600">O&apos;ahu</a>
-          <a href="/locations/dallas/" className="block hover:text-sky-600">Dallas, TX</a>
+          <link href="/locations/oahu/" className="block hover:text-sky-600">O&apos;ahu</link>
+          <link href="/locations/dallas/" className="block hover:text-sky-600">Dallas, TX</link>
         </div>
       </div>
     </header>
