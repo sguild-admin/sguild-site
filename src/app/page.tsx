@@ -43,15 +43,15 @@ function Header() {
   return (
     <header className="sticky top-0 z-50 bg-white/80 backdrop-blur border-b border-slate-200">
       <div className="mx-auto max-w-6xl px-4 flex items-center justify-between h-16">
-        <link href="/" className="flex items-center gap-3" aria-label="Sguild Swim Instruction home">
+        <Link href="/" className="flex items-center gap-3" aria-label="Sguild Swim Instruction home">
           <img src="/assets/logo-graphic.png" alt="Sguild Swim Instruction logo" className="h-9 w-auto" />
           <span className="text-base font-semibold tracking-tight text-slate-900">
             Sguild <span className="text-slate-500">Swim Instruction</span>
           </span>
-        </link>
+        </Link>
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium">
-          <a href="/locations/oahu/" className="hover:text-sky-600">O&apos;ahu</a>
-          <a href="/locations/dallas/" className="hover:text-sky-600">Dallas, TX</a>
+          <Link href="/locations/oahu/" className="hover:text-sky-600">O&apos;ahu</Link>
+          <Link href="/locations/dallas/" className="hover:text-sky-600">Dallas, TX</Link>
         </nav>
         <button
           type="button"
@@ -69,8 +69,8 @@ function Header() {
 
       <div id="mobile-menu" className={`md:hidden border-t border-slate-200 bg-white ${open ? '' : 'hidden'}`}>
         <div className="px-4 py-3 grid gap-3 text-base">
-          <link href="/locations/oahu/" className="block hover:text-sky-600">O&apos;ahu</link>
-          <link href="/locations/dallas/" className="block hover:text-sky-600">Dallas, TX</link>
+          <Link href="/locations/oahu/" className="block hover:text-sky-600">O&apos;ahu</Link>
+          <Link href="/locations/dallas/" className="block hover:text-sky-600">Dallas, TX</Link>
         </div>
       </div>
     </header>
@@ -79,7 +79,7 @@ function Header() {
 
 function LocationCard({ item }: { item: LocationItem }) {
   return (
-    <a href={item.href} className="group block rounded-2xl border border-slate-200 overflow-hidden hover:shadow-sm transition">
+    <Link href={item.href} className="group block rounded-2xl border border-slate-200 overflow-hidden hover:shadow-sm transition">
       <figure className="aspect-[4/3] w-full overflow-hidden">
         <img
           src={item.image}
@@ -106,7 +106,7 @@ function LocationCard({ item }: { item: LocationItem }) {
           </ul>
         )}
       </div>
-    </a>
+    </Link>
   );
 }
 
@@ -141,8 +141,8 @@ function Footer() {
       <div className="mx-auto max-w-6xl px-4 py-10 text-sm text-slate-500 flex flex-col md:flex-row items-center justify-between gap-4">
         <p>© {new Date().getFullYear()} Sguild Swim Instruction. All rights reserved.</p>
         <nav className="flex gap-6">
-          <a href="/privacy" className="hover:text-sky-600">Privacy</a>
-          <a href="/contact" className="hover:text-sky-600">Contact</a>
+          <Link href="/privacy" className="hover:text-sky-600">Privacy</Link>
+          <Link href="/contact" className="hover:text-sky-600">Contact</Link>
         </nav>
       </div>
     </footer>
