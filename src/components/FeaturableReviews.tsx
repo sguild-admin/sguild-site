@@ -1,6 +1,13 @@
 'use client'
 import { useEffect } from 'react'
 
+declare global {
+  interface Window {
+    Featurable?: { init?: () => void }
+    ___featurableLoaded?: boolean
+  }
+}
+
 const FEATURABLE_ID = 'featurable-a6f4f535-5df6-4b9b-b6a4-6865a4acf5e1'
 
 export default function FeaturableReviews() {
