@@ -1,7 +1,7 @@
 'use client'
-import React from 'react'
+import React, { useEffect } from 'react'
 import Link from 'next/link'
-import Script from 'next/script'
+import FeaturableReviews from '../../components/FeaturableReviews'
 
 // -----------------------------------------------------------------------------
 // Oʻahu Page — Stabilized build (no arbitrary Tailwind classes)
@@ -189,18 +189,8 @@ export default function OahuPage() {
           </details>
         </div>
       </section>
-          {/* Reviews */}
-<section className="mx-auto max-w-6xl px-4 py-12">
-  <h2 className="text-2xl md:text-3xl font-bold">Reviews</h2>
-  <div id="featurable-a6f4f535-5df6-4b9b-b6a4-6865a4acf5e1" data-featurable-async />
-</section>
-
-<Script
-  src="https://featurable.com/assets/bundle.js"
-  strategy="afterInteractive"
-  defer
-  charSet="UTF-8"
-/>
+{/* Reviews */}
+<FeaturableReviews />
       {/* Footer */}
       <footer className="border-t border-slate-200/70 bg-white/70">
         <div className="mx-auto max-w-6xl px-4 py-8 text-sm text-slate-600 flex flex-col md:flex-row items-center justify-between gap-3">

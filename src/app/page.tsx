@@ -15,6 +15,7 @@ type LocationItem = {
   badges: string[];
 };
 
+const FEATURABLE_ID = 'featurable-a6f4f535-5df6-4b9b-b6a4-6865a4acf5e1'
 const LOCATIONS: LocationItem[] = [
   {
     key: 'oahu',
@@ -111,29 +112,73 @@ function LocationCard({ item }: { item: LocationItem }) {
 }
 
 function Reviews() {
-  // Load Featurable once on client
   useEffect(() => {
-    const SRC = 'https://featurable.com/assets/bundle.js';
-    if (!document.querySelector(`script[src="${SRC}"]`)) {
-      const s = document.createElement('script');
-      s.src = SRC;
-      s.defer = true;
-      s.charset = 'UTF-8';
-      document.body.appendChild(s);
-    }
-  }, []);
+    const SRC = 'https://featurable.com/assets/bundle.js'
+    let cancelled = false
+
+    // Ensure the script exists and is loaded exactly once
+    const ensureScript = () =>
+      new Promise<void>((resolve) => {
+        const existing = document.querySelector<HTMLScriptElement>(`script[src="${SRC}"]`)
+        if (existing) {
+          // If already loaded, resolve; otherwise wait for 'load'
+          if (existing.dataset.loaded === '1') {
+            resolve()
+          } else {
+            existing.addEventListener('load', () => resolve(), { once: true })
+          }
+          return
+        }
+        const s = document.createElement('script')
+        s.src = SRC
+        s.defer = true
+        s.charset = 'UTF-8'
+        s.onload = () => {
+          s.dataset.loaded = '1'
+          resolve()
+        }
+        document.body.appendChild(s)
+      })
+
+    ;(async () => {
+      await ensureScript()
+      if (cancelled) return
+
+      // Clear any previous mount so the bundle can attach cleanly
+      const el = document.getElementById(FEATURABLE_ID)
+      if (el) el.innerHTML = ''
+
+      // Try the official re-init if the bundle provides it
+      // @ts-ignore
+      if (window.Featurable?.init) {
+        // @ts-ignore
+        window.Featurable.init()
+      } else {
+        // Fallback: force the bundle to re-run by injecting a cache-busted copy
+        const bump = document.createElement('script')
+        bump.src = `${SRC}?r=${Date.now()}`
+        bump.defer = true
+        bump.charset = 'UTF-8'
+        document.body.appendChild(bump)
+      }
+    })()
+
+    return () => { cancelled = true }
+  }, [])
+
   return (
     <section className="border-t border-slate-200 bg-white">
       <div className="mx-auto max-w-6xl px-4 py-16 md:py-20">
         <h3 className="text-2xl md:text-3xl font-extrabold text-center">What families say</h3>
         <p className="mt-2 text-center text-slate-600">Real reviews from parents and adult learners.</p>
         <div className="mt-8 rounded-2xl border border-slate-200 bg-white/90 p-4 md:p-6 shadow-sm">
-          <div id="featurable-a6f4f535-5df6-4b9b-b6a4-6865a4acf5e1" data-featurable-async />
+          <div id={FEATURABLE_ID} data-featurable-async />
         </div>
       </div>
     </section>
-  );
+  )
 }
+
 
 function Footer() {
   return (
