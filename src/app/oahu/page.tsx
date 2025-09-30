@@ -1,6 +1,7 @@
 'use client'
 import React from 'react'
 import Link from 'next/link'
+import Script from 'next/script'
 
 // -----------------------------------------------------------------------------
 // Oʻahu Page — Stabilized build (no arbitrary Tailwind classes)
@@ -13,8 +14,8 @@ import Link from 'next/link'
 // - Hero image: /public/assets/oceanSwim.jpg (safe to render in tests)
 // -----------------------------------------------------------------------------
 
-const PHONE = '+18085551234' // TODO: replace with your booking number
-const EMAIL = 'hello@sguildswim.com' // TODO: replace with your email
+const PHONE = '+19722105375' // TODO: replace with your booking number
+const EMAIL = 'info@sguildswim.com' // TODO: replace with your email
 
 export default function OahuPage() {
   const telHref = `tel:${PHONE}`
@@ -36,8 +37,7 @@ export default function OahuPage() {
 
           <nav className="hidden md:flex items-center gap-6 text-sm">
             <Link href="/" className="hover:text-sky-700">Locations</Link>
-            <Link href="/programs" className="hover:text-sky-700">Programs</Link>
-            <Link href="/contact" className="hover:text-sky-700">Contact</Link>
+            <Link href="/oahu/contact" className="hover:text-sky-700">Contact</Link>
           </nav>
         </div>
       </header>
@@ -179,7 +179,7 @@ export default function OahuPage() {
               <span className="ml-3 text-slate-400 transition">▾</span>
             </summary>
             <p className="mt-3 text-sm text-slate-700">
-              Simple—call, text, or email us and we’ll set it up.
+              Simple - call, text, or email us and we’ll set it up.
             </p>
             <div className="mt-3 flex flex-wrap gap-2 text-sm">
               <a href={telHref} className="rounded-full bg-sky-600 px-3 py-1.5 text-white">Call</a>
@@ -189,14 +189,24 @@ export default function OahuPage() {
           </details>
         </div>
       </section>
+          {/* Reviews */}
+<section className="mx-auto max-w-6xl px-4 py-12">
+  <h2 className="text-2xl md:text-3xl font-bold">Reviews</h2>
+  <div id="featurable-a6f4f535-5df6-4b9b-b6a4-6865a4acf5e1" data-featurable-async />
+</section>
 
+<Script
+  src="https://featurable.com/assets/bundle.js"
+  strategy="afterInteractive"
+  defer
+  charSet="UTF-8"
+/>
       {/* Footer */}
       <footer className="border-t border-slate-200/70 bg-white/70">
         <div className="mx-auto max-w-6xl px-4 py-8 text-sm text-slate-600 flex flex-col md:flex-row items-center justify-between gap-3">
-          <p>© {new Date().getFullYear()} Sguild Swim — Oʻahu</p>
+          <p>© {new Date().getFullYear()} Sguild Swim LLC — Oʻahu</p>
           <div className="flex items-center gap-5">
-            <Link href="/privacy" className="hover:text-slate-800">Privacy</Link>
-            <Link href="/contact" className="hover:text-slate-800">Contact</Link>
+            <Link href="/oahu/contact" className="hover:text-slate-800">Contact</Link>
           </div>
         </div>
       </footer>
