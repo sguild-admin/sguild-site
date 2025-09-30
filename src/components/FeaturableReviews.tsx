@@ -44,19 +44,18 @@ export default function FeaturableReviews() {
       if (el) el.innerHTML = ''
 
       // Try official re-init if available, else force a fresh execute
-      setTimeout(() => {
-        // @ts-ignore
-        if (window.Featurable?.init) {
-          // @ts-ignore
-          window.Featurable.init()
-        } else {
-          const bump = document.createElement('script')
-          bump.src = `${SRC}?r=${Date.now()}`
-          bump.defer = true
-          bump.charset = 'UTF-8'
-          document.body.appendChild(bump)
-        }
-      }, 0)
+setTimeout(() => {
+  if (window.Featurable?.init) {
+    window.Featurable.init()
+  } else {
+    const SRC = 'https://featurable.com/assets/bundle.js'
+    const bump = document.createElement('script')
+    bump.src = `${SRC}?r=${Date.now()}`
+    bump.defer = true
+    bump.charset = 'UTF-8'
+    document.body.appendChild(bump)
+  }
+}, 0)
     })()
 
     return () => { cancelled = true }
@@ -69,3 +68,5 @@ export default function FeaturableReviews() {
     </section>
   )
 }
+//What families say
+//Real reviews from parents and adult learners.
