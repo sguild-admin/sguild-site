@@ -9,7 +9,7 @@ import Link from 'next/link'
 // - Uses /assets/logo-graphic.png and /assets/contact.jpg
 // -----------------------------------------------------------------------------
 
-const PHONE = '+19722105375' // TODO: replace if needed
+const PHONE = '+18087468825' // TODO: replace if needed
 const EMAIL = 'info@sguildswim.com' // TODO: replace if needed
 
 export default function OahuContactPage() {
