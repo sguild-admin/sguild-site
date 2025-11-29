@@ -4,7 +4,7 @@ import Link from 'next/link'
 import FeaturableReviews from '../../components/FeaturableReviews'
 
 // -----------------------------------------------------------------------------
-// Oʻahu Page — Stabilized build (no arbitrary Tailwind classes)
+// Oʻahu Page  -  Stabilized build (no arbitrary Tailwind classes)
 // - Fix: removed Tailwind arbitrary utilities (e.g., bg-[...], aspect-[...]) that
 //   can crash some toolchains and test sandboxes, which likely caused the
 //   "Cannot read properties of null (reading '_')" error during class parsing.
@@ -55,7 +55,7 @@ export default function OahuPage() {
           <div>
             <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">Oʻahu Swim Lessons</h1>
             <p className="mt-4 text-lg leading-relaxed text-slate-700">
-              At‑home private and small‑group instruction across Honolulu, Waikīkī, Kailua, Kāneʻohe, Ko Olina, and the North Shore. We come to you—ocean or pool.
+              At‑home private and small‑group instruction across Honolulu, Waikīkī, Kailua, Kāneʻohe, Ko Olina, and the North Shore. We come to you - ocean or pool.
             </p>
             <blockquote className="mt-4 rounded-xl bg-white/70 p-4 text-slate-700 ring-1 ring-slate-200 italic">
               “Fitness is what happens when practicing proper technique”
@@ -90,19 +90,15 @@ export default function OahuPage() {
             },
             {
               title: 'Semi-Private',
-              body: 'Learn alongside a sibling or friend of similar level. Enroll additional students in the same lesson free of charge.'
+              body: 'Learn alongside a sibling or friend of similar level. Enroll additional students at discounted rates.'
             },
             {
               title: 'Group Lessons',
-              body: 'Perfect for families, neighbors, or friends. Students build skills together in a fun, supportive environment—ideal for groups of three or more.'
+              body: 'Perfect for families, neighbors, or friends. Students build skills together in a fun, supportive environment - ideal for groups of three or more.'
             },
             {
               title: 'Adult Lessons',
               body: 'From first-time swimmers to triathlon prep, we tailor sessions to your goals with clear, personalized guidance.'
-            },
-            {
-              title: 'Toddler Lessons',
-              body: 'Focused instruction that builds water safety, comfort, and essential survival skills—helping young swimmers learn to navigate the water with confidence.'
             },
 
           ].map((item) => (
@@ -114,33 +110,7 @@ export default function OahuPage() {
         </div>
       </section>
 
-      {/* Pricing & Details */}
-      <section className="mx-auto max-w-6xl px-4 py-12">
-        <div className="grid md:grid-cols-3 gap-6">
-        <div className="rounded-2xl bg-white p-6 ring-1 ring-slate-200 shadow-sm">
-          <h3 className="text-xl font-semibold">Pricing</h3>
-          <p className="mt-2 text-slate-700">
-            <span className="font-semibold">Private Lesson:</span> $35 per 30-minute session <br />
-            <span className="font-semibold">Semi-Private (2 students):</span> $20 per student per 30-minute session <br />
-            <span className="font-semibold">Group Lesson (3+ students):</span> $15 per student per 30-minute session <br />
-            <br />
-            <span className="font-semibold">Mobile Service Fee:</span> $20 per visit
-          </p>
-        </div>
-          <div className="rounded-2xl bg-white p-6 ring-1 ring-slate-200 shadow-sm">
-            <h3 className="text-xl font-semibold">Lesson Length</h3>
-            <p className="mt-2 text-slate-700">
-              Each lesson is 30 minutes. Please allow for lessons to run up to 5 minutes long when needed.
-            </p>
-          </div>
-          <div className="rounded-2xl bg-white p-6 ring-1 ring-slate-200 shadow-sm">
-            <h3 className="text-xl font-semibold">Ages & Levels</h3>
-            <p className="mt-2 text-slate-700">
-              We teach ages 18 months through adult — from water‑comfort for beginners to stroke refinement and ocean safety.
-            </p>
-          </div>
-        </div>
-      </section>
+
 
       {/* Coverage */}
       <section className="mx-auto max-w-6xl px-4 py-12">
@@ -158,24 +128,29 @@ export default function OahuPage() {
           <h2 className="text-2xl font-bold">About Sguild Swim</h2>
           <p className="mt-2 text-slate-700">
             Sguild Swim is a mobile swim school dedicated to helping swimmers of all ages build confidence and strong technique.
-            On Oʻahu, our team brings a wide variety of classes to your pool or the ocean—tailored to meet every need and level.
+            On Oʻahu, our team brings a wide variety of classes to your pool or the ocean - tailored to meet every need and level.
           </p>
         </div>
       </section>
 
       {/* FAQs */}
+      {/* FAQs */}
       <section className="mx-auto max-w-6xl px-4 pb-20">
         <h2 className="text-2xl md:text-3xl font-bold">FAQs</h2>
         <div className="mt-4 space-y-3">
+
+          {/* Location */}
           <details className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <summary className="cursor-pointer list-none select-none font-medium flex items-center justify-between">
               Where are you located?
               <span className="ml-3 text-slate-400 transition">▾</span>
             </summary>
             <p className="mt-3 text-sm text-slate-700">
-              We are an at‑home swim school. We come to you across Oʻahu—home pools, condo pools, or arranged ocean sessions for confident swimmers.
+              We are an at-home swim school. We come to you across Oʻahu - your home pool, condo pool, or (for confident swimmers) arranged ocean sessions.
             </p>
           </details>
+
+          {/* Ages */}
           <details className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <summary className="cursor-pointer list-none select-none font-medium flex items-center justify-between">
               What ages do you teach?
@@ -185,13 +160,27 @@ export default function OahuPage() {
               We offer lessons for ages 2 to adult.
             </p>
           </details>
+
+          {/* Lesson Length */}
+          <details className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <summary className="cursor-pointer list-none select-none font-medium flex items-center justify-between">
+              How long is a lesson?
+              <span className="ml-3 text-slate-400 transition">▾</span>
+            </summary>
+            <p className="mt-3 text-sm text-slate-700">
+              Each session is <span className="font-medium">30 minutes</span>.
+              We design lessons to be focused and efficient so swimmers stay engaged while building real skills and confidence.
+            </p>
+          </details>
+
+          {/* Booking */}
           <details className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <summary className="cursor-pointer list-none select-none font-medium flex items-center justify-between">
               How do I book?
               <span className="ml-3 text-slate-400 transition">▾</span>
             </summary>
             <p className="mt-3 text-sm text-slate-700">
-              Simple - call, text, or email us and we’ll set it up.
+              Easy - call, text, or email us and we’ll get you scheduled.
             </p>
             <div className="mt-3 flex flex-wrap gap-2 text-sm">
               <a href={telHref} className="rounded-full bg-sky-600 px-3 py-1.5 text-white">Call</a>
@@ -199,14 +188,33 @@ export default function OahuPage() {
               <a href={mailHref} className="rounded-full border border-slate-300 px-3 py-1.5">Email</a>
             </div>
           </details>
+          {/* Pricing */}
+          <details className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <summary className="cursor-pointer list-none select-none font-medium flex items-center justify-between">
+              How much do lessons cost?
+              <span className="ml-3 text-slate-400 transition">▾</span>
+            </summary>
+
+            <ul className="mt-3 list-disc pl-5 text-sm text-slate-700 space-y-1">
+              <li><strong>Private Lessons:</strong> $35 per 30-minute session</li>
+              <li><strong>Semi-Private Lessons:</strong> $20 per student per 30-minute session (2 students)</li>
+              <li><strong>Group Lessons:</strong> $15 per student per 30-minute session (3+ students)</li>
+            </ul>
+
+            <p className="mt-3 text-xs text-slate-500">
+              *A $20 mobile service fee applies per visit.
+            </p>
+          </details>
+
         </div>
       </section>
-{/* Reviews */}
-<FeaturableReviews />
+
+      {/* Reviews */}
+      <FeaturableReviews />
       {/* Footer */}
       <footer className="border-t border-slate-200/70 bg-white/70">
         <div className="mx-auto max-w-6xl px-4 py-8 text-sm text-slate-600 flex flex-col md:flex-row items-center justify-between gap-3">
-          <p>© {new Date().getFullYear()} Sguild LLC — Oʻahu</p>
+          <p>© {new Date().getFullYear()} Sguild LLC  -  Oʻahu</p>
           <div className="flex items-center gap-5">
             <Link href="/oahu/contact" className="hover:text-slate-800">Contact</Link>
           </div>
