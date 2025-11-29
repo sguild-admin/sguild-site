@@ -14,7 +14,7 @@ import FeaturableReviews from '../../components/FeaturableReviews'
 // - Hero image: /public/assets/oceanSwim.jpg (safe to render in tests)
 // -----------------------------------------------------------------------------
 
-const PHONE = '+19722105375' // TODO: replace with your booking number
+const PHONE = '(808) 201-0147' // 
 const EMAIL = 'info@sguildswim.com' // TODO: replace with your email
 
 export default function OahuPage() {
@@ -86,16 +86,25 @@ export default function OahuPage() {
           {[
             {
               title: 'Private Lessons',
-              body: 'One‑on‑one home lessons with a Sguild instructor for maximum focus and progress. Our teaching method is structured for long‑lasting results.'
+              body: 'One-on-one home lessons with a Sguild instructor for maximum focus and progress. Our teaching method is structured for long-lasting results.'
             },
             {
-              title: 'Semi‑Private',
+              title: 'Semi-Private',
               body: 'Learn alongside a sibling or friend of similar level. Enroll additional students in the same lesson free of charge.'
             },
             {
-              title: 'Adult Lessons',
-              body: 'From first‑time swimmers to triathlon prep, we tailor sessions to your goals with clear, personalized guidance.'
+              title: 'Group Lessons',
+              body: 'Perfect for families, neighbors, or friends. Students build skills together in a fun, supportive environment—ideal for groups of three or more.'
             },
+            {
+              title: 'Adult Lessons',
+              body: 'From first-time swimmers to triathlon prep, we tailor sessions to your goals with clear, personalized guidance.'
+            },
+            {
+              title: 'Toddler Lessons',
+              body: 'Focused instruction that builds water safety, comfort, and essential survival skills—helping young swimmers learn to navigate the water with confidence.'
+            },
+
           ].map((item) => (
             <article key={item.title} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <h3 className="text-lg font-semibold">{item.title}</h3>
@@ -108,13 +117,16 @@ export default function OahuPage() {
       {/* Pricing & Details */}
       <section className="mx-auto max-w-6xl px-4 py-12">
         <div className="grid md:grid-cols-3 gap-6">
-          <div className="rounded-2xl bg-white p-6 ring-1 ring-slate-200 shadow-sm">
-            <h3 className="text-xl font-semibold">Pricing</h3>
-            <p className="mt-2 text-slate-700">
-              The total cost of a single lesson is <span className="font-semibold">$55</span> (travel included). <br />
-              <span className="font-medium">Additional lessons during the same visit are $40 each.</span>
-            </p>
-          </div>
+        <div className="rounded-2xl bg-white p-6 ring-1 ring-slate-200 shadow-sm">
+          <h3 className="text-xl font-semibold">Pricing</h3>
+          <p className="mt-2 text-slate-700">
+            <span className="font-semibold">Private Lesson:</span> $35 per 30-minute session <br />
+            <span className="font-semibold">Semi-Private (2 students):</span> $20 per student per 30-minute session <br />
+            <span className="font-semibold">Group Lesson (3+ students):</span> $15 per student per 30-minute session <br />
+            <br />
+            <span className="font-semibold">Mobile Service Fee:</span> $20 per visit
+          </p>
+        </div>
           <div className="rounded-2xl bg-white p-6 ring-1 ring-slate-200 shadow-sm">
             <h3 className="text-xl font-semibold">Lesson Length</h3>
             <p className="mt-2 text-slate-700">
@@ -124,7 +136,7 @@ export default function OahuPage() {
           <div className="rounded-2xl bg-white p-6 ring-1 ring-slate-200 shadow-sm">
             <h3 className="text-xl font-semibold">Ages & Levels</h3>
             <p className="mt-2 text-slate-700">
-              We teach ages 2 through adult—from water‑comfort beginners to stroke refinement and ocean safety.
+              We teach ages 18 months through adult — from water‑comfort for beginners to stroke refinement and ocean safety.
             </p>
           </div>
         </div>
@@ -194,7 +206,7 @@ export default function OahuPage() {
       {/* Footer */}
       <footer className="border-t border-slate-200/70 bg-white/70">
         <div className="mx-auto max-w-6xl px-4 py-8 text-sm text-slate-600 flex flex-col md:flex-row items-center justify-between gap-3">
-          <p>© {new Date().getFullYear()} Sguild Swim LLC — Oʻahu</p>
+          <p>© {new Date().getFullYear()} Sguild LLC — Oʻahu</p>
           <div className="flex items-center gap-5">
             <Link href="/oahu/contact" className="hover:text-slate-800">Contact</Link>
           </div>

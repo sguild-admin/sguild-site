@@ -9,7 +9,7 @@ import Link from 'next/link'
 // - Uses /assets/logo-graphic.png and /assets/contact.jpg
 // -----------------------------------------------------------------------------
 
-const PHONE = '+18087468825' // TODO: replace if needed
+const PHONE = '(808) 201-0147' // TODO: replace if needed
 const EMAIL = 'info@sguildswim.com' // TODO: replace if needed
 
 export default function OahuContactPage() {
@@ -139,7 +139,7 @@ export default function OahuContactPage() {
       {/* Footer */}
       <footer className="border-t border-slate-200/70 bg-white/70">
         <div className="mx-auto max-w-6xl px-4 py-8 text-sm text-slate-600 flex flex-col md:flex-row items-center justify-between gap-3">
-          <p>© {new Date().getFullYear()} Sguild Swim LLC — Oʻahu</p>
+          <p>© {new Date().getFullYear()} Sguild LLC — Oʻahu</p>
           <div className="flex items-center gap-5">
             <Link href="/oahu/contact" className="hover:text-slate-800">Contact</Link>
           </div>
