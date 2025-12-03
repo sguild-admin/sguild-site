@@ -11,6 +11,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <head>
+         <script async src="https://www.googletagmanager.com/gtag/js?id=AW-17126265247"></script>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', 'AW-17126265247');
+            `,
+          }}
+        />
         <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png" />
         <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png" />
         <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
@@ -20,6 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet" />
       </head>
+      
       <body className="bg-slate-50 text-slate-800">{children}</body>
     </html>
   );
