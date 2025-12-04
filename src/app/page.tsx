@@ -21,7 +21,7 @@ const FEATURABLE_ID = 'featurable-a6f4f535-5df6-4b9b-b6a4-6865a4acf5e1'
 const LOCATIONS: LocationItem[] = [
   {
     key: 'oahu',
-    name: 'O‘ahu',
+    name: 'O‘ahu, HI',
     href: '/oahu/',
     image: '/assets/oahu.jpg',
     imageAlt: 'O‘ahu swim lessons in Honolulu — private, year-round coaching',
