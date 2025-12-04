@@ -283,7 +283,7 @@ export default function OahuPage() {
       {/* About */}
       <section className="mx-auto max-w-6xl px-4 py-12">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-2xl font-bold">About Sguild Swim School</h2>
+          <h2 className="text-2xl font-bold">About Sguild Swim Instruction</h2>
           <p className="mt-2 text-slate-700">
             Sguild Swim is a mobile swim school dedicated to helping swimmers of all ages build confidence
             and strong technique. On Oʻahu, our experienced instructors bring <strong>at-home swim lessons</strong>{' '}
