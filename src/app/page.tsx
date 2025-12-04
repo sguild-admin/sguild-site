@@ -140,7 +140,7 @@ export default function LocationSelectorPage() {
         <div className="mx-auto max-w-6xl px-4 py-20 md:py-28 text-center">
           <h2 className="text-4xl md:text-6xl font-extrabold leading-tight">Select your location</h2>
           <p className="mt-3 text-lg text-slate-600">
-            We come to your pool—home, condo, HOA, or resort. Choose your area to see schedules and pricing.
+            We come to your pool - home, condo, HOA, or resort. Choose your area to see schedules and pricing.
           </p>
 
           <div className="mt-12 grid gap-6 md:grid-cols-2">
