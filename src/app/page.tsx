@@ -21,7 +21,7 @@ const FEATURABLE_ID = 'featurable-a6f4f535-5df6-4b9b-b6a4-6865a4acf5e1'
 const LOCATIONS: LocationItem[] = [
   {
     key: 'oahu',
-    name: 'O‘ahu',
+    name: 'O‘ahu, HI',
     href: '/oahu/',
     image: '/assets/oahu.jpg',
     imageAlt: 'O‘ahu swim lessons in Honolulu — private, year-round coaching',
@@ -31,7 +31,7 @@ const LOCATIONS: LocationItem[] = [
   },
   {
     key: 'dallas',
-    name: 'Dallas',
+    name: 'Dallas, TX',
     href: '/dallas/',
     image: '/assets/dallas.jpg',
     imageAlt: 'DFW summer swim lessons — residential and community pools',
@@ -53,8 +53,8 @@ function Header() {
           </span>
         </Link>
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium">
-          <Link href="/oahu/" className="hover:text-sky-600">O&apos;ahu, HI</Link>
-          <Link href="/dallas/" className="hover:text-sky-600">Dallas, TX</Link>
+          <Link href="/oahu/" className="hover:text-sky-600">O&apos;ahu</Link>
+          <Link href="/dallas/" className="hover:text-sky-600">Dallas</Link>
         </nav>
         <button
           type="button"
