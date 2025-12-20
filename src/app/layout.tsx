@@ -1,5 +1,6 @@
 import "./globals.css"
 import Script from "next/script"
+import MetaContactTracker from "./MetaContactTracker"
 
 export const metadata = {
   title: "Sguild Swim Instruction — Choose Your Location",
@@ -43,8 +44,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           `}
         </Script>
 
-        <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png" />
-        <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png" />
+        <link
+          rel="icon"
+          type="image/png"
+          sizes="32x32"
+          href="/assets/favicon-32.png"
+        />
+        <link
+          rel="icon"
+          type="image/png"
+          sizes="16x16"
+          href="/assets/favicon-16.png"
+        />
         <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
         <link rel="manifest" href="/assets/site.webmanifest" />
         <meta name="theme-color" content="#0ea5e9" />
@@ -57,6 +68,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
 
       <body className="bg-slate-50 text-slate-800">
+        {/* Tracks tel:, sms:, mailto: clicks as fbq('track','Contact') */}
+        <MetaContactTracker />
+
         {/* Meta Pixel noscript fallback */}
         <noscript>
           <img
