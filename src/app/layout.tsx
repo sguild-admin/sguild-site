@@ -1,6 +1,7 @@
 import "./globals.css"
 import Script from "next/script"
 import MetaContactTracker from "./MetaContactTracker"
+import GoogleContactTracker from "./GoogleContactTracker"
 
 export const metadata = {
   title: "Sguild Swim Instruction — Choose Your Location",
@@ -31,7 +32,29 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             `,
           }}
         />
-
+{/* Google Ads click-to-call conversion helper */}
+<Script
+  id="google-ads-gtag-report-conversion"
+  strategy="afterInteractive"
+  dangerouslySetInnerHTML={{
+    __html: `
+      function gtag_report_conversion(url) {
+        var callback = function () {
+          if (typeof(url) != 'undefined') {
+            window.location = url;
+          }
+        };
+        gtag('event', 'conversion', {
+          'send_to': 'AW-17126265247/cBsCCOGft9QbEJ-juOY_',
+          'value': 1.0,
+          'currency': 'USD',
+          'event_callback': callback
+        });
+        return false;
+      }
+    `,
+  }}
+/>
         {/* Meta Pixel */}
         <Script
           id="meta-pixel"
@@ -78,7 +101,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="bg-slate-50 text-slate-800">
         {/* Tracks tel:, sms:, mailto: clicks as fbq('track','Contact') */}
         <MetaContactTracker />
-
+          <GoogleContactTracker />
         {/* Meta Pixel noscript fallback */}
         <noscript>
           <img
