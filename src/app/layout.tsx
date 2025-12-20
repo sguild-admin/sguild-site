@@ -12,12 +12,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <head>
-        {/* Google Ads tag */}
-        <script
+        {/* Google tag (gtag.js) */}
+        <Script
+          id="google-tag-src"
           async
           src="https://www.googletagmanager.com/gtag/js?id=AW-17126265247"
-        ></script>
-        <script
+          strategy="afterInteractive"
+        />
+        <Script
+          id="google-tag-inline"
+          strategy="afterInteractive"
           dangerouslySetInnerHTML={{
             __html: `
               window.dataLayer = window.dataLayer || [];
@@ -29,20 +33,24 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
 
         {/* Meta Pixel */}
-<Script id="meta-pixel" strategy="afterInteractive">
-  {`
-    !function(f,b,e,v,n,t,s)
-    {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-    n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-    if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-    n.queue=[];t=b.createElement(e);t.async=!0;
-    t.src=v;s=b.getElementsByTagName(e)[0];
-    s.parentNode.insertBefore(t,s)}(window, document,'script',
-    'https://connect.facebook.net/en_US/fbevents.js');
-    fbq('init', '1913689873365458');
-    fbq('track', 'PageView');
-  `}
-</Script>
+        <Script
+          id="meta-pixel"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              !function(f,b,e,v,n,t,s)
+              {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+              n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+              if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+              n.queue=[];t=b.createElement(e);t.async=!0;
+              t.src=v;s=b.getElementsByTagName(e)[0];
+              s.parentNode.insertBefore(t,s)}(window, document,'script',
+              'https://connect.facebook.net/en_US/fbevents.js');
+              fbq('init', '1913689873365458');
+              fbq('track', 'PageView');
+            `,
+          }}
+        />
 
         <link
           rel="icon"
@@ -77,7 +85,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             height="1"
             width="1"
             style={{ display: "none" }}
-            src="https://www.facebook.com/tr?id=2797618630434955&ev=PageView&noscript=1"
+            src="https://www.facebook.com/tr?id=1913689873365458&ev=PageView&noscript=1"
             alt=""
           />
         </noscript>
