@@ -3,6 +3,8 @@ import React from 'react'
 import Link from 'next/link'
 import Head from 'next/head'
 import FeaturableReviews from '../../components/FeaturableReviews'
+import PageContainer from '../../components/PageContainer'
+import Hero from '../../components/Hero'
 
 const PHONE_DISPLAY = '(808) 201-0147'
 const PHONE_TEL = '+18082010147'
@@ -119,73 +121,18 @@ export default function OahuPage() {
 
       
 
-      {/* Hero */}
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 -z-10">
-          <div className="absolute inset-0 bg-gradient-to-t from-sky-100 to-transparent" />
-          <div className="absolute left-0 top-0 h-40 w-40 rounded-full bg-sky-300/30 blur-3xl" />
-          <div className="absolute right-0 bottom-0 h-40 w-40 rounded-full bg-cyan-300/20 blur-3xl" />
-        </div>
-
-        <div className="mx-auto max-w-6xl px-4 py-16 md:py-24 grid md:grid-cols-2 items-center gap-10">
-          <div>
-            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">
-              Oʻahu Swim Lessons
-            </h1>
-
-            <p className="mt-4 text-lg leading-relaxed text-slate-700">
-              At-home private and small-group swim instruction across Oʻahu. We come to you, ocean or pool.
-            </p>
-
-            <blockquote className="mt-4 rounded-xl bg-white/70 p-4 text-slate-700 ring-1 ring-slate-200 italic">
-              “Fitness is what happens when practicing proper technique”
-            </blockquote>
-
-            <div className="mt-8 flex flex-wrap gap-3">
-              <a
-                href={telHref}
-                className="inline-flex items-center rounded-2xl bg-sky-600 px-5 py-3 text-white shadow hover:bg-sky-700"
-              >
-                {PHONE_DISPLAY}
-              </a>
-              <a
-                href={smsHref}
-                className="inline-flex items-center rounded-2xl border border-slate-300 px-5 py-3 text-slate-800 hover:bg-slate-50"
-              >
-                Text Us
-              </a>
-              <a
-                href={mailHref}
-                className="inline-flex items-center rounded-2xl border border-slate-300 px-5 py-3 text-slate-800 hover:bg-slate-50"
-              >
-                Email
-              </a>
-            </div>
-
-            <p className="mt-3 text-sm text-slate-600">
-              Text or call now to book your lesson
-            </p>
-          </div>
-
-          <div className="relative">
-            <div
-              className="w-full overflow-hidden rounded-3xl shadow-2xl ring-1 ring-slate-200"
-              style={{ aspectRatio: '4 / 3' }}
-            >
-              <img
-                src="/assets/oceanSwim.jpg"
-                alt="Ocean swim lessons on Oʻahu with Sguild Swim Instruction"
-                className="h-full w-full object-cover"
-              />
-            </div>
-            <div className="absolute -bottom-4 -right-4 bg-white/80 backdrop-blur rounded-2xl px-4 py-3 shadow ring-1 ring-slate-200">
-              <p className="text-sm font-medium">
-                Mobile instructors • Home pools • Ocean safety
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
+      <Hero
+        title={"Oʻahu Swim Lessons"}
+        subtitle={"At-home private and small-group swim instruction across Oʻahu. We come to you, ocean or pool."}
+        ctas={[
+          { label: PHONE_DISPLAY, href: telHref, variant: 'primary' },
+          { label: 'Text Us', href: smsHref },
+          { label: 'Email', href: mailHref },
+        ]}
+        imageSrc={'/assets/oceanSwim.jpg'}
+        imageAlt={'Ocean swim lessons on Oʻahu with Sguild Swim Instruction'}
+        blockquote={"Fitness is what happens when practicing proper technique"}
+      />
 
 
 

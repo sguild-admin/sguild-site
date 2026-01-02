@@ -3,6 +3,8 @@ import Script from 'next/script'
 import React, { useEffect } from 'react'
 import Link from 'next/link'
 import FeaturableReviews from '../../components/FeaturableReviews'
+import PageContainer from '../../components/PageContainer'
+import Hero from '../../components/Hero'
 
 // -----------------------------------------------------------------------------
 // Dallas Page — Stabilized build (no arbitrary Tailwind classes)
@@ -25,42 +27,18 @@ export default function DallasPage() {
     <div className="min-h-screen bg-gradient-to-b from-sky-50 to-white text-slate-800">
       
 
-      {/* Hero */}
-      <section className="relative overflow-hidden">
-        {/* Background accents (simplified to avoid arbitrary classes) */}
-        <div className="absolute inset-0 -z-10">
-          <div className="absolute inset-0 bg-gradient-to-t from-sky-100 to-transparent" />
-          <div className="absolute left-0 top-0 h-40 w-40 rounded-full bg-sky-300/30 blur-3xl" />
-          <div className="absolute right-0 bottom-0 h-40 w-40 rounded-full bg-cyan-300/20 blur-3xl" />
-        </div>
-
-        <div className="mx-auto max-w-6xl px-4 py-16 md:py-24 grid md:grid-cols-2 items-center gap-10">
-          <div>
-            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">Dallas Swim Lessons</h1>
-            <p className="mt-4 text-lg leading-relaxed text-slate-700">
-              At‑home private and small‑group instruction across Dallas and Collin counties — we come to your backyard pool.
-            </p>
-            <blockquote className="mt-4 rounded-xl bg-white/70 p-4 text-slate-700 ring-1 ring-slate-200 italic">
-              “Fitness is what happens when practicing proper technique”
-            </blockquote>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <a href={telHref} className="inline-flex items-center rounded-2xl bg-sky-600 px-5 py-3 text-white shadow hover:bg-sky-700">Call Now</a>
-              <a href={smsHref} className="inline-flex items-center rounded-2xl border border-slate-300 px-5 py-3 text-slate-800 hover:bg-slate-50">Text Us</a>
-              <a href={mailHref} className="inline-flex items-center rounded-2xl border border-slate-300 px-5 py-3 text-slate-800 hover:bg-slate-50">Email</a>
-            </div>
-          </div>
-
-          <div className="relative">
-            <div className="w-full overflow-hidden rounded-3xl shadow-2xl ring-1 ring-slate-200" style={{ aspectRatio: '4 / 3' }}>
-              {/* Main hero image */}
-              <img src="/assets/dallasSwim.jpg" alt="Backyard swim lessons in Dallas" className="h-full w-full object-cover" />
-            </div>
-            <div className="absolute -bottom-4 -right-4 bg-white/80 backdrop-blur rounded-2xl px-4 py-3 shadow ring-1 ring-slate-200">
-              <p className="text-sm font-medium">Flexible scheduling • Home pools • Water safety</p>
-            </div>
-          </div>
-        </div>
-      </section>
+      <Hero
+        title={"Dallas Swim Lessons"}
+        subtitle={"At‑home private and small‑group instruction across Dallas and Collin counties — we come to your backyard pool."}
+        ctas={[
+          { label: '(972) 210-5375', href: telHref, variant: 'primary' },
+          { label: 'Text Us', href: smsHref },
+          { label: 'Email', href: mailHref },
+        ]}
+        imageSrc={'/assets/dallasSwim.jpg'}
+        imageAlt={'Backyard swim lessons in Dallas'}
+          blockquote={"Fitness is what happens when practicing proper technique"}
+        />
 
       {/* Offerings */}
       <section className="mx-auto max-w-6xl px-4 py-12 md:py-16">
