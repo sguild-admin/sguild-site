@@ -171,7 +171,7 @@ export default function OahuPage() {
       </section>
 
       {/* Coverage */}
-      <section className="mx-auto max-w-6xl px-4 py-12">
+      <section id="coverage" className="mx-auto max-w-6xl px-4 py-12">
         <div className="rounded-3xl bg-linear-to-r from-sky-100 to-cyan-50 p-6 ring-1 ring-slate-200">
           <h2 className="text-2xl font-bold">Where we teach</h2>
           <p className="mt-2 text-slate-700">
