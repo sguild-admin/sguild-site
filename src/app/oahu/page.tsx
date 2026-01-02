@@ -2,6 +2,7 @@
 import React from 'react'
 import Link from 'next/link'
 import Head from 'next/head'
+import SEO from '../../components/SEO'
 import FeaturableReviews from '../../components/FeaturableReviews'
 import PageContainer from '../../components/PageContainer'
 import Hero from '../../components/Hero'
@@ -90,33 +91,13 @@ export default function OahuPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-sky-50 to-white text-slate-800">
-      <Head>
-        <title>
-          Oʻahu Swim Lessons | Mobile Private Swim Lessons in Honolulu &amp; North Shore
-        </title>
-        <meta
-          name="description"
-          content="Mobile private and small-group swim lessons on Oʻahu. At-home and ocean swim lessons for kids and adults in Honolulu, Waikīkī, Kailua, Kāneʻohe, Ko Olina, and the North Shore."
-        />
-        <link rel="canonical" href="https://sguildswim.com/oahu" />
-        <meta property="og:title" content="Oʻahu Swim Lessons | Sguild Swim Instruction" />
-        <meta
-          property="og:description"
-          content="Certified mobile swim instructors offering private, semi-private, and group swim lessons across Oʻahu. We come to your home pool or the ocean."
-        />
-        <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://sguildswim.com/oahu" />
-        <meta property="og:image" content="https://sguildswim.com/assets/oceanSwim.jpg" />
-
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(businessStructuredData) }}
-        />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqStructuredData) }}
-        />
-      </Head>
+      <SEO
+        title={"Oʻahu Swim Lessons | Mobile Private Swim Lessons in Honolulu & North Shore"}
+        description={"Mobile private and small-group swim lessons on Oʻahu. At-home and ocean swim lessons for kids and adults in Honolulu, Waikīkī, Kailua, Kāneʻohe, Ko Olina, and the North Shore."}
+        url={'https://sguildswim.com/oahu'}
+        image={'https://sguildswim.com/assets/oceanSwim.jpg'}
+        ldJson={[businessStructuredData, faqStructuredData]}
+      />
 
       
 
