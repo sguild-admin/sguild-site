@@ -6,9 +6,21 @@ type Props = {
   className?: string
   sizes?: string
   priority?: boolean
+  width?: number
+  height?: number
+  fill?: boolean
 }
 
-export default function NextImage({ src, alt, className = '', sizes, priority = false }: Props) {
+export default function NextImage({
+  src,
+  alt,
+  className = '',
+  sizes,
+  priority = false,
+  width,
+  height,
+  fill = false,
+}: Props) {
   return (
     <Image
       src={src}
@@ -17,7 +29,7 @@ export default function NextImage({ src, alt, className = '', sizes, priority = 
       priority={priority}
       style={{ objectFit: 'cover' }}
       className={className}
-      fill
+      {...(fill ? { fill: true } : { width, height })}
     />
   )
 }

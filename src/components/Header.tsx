@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { NAV } from "../config/nav";
+import NextImage from "./NextImage";
 
 export default function Header() {
   const [open, setOpen] = useState(false);
@@ -9,7 +10,7 @@ export default function Header() {
     <header className="sticky top-0 z-50 bg-white/80 backdrop-blur border-b border-slate-200">
       <div className="mx-auto max-w-6xl px-4 flex items-center justify-between h-16">
         <Link href="/" className="flex items-center gap-3" aria-label="Sguild Swim Instruction home">
-          <img src="/assets/logo-graphic.png" alt="Sguild Swim Instruction logo" className="h-9 w-auto" />
+          <NextImage src="/assets/logo-graphic.png" alt="Sguild Swim Instruction logo" width={36} height={36} className="h-9 w-auto" />
           <span className="text-base font-semibold tracking-tight text-slate-900">
             Sguild <span className="text-slate-500">Swim Instruction</span>
           </span>

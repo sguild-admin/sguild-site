@@ -1,10 +1,6 @@
 import "./globals.css"
-import MetaContactTracker from "./MetaContactTracker"
-import GoogleContactTracker from "./GoogleContactTracker"
-import Analytics from "../components/Analytics"
 import Header from "../components/Header"
 import Footer from "../components/Footer"
-import ContactTracker from "../components/ContactTracker"
 
 export const metadata = {
   title: "Sguild Swim Instruction — Choose Your Location",
@@ -16,8 +12,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <head>
-        <Analytics />
-
         <link
           rel="icon"
           type="image/png"
@@ -43,9 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
       <body className="bg-slate-50 text-slate-800">
         <a href="#content" className="sr-only focus:not-sr-only z-50 inline-block m-4 rounded bg-white px-3 py-2 text-sm font-medium text-sky-700">Skip to content</a>
-        {/* Tracks tel:, sms:, mailto: clicks as fbq('track','Contact') */}
-        <ContactTracker />
-        {/* Meta Pixel noscript fallback */}
+       
         <noscript>
           <img
             height="1"
