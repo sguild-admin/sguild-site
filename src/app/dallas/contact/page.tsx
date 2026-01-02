@@ -1,4 +1,3 @@
- 'use client'
 import Button from '../../../components/Button'
 import NextImage from '../../../components/NextImage'
 import PageContainer from '../../../components/PageContainer'
