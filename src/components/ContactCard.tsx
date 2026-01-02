@@ -1,11 +1,11 @@
-import React from 'react'
+import type { ReactNode } from 'react'
 import Button from './Button'
 
 type Props = {
-  title: React.ReactNode
-  description: React.ReactNode
+  title: ReactNode
+  description: ReactNode
   href?: string
-  btnLabel?: React.ReactNode
+  btnLabel?: ReactNode
   variant?: 'primary' | 'secondary'
   className?: string
 }

@@ -1,4 +1,3 @@
-import React from 'react'
 import Head from 'next/head'
 
 export default function SEO({ title, description, url, image, ldJson }: { title?: string; description?: string; url?: string; image?: string; ldJson?: any }) {

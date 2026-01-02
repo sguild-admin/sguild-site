@@ -1,4 +1,3 @@
-import React from 'react'
 import Button from '../../../components/Button'
 import Image from '../../../components/Image'
 import PageContainer from '../../../components/PageContainer'
