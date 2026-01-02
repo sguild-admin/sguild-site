@@ -2,6 +2,8 @@ import React from 'react'
 import Button from '../../../components/Button'
 import Image from '../../../components/Image'
 import PageContainer from '../../../components/PageContainer'
+import FAQItem from '../../../components/FAQItem'
+import ContactCard from '../../../components/ContactCard'
 
 // -----------------------------------------------------------------------------
 // Oʻahu Contact Page — Stabilized build (no arbitrary Tailwind classes)
@@ -66,21 +68,29 @@ export default function OahuContactPage() {
       <section className="mx-auto max-w-6xl px-4 py-12 md:py-16">
         <h2 className="text-2xl md:text-3xl font-bold">Ways to reach us</h2>
         <div className="mt-6 grid gap-6 md:grid-cols-3">
-          <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h3 className="text-lg font-semibold">Call</h3>
-            <p className="mt-2 text-sm text-slate-700">Fastest for quick questions and immediate booking.</p>
-            <Button href={telHref} className="mt-4" variant="primary">{PHONE}</Button>
-          </article>
-          <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h3 className="text-lg font-semibold">Text</h3>
-            <p className="mt-2 text-sm text-slate-700">Great for sharing names, ages, and scheduling preferences.</p>
-            <Button href={smsHref} className="mt-4" variant="secondary">Text us</Button>
-          </article>
-          <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h3 className="text-lg font-semibold">Email</h3>
-            <p className="mt-2 text-sm text-slate-700">We typically reply the same day.</p>
-            <Button href={mailHref} className="mt-4" variant="secondary">{EMAIL}</Button>
-          </article>
+          <ContactCard
+            title="Call"
+            description="Fastest for quick questions and immediate booking."
+            href={telHref}
+            btnLabel={PHONE}
+            variant="primary"
+          />
+
+          <ContactCard
+            title="Text"
+            description="Great for sharing names, ages, and scheduling preferences."
+            href={smsHref}
+            btnLabel="Text us"
+            variant="secondary"
+          />
+
+          <ContactCard
+            title="Email"
+            description="We typically reply the same day."
+            href={mailHref}
+            btnLabel={EMAIL}
+            variant="secondary"
+          />
         </div>
       </section>
 
@@ -96,27 +106,17 @@ export default function OahuContactPage() {
       <section className="mx-auto max-w-6xl px-4 pb-20">
         <h2 className="text-2xl md:text-3xl font-bold">FAQs</h2>
         <div className="mt-4 space-y-3">
-          <details className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <summary className="cursor-pointer list-none select-none font-medium flex items-center justify-between">
-              How do I book?
-              <span className="ml-3 text-slate-400 transition">▾</span>
-            </summary>
-            <p className="mt-3 text-sm text-slate-700">Call or text with your ZIP, swimmer age(s), goals, and preferred days. We’ll confirm availability and get you scheduled.</p>
-          </details>
-          <details className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <summary className="cursor-pointer list-none select-none font-medium flex items-center justify-between">
-              Where do you teach?
-              <span className="ml-3 text-slate-400 transition">▾</span>
-            </summary>
-            <p className="mt-3 text-sm text-slate-700">We travel to your home or condo pool across Oʻahu. Ocean sessions can be arranged for confident swimmers and specific goals.</p>
-          </details>
-          <details className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <summary className="cursor-pointer list-none select-none font-medium flex items-center justify-between">
-              Do you offer group lessons?
-              <span className="ml-3 text-slate-400 transition">▾</span>
-            </summary>
-            <p className="mt-3 text-sm text-slate-700">Yes — additional students can join the same 30‑minute lesson at no extra charge.</p>
-          </details>
+          <FAQItem question={"How do I book?"}>
+            Call or text with your ZIP, swimmer age(s), goals, and preferred days. We’ll confirm availability and get you scheduled.
+          </FAQItem>
+
+          <FAQItem question={"Where do you teach?"}>
+            We travel to your home or condo pool across Oʻahu. Ocean sessions can be arranged for confident swimmers and specific goals.
+          </FAQItem>
+
+          <FAQItem question={"Do you offer group lessons?"}>
+            Yes — additional students can join the same 30‑minute lesson at no extra charge.
+          </FAQItem>
         </div>
       </section>
     </PageContainer>

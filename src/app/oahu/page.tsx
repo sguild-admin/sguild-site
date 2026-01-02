@@ -6,6 +6,7 @@ import SEO from '../../components/SEO'
 import FeaturableReviews from '../../components/FeaturableReviews'
 import PageContainer from '../../components/PageContainer'
 import Hero from '../../components/Hero'
+import FAQItem from '../../components/FAQItem'
 import { CONTACTS } from '../../config/contact'
 
 const { phoneDisplay: PHONE_DISPLAY, phoneTel: PHONE_TEL, email: EMAIL } = CONTACTS.oahu
@@ -201,87 +202,35 @@ export default function OahuPage() {
       <section className="mx-auto max-w-6xl px-4 pb-20">
         <h2 className="text-2xl md:text-3xl font-bold">Swim Lesson FAQs</h2>
         <div className="mt-4 space-y-3">
-          {/* Location */}
-          <details className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <summary className="cursor-pointer list-none select-none font-medium flex items-center justify-between">
-              Where are you located?
-              <span className="ml-3 text-slate-400 transition">▾</span>
-            </summary>
-            <p className="mt-3 text-sm text-slate-700">
-              We are an at-home swim school on Oʻahu. Our instructors come to your home pool, condo pool, or,
-              for confident swimmers, an arranged ocean location around the island.
-            </p>
-          </details>
+          <FAQItem question={"Where are you located?"}>
+            We are an at-home swim school on Oʻahu. Our instructors come to your home pool, condo pool, or, for confident swimmers, an arranged ocean location around the island.
+          </FAQItem>
 
-          {/* Ages */}
-          <details className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <summary className="cursor-pointer list-none select-none font-medium flex items-center justify-between">
-              What ages do you teach?
-              <span className="ml-3 text-slate-400 transition">▾</span>
-            </summary>
-            <p className="mt-3 text-sm text-slate-700">
-              We offer Oʻahu swim lessons for ages <span className="font-medium">2 through adult</span>, from
-              water-shy beginners to advanced swimmers.
-            </p>
-          </details>
+          <FAQItem question={"What ages do you teach?"}>
+            We offer Oʻahu swim lessons for ages <span className="font-medium">2 through adult</span>, from water-shy beginners to advanced swimmers.
+          </FAQItem>
 
-          {/* Lesson Length */}
-          <details className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <summary className="cursor-pointer list-none select-none font-medium flex items-center justify-between">
-              How long is a lesson?
-              <span className="ml-3 text-slate-400 transition">▾</span>
-            </summary>
-            <p className="mt-3 text-sm text-slate-700">
-              Each session is <span className="font-medium">30 minutes</span>. Lessons are focused and
-              efficient so swimmers stay engaged while building real skills and confidence.
-            </p>
-          </details>
+          <FAQItem question={"How long is a lesson?"}>
+            Each session is <span className="font-medium">30 minutes</span>. Lessons are focused and efficient so swimmers stay engaged while building real skills and confidence.
+          </FAQItem>
 
-          {/* Booking */}
-          <details className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <summary className="cursor-pointer list-none select-none font-medium flex items-center justify-between">
-              How do I book?
-              <span className="ml-3 text-slate-400 transition">▾</span>
-            </summary>
-            <p className="mt-3 text-sm text-slate-700">
-              Call, text, or email us and we&apos;ll help you schedule your Oʻahu swim lessons.
-            </p>
+          <FAQItem question={"How do I book?"}>
+            <p className="mt-0 text-sm text-slate-700">Call, text, or email us and we&apos;ll help you schedule your Oʻahu swim lessons.</p>
             <div className="mt-3 flex flex-wrap gap-2 text-sm">
-              <a href={telHref} className="rounded-full bg-sky-600 px-3 py-1.5 text-white">
-                {PHONE_DISPLAY}
-              </a>
-              <a href={smsHref} className="rounded-full border border-slate-300 px-3 py-1.5">
-                Text
-              </a>
-              <a href={mailHref} className="rounded-full border border-slate-300 px-3 py-1.5">
-                Email
-              </a>
+              <a href={telHref} className="rounded-full bg-sky-600 px-3 py-1.5 text-white">{PHONE_DISPLAY}</a>
+              <a href={smsHref} className="rounded-full border border-slate-300 px-3 py-1.5">Text</a>
+              <a href={mailHref} className="rounded-full border border-slate-300 px-3 py-1.5">Email</a>
             </div>
-          </details>
+          </FAQItem>
 
-          {/* Pricing */}
-          <details className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <summary className="cursor-pointer list-none select-none font-medium flex items-center justify-between">
-              How much do lessons cost?
-              <span className="ml-3 text-slate-400 transition">▾</span>
-            </summary>
-
+          <FAQItem question={"How much do lessons cost?"}>
             <ul className="mt-3 list-disc pl-5 text-sm text-slate-700 space-y-1">
-              <li>
-                <strong>Private Lessons:</strong> $35 per 30-minute session
-              </li>
-              <li>
-                <strong>Semi-Private Lessons:</strong> $20 per student per 30-minute session (2 students)
-              </li>
-              <li>
-                <strong>Group Lessons:</strong> $15 per student per 30-minute session (3+ students)
-              </li>
+              <li><strong>Private Lessons:</strong> $35 per 30-minute session</li>
+              <li><strong>Semi-Private Lessons:</strong> $20 per student per 30-minute session (2 students)</li>
+              <li><strong>Group Lessons:</strong> $15 per student per 30-minute session (3+ students)</li>
             </ul>
-
-            <p className="mt-3 text-xs text-slate-500">
-              *A $20 mobile service fee applies per visit.
-            </p>
-          </details>
+            <p className="mt-3 text-xs text-slate-500">*A $20 mobile service fee applies per visit.</p>
+          </FAQItem>
         </div>
       </section>
 

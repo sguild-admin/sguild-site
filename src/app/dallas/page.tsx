@@ -5,6 +5,7 @@ import Link from 'next/link'
 import FeaturableReviews from '../../components/FeaturableReviews'
 import PageContainer from '../../components/PageContainer'
 import Hero from '../../components/Hero'
+import FAQItem from '../../components/FAQItem'
 import { CONTACTS } from '../../config/contact'
 
 // -----------------------------------------------------------------------------
@@ -116,38 +117,22 @@ export default function DallasPage() {
       <section className="mx-auto max-w-6xl px-4 pb-20">
         <h2 className="text-2xl md:text-3xl font-bold">FAQs</h2>
         <div className="mt-4 space-y-3">
-          <details className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <summary className="cursor-pointer list-none select-none font-medium flex items-center justify-between">
-              Where are you located?
-              <span className="ml-3 text-slate-400 transition">▾</span>
-            </summary>
-            <p className="mt-3 text-sm text-slate-700">
-              We are an at‑home swim school. We come to you across Dallas and Collin counties — home pools or condo pools.
-            </p>
-          </details>
-          <details className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <summary className="cursor-pointer list-none select-none font-medium flex items-center justify-between">
-              What ages do you teach?
-              <span className="ml-3 text-slate-400 transition">▾</span>
-            </summary>
-            <p className="mt-3 text-sm text-slate-700">
-              We offer lessons for ages 2 to adult.
-            </p>
-          </details>
-          <details className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <summary className="cursor-pointer list-none select-none font-medium flex items-center justify-between">
-              How do I book?
-              <span className="ml-3 text-slate-400 transition">▾</span>
-            </summary>
-            <p className="mt-3 text-sm text-slate-700">
-              Simple — call, text, or email us and we’ll set it up.
-            </p>
+          <FAQItem question={"Where are you located?"}>
+            We are an at‑home swim school. We come to you across Dallas and Collin counties — home pools or condo pools.
+          </FAQItem>
+
+          <FAQItem question={"What ages do you teach?"}>
+            We offer lessons for ages 2 to adult.
+          </FAQItem>
+
+          <FAQItem question={"How do I book?"}>
+            <p className="mt-0 text-sm text-slate-700">Simple — call, text, or email us and we’ll set it up.</p>
             <div className="mt-3 flex flex-wrap gap-2 text-sm">
               <a href={telHref} className="rounded-full bg-sky-600 px-3 py-1.5 text-white">Call</a>
               <a href={smsHref} className="rounded-full border border-slate-300 px-3 py-1.5">Text</a>
               <a href={mailHref} className="rounded-full border border-slate-300 px-3 py-1.5">Email</a>
             </div>
-          </details>
+          </FAQItem>
         </div>
       </section>
 {/* Reviews */}
