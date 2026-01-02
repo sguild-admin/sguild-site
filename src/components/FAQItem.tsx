@@ -7,7 +7,7 @@ export default function FAQItem({ question, children }: { question: ReactNode; c
         {question}
         <span className="ml-3 text-slate-400 transition">▾</span>
       </summary>
-      <p className="mt-3 text-sm text-slate-700">{children}</p>
+      <div className="mt-3 text-sm text-slate-700">{children}</div>
     </details>
   )
 }

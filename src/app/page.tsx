@@ -46,8 +46,8 @@ const LOCATIONS: LocationItem[] = [
 function LocationCard({ item }: { item: LocationItem }) {
   return (
     <Link href={item.href} className="group block rounded-2xl border border-slate-200 overflow-hidden hover:shadow-sm transition">
-      <figure className="aspect-[4/3] w-full overflow-hidden relative">
-        <NextImage src={item.image} alt={item.imageAlt} className="object-cover transition-transform duration-300 group-hover:scale-105" sizes="(max-width: 768px) 100vw, 50vw" />
+        <figure className="aspect-[4/3] w-full overflow-hidden relative">
+        <NextImage src={item.image} alt={item.imageAlt} fill className="object-cover transition-transform duration-300 group-hover:scale-105" sizes="(max-width: 768px) 100vw, 50vw" />
       </figure>
       <div className="p-6">
         <h2 className="text-2xl font-bold">{item.name}</h2>
