@@ -3,6 +3,7 @@ import Script from "next/script"
 import MetaContactTracker from "./MetaContactTracker"
 import GoogleContactTracker from "./GoogleContactTracker"
 import Header from "../components/Header"
+import Footer from "../components/Footer"
 
 export const metadata = {
   title: "Sguild Swim Instruction — Choose Your Location",
@@ -117,6 +118,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Header />
 
         {children}
+
+        <Footer />
       </body>
     </html>
   )

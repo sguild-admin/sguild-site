@@ -137,14 +137,7 @@ export default function OahuContactPage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200/70 bg-white/70">
-        <div className="mx-auto max-w-6xl px-4 py-8 text-sm text-slate-600 flex flex-col md:flex-row items-center justify-between gap-3">
-          <p>© {new Date().getFullYear()} Sguild LLC — Oʻahu</p>
-          <div className="flex items-center gap-5">
-            <Link href="/oahu/contact" className="hover:text-slate-800">Contact</Link>
-          </div>
-        </div>
-      </footer>
+      
     </div>
   )
 }
