@@ -5,10 +5,9 @@ import Head from 'next/head'
 import FeaturableReviews from '../../components/FeaturableReviews'
 import PageContainer from '../../components/PageContainer'
 import Hero from '../../components/Hero'
+import { CONTACTS } from '../../config/contact'
 
-const PHONE_DISPLAY = '(808) 201-0147'
-const PHONE_TEL = '+18082010147'
-const EMAIL = 'info@sguildswim.com'
+const { phoneDisplay: PHONE_DISPLAY, phoneTel: PHONE_TEL, email: EMAIL } = CONTACTS.oahu
 
 export default function OahuPage() {
   const telHref = `tel:${PHONE_TEL}`

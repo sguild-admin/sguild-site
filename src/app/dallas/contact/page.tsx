@@ -1,42 +1,21 @@
 'use client'
 import React from 'react'
-import Link from 'next/link'
+import Button from '../../../components/Button'
+import Image from '../../../components/Image'
+import PageContainer from '../../../components/PageContainer'
+import { CONTACTS } from '../../../config/contact'
+
+const { phoneDisplay: PHONE, phoneTel: PHONE_TEL, email: EMAIL } = CONTACTS.dallas
 
 // -----------------------------------------------------------------------------
 // Dallas Contact Page — Stabilized build (no arbitrary Tailwind classes)
-// - Matches the Oʻahu/Dallas page structure & styles
-// - Booking via Call / Text / Email (no JS UA detection)
-// - Uses /assets/logo-graphic.png
-// -----------------------------------------------------------------------------
-
-const PHONE = '+19722105375' // TODO: replace if needed
-const EMAIL = 'info@sguildswim.com' // TODO: replace if needed
-
 export default function DallasContactPage() {
-  const telHref = `tel:${PHONE}`
-  const smsHref = `sms:${PHONE}`
+  const telHref = `tel:${PHONE_TEL}`
+  const smsHref = `sms:${PHONE_TEL}`
   const mailHref = `mailto:${EMAIL}`
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-sky-50 to-white text-slate-800">
-      {/* Header */}
-      <header className="sticky top-0 z-30 backdrop-blur bg-white/70 border-b border-slate-200/50">
-        <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
-          {/* Logo (your exact snippet) */}
-          <Link href="/" className="flex items-center gap-3" aria-label="Sguild Swim Instruction home">
-            <img src="/assets/logo-graphic.png" alt="Sguild Swim Instruction logo" className="h-9 w-auto" />
-            <span className="text-base font-semibold tracking-tight text-slate-900">
-              Sguild <span className="text-slate-500">Swim Instruction</span>
-            </span>
-          </Link>
-
-          <nav className="hidden md:flex items-center gap-6 text-sm">
-            <Link href="/" className="hover:text-sky-700">Locations</Link>
-            <Link href="/dallas/contact" className="hover:text-sky-700">Contact</Link>
-          </nav>
-        </div>
-      </header>
-
+    <PageContainer>
       {/* Hero */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 -z-10">
@@ -52,9 +31,9 @@ export default function DallasContactPage() {
               Ready to book at‑home swim lessons in Dallas or Collin County? Reach out and we’ll get you scheduled.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <a href={telHref} className="inline-flex items-center rounded-2xl bg-sky-600 px-5 py-3 text-white shadow hover:bg-sky-700">Call Now</a>
-              <a href={smsHref} className="inline-flex items-center rounded-2xl border border-slate-300 px-5 py-3 text-slate-800 hover:bg-slate-50">Text Us</a>
-              <a href={mailHref} className="inline-flex items-center rounded-2xl border border-slate-300 px-5 py-3 text-slate-800 hover:bg-slate-50">Email</a>
+              <Button href={telHref} variant="primary">Call Now</Button>
+              <Button href={smsHref} variant="secondary">Text Us</Button>
+              <Button href={mailHref} variant="secondary">Email</Button>
             </div>
             <div className="mt-6 rounded-2xl bg-white/80 p-4 ring-1 ring-slate-200">
               <h2 className="text-base font-semibold text-slate-900">Helpful details to include</h2>
@@ -69,7 +48,7 @@ export default function DallasContactPage() {
 
           <div className="relative">
             <div className="w-full overflow-hidden rounded-3xl shadow-2xl ring-1 ring-slate-200" style={{ aspectRatio: '4 / 3' }}>
-              <img src="/assets/contact.JPG" alt="Dallas backyard swim lesson" className="h-full w-full object-cover" />
+              <Image src="/assets/contact.JPG" alt="Dallas backyard swim lesson" className="h-full w-full object-cover" />
             </div>
             <div className="absolute -bottom-4 -right-4 bg-white/80 backdrop-blur rounded-2xl px-4 py-3 shadow ring-1 ring-slate-200">
               <p className="text-sm font-medium">Flexible scheduling • Home pools • Water safety</p>
@@ -85,17 +64,17 @@ export default function DallasContactPage() {
           <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h3 className="text-lg font-semibold">Call</h3>
             <p className="mt-2 text-sm text-slate-700">Fastest for quick questions and immediate booking.</p>
-            <a href={telHref} className="mt-4 inline-block rounded-full bg-sky-600 px-4 py-2 text-white">{PHONE}</a>
+            <Button href={telHref} className="mt-4" variant="primary">{PHONE}</Button>
           </article>
           <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h3 className="text-lg font-semibold">Text</h3>
             <p className="mt-2 text-sm text-slate-700">Great for sharing names, ages, and scheduling preferences.</p>
-            <a href={smsHref} className="mt-4 inline-block rounded-full border border-slate-300 px-4 py-2">Text us</a>
+            <Button href={smsHref} className="mt-4" variant="secondary">Text us</Button>
           </article>
           <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h3 className="text-lg font-semibold">Email</h3>
             <p className="mt-2 text-sm text-slate-700">We typically reply the same day.</p>
-            <a href={mailHref} className="mt-4 inline-block rounded-full border border-slate-300 px-4 py-2">{EMAIL}</a>
+            <Button href={mailHref} className="mt-4" variant="secondary">{EMAIL}</Button>
           </article>
         </div>
       </section>
@@ -135,8 +114,8 @@ export default function DallasContactPage() {
           </details>
         </div>
       </section>
-
       
-    </div>
+    </PageContainer>
   )
 }
+ 

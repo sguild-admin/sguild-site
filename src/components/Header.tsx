@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import Link from "next/link";
+import { NAV } from "../config/nav";
 
 export default function Header() {
   const [open, setOpen] = useState(false);
@@ -14,8 +15,11 @@ export default function Header() {
           </span>
         </Link>
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium">
-          <Link href="/oahu/" className="hover:text-sky-600">O&apos;ahu</Link>
-          <Link href="/dallas/" className="hover:text-sky-600">Dallas</Link>
+          {NAV.filter((n) => n.group === "locations").map((n) => (
+            <Link key={n.href} href={n.href} className="hover:text-sky-600">
+              {n.label}
+            </Link>
+          ))}
         </nav>
         <button
           type="button"

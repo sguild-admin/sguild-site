@@ -1,5 +1,6 @@
 import React from "react";
 import Link from "next/link";
+import Button from "./Button";
 
 type CTA = { label: string; href: string; variant?: "primary" | "secondary" };
 
@@ -40,11 +41,9 @@ export default function Hero({
           {ctas.length > 0 && (
             <div className="mt-6 flex flex-wrap gap-3">
               {ctas.map((c) => (
-                c.variant === "primary" ? (
-                  <a key={c.href} href={c.href} className="inline-flex items-center rounded-2xl bg-sky-600 px-5 py-3 text-white shadow hover:bg-sky-700">{c.label}</a>
-                ) : (
-                  <a key={c.href} href={c.href} className="inline-flex items-center rounded-2xl border border-slate-300 px-5 py-3 text-slate-800 hover:bg-slate-50">{c.label}</a>
-                )
+                <Button key={c.href + c.label} href={c.href} variant={c.variant}>
+                  {c.label}
+                </Button>
               ))}
             </div>
           )}

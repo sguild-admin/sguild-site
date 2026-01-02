@@ -5,6 +5,7 @@ import Link from 'next/link'
 import FeaturableReviews from '../../components/FeaturableReviews'
 import PageContainer from '../../components/PageContainer'
 import Hero from '../../components/Hero'
+import { CONTACTS } from '../../config/contact'
 
 // -----------------------------------------------------------------------------
 // Dallas Page — Stabilized build (no arbitrary Tailwind classes)
@@ -15,12 +16,11 @@ import Hero from '../../components/Hero'
 // - Hero image: /public/assets/dallasSwim.png
 // -----------------------------------------------------------------------------
 
-const PHONE = '+19722105375' // TODO: replace with your booking number
-const EMAIL = 'info@sguildswim.com' // TODO: replace with your email
+const { phoneDisplay: PHONE, phoneTel: PHONE_TEL, email: EMAIL } = CONTACTS.dallas
 
 export default function DallasPage() {
-  const telHref = `tel:${PHONE}`
-  const smsHref = `sms:${PHONE}`
+  const telHref = `tel:${PHONE_TEL}`
+  const smsHref = `sms:${PHONE_TEL}`
   const mailHref = `mailto:${EMAIL}`
 
   return (
