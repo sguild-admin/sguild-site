@@ -1,4 +1,4 @@
-'use client'
+
 import React from 'react'
 import Link from 'next/link'
 import Head from 'next/head'
@@ -117,30 +117,7 @@ export default function OahuPage() {
         />
       </Head>
 
-      {/* Header */}
-      <header className="sticky top-0 z-30 backdrop-blur bg-white/70 border-b border-slate-200/50">
-        <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3" aria-label="Sguild Swim Instruction home">
-            <img
-              src="/assets/logo-graphic.png"
-              alt="Sguild Swim Instruction logo"
-              className="h-9 w-auto"
-            />
-            <span className="text-base font-semibold tracking-tight text-slate-900">
-              Sguild <span className="text-slate-500">Swim Instruction</span>
-            </span>
-          </Link>
-
-          <nav className="hidden md:flex items-center gap-6 text-sm">
-            <Link href="/" className="hover:text-sky-700">
-              Locations
-            </Link>
-            <Link href="/oahu/contact" className="hover:text-sky-700">
-              Contact
-            </Link>
-          </nav>
-        </div>
-      </header>
+      
 
       {/* Hero */}
       <section className="relative overflow-hidden">
