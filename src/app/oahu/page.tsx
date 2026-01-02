@@ -90,7 +90,7 @@ export default function OahuPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-sky-50 to-white text-slate-800">
+    <div className="min-h-screen bg-linear-to-b from-sky-50 to-white text-slate-800">
       <SEO
         title={"Oʻahu Swim Lessons | Mobile Private Swim Lessons in Honolulu & North Shore"}
         description={"Mobile private and small-group swim lessons on Oʻahu. At-home and ocean swim lessons for kids and adults in Honolulu, Waikīkī, Kailua, Kāneʻohe, Ko Olina, and the North Shore."}
@@ -172,7 +172,7 @@ export default function OahuPage() {
 
       {/* Coverage */}
       <section className="mx-auto max-w-6xl px-4 py-12">
-        <div className="rounded-3xl bg-gradient-to-r from-sky-100 to-cyan-50 p-6 ring-1 ring-slate-200">
+        <div className="rounded-3xl bg-linear-to-r from-sky-100 to-cyan-50 p-6 ring-1 ring-slate-200">
           <h2 className="text-2xl font-bold">Where we teach</h2>
           <p className="mt-2 text-slate-700">
             We offer mobile swim lessons across:
@@ -198,7 +198,7 @@ export default function OahuPage() {
       </section>
 
       {/* FAQs */}
-      <section className="mx-auto max-w-6xl px-4 pb-20">
+      <section id="faqs" className="mx-auto max-w-6xl px-4 pb-20">
         <h2 className="text-2xl md:text-3xl font-bold">Swim Lesson FAQs</h2>
         <div className="mt-4 space-y-3">
           <FAQItem question={"Where are you located?"}>
@@ -222,19 +222,23 @@ export default function OahuPage() {
             </div>
           </FAQItem>
 
-          <FAQItem question={"How much do lessons cost?"}>
+          <div id="rates">
+            <FAQItem question={"How much do lessons cost?"}>
             <ul className="mt-3 list-disc pl-5 text-sm text-slate-700 space-y-1">
               <li><strong>Private Lessons:</strong> $35 per 30-minute session</li>
               <li><strong>Semi-Private Lessons:</strong> $20 per student per 30-minute session (2 students)</li>
               <li><strong>Group Lessons:</strong> $15 per student per 30-minute session (3+ students)</li>
             </ul>
             <p className="mt-3 text-xs text-slate-500">*A $20 mobile service fee applies per visit.</p>
-          </FAQItem>
+            </FAQItem>
+          </div>
         </div>
       </section>
 
       {/* Reviews */}
-      <FeaturableReviews />
+      <div id="reviews">
+        <FeaturableReviews />
+      </div>
 
       
     </div>
