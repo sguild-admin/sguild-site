@@ -1,5 +1,5 @@
 import Button from '../../../components/Button'
-import Image from '../../../components/Image'
+import NextImage from '../../../components/NextImage'
 import PageContainer from '../../../components/PageContainer'
 import FAQItem from '../../../components/FAQItem'
 import ContactCard from '../../../components/ContactCard'
@@ -53,8 +53,8 @@ export default function OahuContactPage() {
           </div>
 
           <div className="relative">
-            <div className="w-full overflow-hidden rounded-3xl shadow-2xl ring-1 ring-slate-200" style={{ aspectRatio: '4 / 3' }}>
-              <Image src="/assets/contact.JPG" alt="Ocean swim lessons on Oʻahu" className="h-full w-full object-cover" />
+            <div className="w-full overflow-hidden rounded-3xl shadow-2xl ring-1 ring-slate-200 relative" style={{ aspectRatio: '4 / 3' }}>
+              <NextImage src="/assets/contact.JPG" alt="Ocean swim lessons on Oʻahu" className="object-cover" sizes="(max-width: 768px) 100vw, 50vw" />
             </div>
             <div className="absolute -bottom-4 -right-4 bg-white/80 backdrop-blur rounded-2xl px-4 py-3 shadow ring-1 ring-slate-200">
               <p className="text-sm font-medium">Flexible scheduling • Home pools • Ocean safety</p>
