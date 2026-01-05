@@ -5,9 +5,8 @@ import SEO from '../../components/SEO'
 import FeaturableReviews from '../../components/FeaturableReviews'
 import PageContainer from '../../components/PageContainer'
 import Hero from '../../components/Hero'
-import FAQItem from '../../components/FAQItem'
-import Offerings from '../../components/Offerings'
 import FAQs from '../../components/FAQs'
+import Offerings from '../../components/Offerings'
 import { CONTACTS } from '../../config/contact'
 
 const { phoneDisplay: PHONE_DISPLAY, phoneTel: PHONE_TEL, email: EMAIL } = CONTACTS.oahu
@@ -43,6 +42,8 @@ export default function OahuPage() {
       'North Shore',
     ],
   }
+
+  
 
   return (
     <div className="min-h-screen bg-linear-to-b from-sky-50 to-white text-slate-800">
@@ -105,61 +106,12 @@ export default function OahuPage() {
         </div>
       </section>
 
-      {/* FAQs */}
       <FAQs
+        city="Oʻahu"
+        phoneDisplay={PHONE_DISPLAY}
         telHref={telHref}
         smsHref={smsHref}
         mailHref={mailHref}
-        phoneDisplay={PHONE_DISPLAY}
-        cityName="Oʻahu"
-        includeRates={true}
-        rateContent={
-          <ul className="mt-3 list-disc pl-5 text-sm text-slate-700 space-y-1">
-            <li><strong>Private Lessons:</strong> $35 per 30-minute session</li>
-            <li><strong>Semi-Private Lessons:</strong> $20 per student per 30-minute session (2 students)</li>
-            <li><strong>Group Lessons:</strong> $15 per student per 30-minute session (3+ students)</li>
-            <p className="mt-3 text-xs text-slate-500">*A $20 mobile service fee applies per visit.</p>
-          </ul>
-        }
-        faqItems={[
-          {
-            question: "Where are you located?",
-            content: (
-              <>
-                We are an at-home swim school on Oʻahu. Our instructors come to your home pool, condo pool, or, for confident swimmers, an arranged ocean location around the island.
-              </>
-            ),
-          },
-          {
-            question: "What ages do you teach?",
-            content: (
-              <>
-                We offer Oʻahu swim lessons for ages <span className="font-medium">2 through adult</span>, from water-shy beginners to advanced swimmers.
-              </>
-            ),
-          },
-          {
-            question: "How long is a lesson?",
-            content: (
-              <>
-                Each session is <span className="font-medium">30 minutes</span>. Lessons are focused and efficient so swimmers stay engaged while building real skills and confidence.
-              </>
-            ),
-          },
-          {
-            question: "How do I book?",
-            content: (
-              <>
-                <p className="mt-0 text-sm text-slate-700">Call, text, or email us and we'll help you schedule your Oʻahu swim lessons.</p>
-                <div className="mt-3 flex flex-wrap gap-2 text-sm">
-                  <a href={telHref} className="rounded-full bg-sky-600 px-3 py-1.5 text-white">{PHONE_DISPLAY}</a>
-                  <a href={smsHref} className="rounded-full border border-slate-300 px-3 py-1.5">Text</a>
-                  <a href={mailHref} className="rounded-full border border-slate-300 px-3 py-1.5">Email</a>
-                </div>
-              </>
-            ),
-          },
-        ]}
       />
 
       {/* Reviews */}
