@@ -1,7 +1,7 @@
 import Button from '../../../components/Button'
 import NextImage from '../../../components/NextImage'
 import PageContainer from '../../../components/PageContainer'
-import FAQItem from '../../../components/FAQItem'
+import FAQs from '../../../components/FAQs'
 import ContactCard from '../../../components/ContactCard'
 import { CONTACTS } from '../../../config/contact'
 
@@ -19,7 +19,7 @@ export default function DallasContactPage() {
       {/* Hero */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 -z-10">
-          <div className="absolute inset-0 bg-gradient-to-t from-sky-100 to-transparent" />
+          <div className="absolute inset-0 bg-linear-to-t from-sky-100 to-transparent" />
           <div className="absolute left-0 top-0 h-40 w-40 rounded-full bg-sky-300/30 blur-3xl" />
           <div className="absolute right-0 bottom-0 h-40 w-40 rounded-full bg-cyan-300/20 blur-3xl" />
         </div>
@@ -89,29 +89,20 @@ export default function DallasContactPage() {
 
       {/* Service Area */}
       <section className="mx-auto max-w-6xl px-4 py-12">
-        <div className="rounded-3xl bg-gradient-to-r from-sky-100 to-cyan-50 p-6 ring-1 ring-slate-200">
+        <div className="rounded-3xl bg-linear-to-r from-sky-100 to-cyan-50 p-6 ring-1 ring-slate-200">
           <h2 className="text-2xl font-bold">Dallas service area</h2>
           <p className="mt-2 text-slate-700">Dallas • Plano • Frisco • McKinney • Prosper • Garland • Allen • Richardson • Addison • University Park • Highland Park</p>
         </div>
       </section>
 
-      {/* FAQs (brief) */}
-      <section className="mx-auto max-w-6xl px-4 pb-20">
-        <h2 className="text-2xl md:text-3xl font-bold">FAQs</h2>
-        <div className="mt-4 space-y-3">
-          <FAQItem question={"How do I book?"}>
-            Call or text with your ZIP, swimmer age(s), goals, and preferred days. We’ll confirm availability and get you scheduled.
-          </FAQItem>
-
-          <FAQItem question={"Where do you teach?"}>
-            We travel to your pool across Dallas and Collin counties.
-          </FAQItem>
-
-          <FAQItem question={"Do you offer group lessons?"}>
-            Yes — additional students can join the same 30‑minute lesson at no extra charge.
-          </FAQItem>
-        </div>
-      </section>
+      <FAQs
+        city="Dallas"
+        phoneDisplay={PHONE}
+        telHref={telHref}
+        smsHref={smsHref}
+        mailHref={mailHref}
+        includeOcean={false}
+      />
       
     </PageContainer>
   )
