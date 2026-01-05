@@ -5,18 +5,11 @@ import Link from 'next/link'
 import FeaturableReviews from '../../components/FeaturableReviews'
 import PageContainer from '../../components/PageContainer'
 import Hero from '../../components/Hero'
+import SEO from '../../components/SEO'
 import FAQs from '../../components/FAQs'
 import Offerings from '../../components/Offerings'
 import { CONTACTS } from '../../config/contact'
 
-// -----------------------------------------------------------------------------
-// Dallas Page — Stabilized build (no arbitrary Tailwind classes)
-// - Matches the Oʻahu page structure & styles
-// - Booking: simple Call / Text / Email
-// - Pricing: $55 first lesson; $40 each additional lesson in the same visit
-// - Header: your <Link> logo snippet
-// - Hero image: /public/assets/dallasSwim.png
-// -----------------------------------------------------------------------------
 
 const { phoneDisplay: PHONE, phoneTel: PHONE_TEL, email: EMAIL } = CONTACTS.dallas
 
@@ -25,8 +18,41 @@ export default function DallasPage() {
   const smsHref = `sms:${PHONE_TEL}`
   const mailHref = `mailto:${EMAIL}`
 
+  const businessStructuredData = {
+    '@context': 'https://schema.org',
+    '@type': 'LocalBusiness',
+    name: 'Sguild Swim Instruction - Dallas',
+    description:
+      'Mobile private and small-group swim lessons in Dallas and surrounding Collin County areas. At-home and backyard pool lessons for kids and adults.',
+    telephone: PHONE_TEL,
+    email: EMAIL,
+    areaServed: {
+      '@type': 'AdministrativeArea',
+      name: 'Dallas County, Texas',
+    },
+    url: 'https://sguildswim.com/dallas',
+    sameAs: [],
+    serviceArea: [
+      'Dallas',
+      'Plano',
+      'Frisco',
+      'Prosper',
+      'McKinney',
+      'Allen',
+      'Richardson',
+      'Garland',
+    ],
+  }
+
   return (
     <div className="min-h-screen bg-linear-to-b from-sky-50 to-white text-slate-800">
+      <SEO
+        title={"Dallas Swim Lessons | Mobile Private Swim Lessons in Dallas & Collin County"}
+        description={"Mobile private and small-group swim lessons in Dallas and surrounding Collin County areas. At-home and backyard pool lessons for kids and adults."}
+        url={'https://sguildswim.com/dallas'}
+        image={'https://sguildswim.com/assets/dallasSwim.jpg'}
+        ldJson={[businessStructuredData]}
+      />
       
 
       <Hero
@@ -53,7 +79,7 @@ export default function DallasPage() {
         <div className="rounded-3xl bg-linear-to-r from-sky-100 to-cyan-50 p-6 ring-1 ring-slate-200">
           <h2 className="text-2xl font-bold">Where we teach</h2>
           <p className="mt-2 text-slate-700">
-            Dallas • Plano • Frisco • McKinney • Allen • Richardson • Addison • University Park • Highland Park
+            Dallas • Plano • Frisco • Prosper • McKinney • Allen • Richardson • Garland • Addison • University Park • Highland Park
           </p>
         </div>
       </section>
