@@ -64,7 +64,7 @@ export default function DallasPage() {
           <h2 className="text-2xl font-bold">About Sguild Swim</h2>
           <p className="mt-2 text-slate-700">
             Sguild Swim is a mobile swim school dedicated to helping swimmers of all ages build confidence and strong technique.
-            In Dallas, our team brings a wide variety of classes to your pool—tailored to meet every need and level.
+            In Dallas, our team brings a wide variety of classes to your pool - tailored to meet every need and level.
           </p>
         </div>
       </section>
