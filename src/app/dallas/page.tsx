@@ -6,6 +6,8 @@ import FeaturableReviews from '../../components/FeaturableReviews'
 import PageContainer from '../../components/PageContainer'
 import Hero from '../../components/Hero'
 import FAQItem from '../../components/FAQItem'
+import Offerings from '../../components/Offerings'
+import FAQs from '../../components/FAQs'
 import { CONTACTS } from '../../config/contact'
 
 // -----------------------------------------------------------------------------
@@ -25,7 +27,7 @@ export default function DallasPage() {
   const mailHref = `mailto:${EMAIL}`
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-sky-50 to-white text-slate-800">
+    <div className="min-h-screen bg-linear-to-b from-sky-50 to-white text-slate-800">
       
 
       <Hero
@@ -42,30 +44,10 @@ export default function DallasPage() {
         />
 
       {/* Offerings */}
-      <section className="mx-auto max-w-6xl px-4 py-12 md:py-16">
-        <h2 className="text-2xl md:text-3xl font-bold">What we offer in Dallas</h2>
-        <div className="mt-6 grid gap-6 md:grid-cols-3">
-          {[
-            {
-              title: 'Private Lessons',
-              body: 'One‑on‑one home lessons with a Sguild instructor for maximum focus and progress. Our method is structured for long‑lasting results.'
-            },
-            {
-              title: 'Semi‑Private',
-              body: 'Learn alongside a sibling or friend of similar level. Enroll additional students in the same lesson free of charge.'
-            },
-            {
-              title: 'Adult Lessons',
-              body: 'From first‑time swimmers to triathlon prep, we tailor sessions to your goals with clear, personalized guidance.'
-            },
-          ].map((item) => (
-            <article key={item.title} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="text-lg font-semibold">{item.title}</h3>
-              <p className="mt-2 text-sm text-slate-700">{item.body}</p>
-            </article>
-          ))}
-        </div>
-      </section>
+      <Offerings 
+        title="What we offer in Dallas"
+        description="All lessons are 30 minutes and take place at your home, apartment, or an community pool. Choose the option that best fits your swimmer's goals."
+      />
 
       {/* Pricing & Details */}
       <section className="mx-auto max-w-6xl px-4 py-12">
@@ -94,7 +76,7 @@ export default function DallasPage() {
 
       {/* Coverage */}
       <section className="mx-auto max-w-6xl px-4 py-12">
-        <div className="rounded-3xl bg-gradient-to-r from-sky-100 to-cyan-50 p-6 ring-1 ring-slate-200">
+        <div className="rounded-3xl bg-linear-to-r from-sky-100 to-cyan-50 p-6 ring-1 ring-slate-200">
           <h2 className="text-2xl font-bold">Where we teach</h2>
           <p className="mt-2 text-slate-700">
             Dallas • Plano • Frisco • McKinney • Allen • Richardson • Addison • University Park • Highland Park
@@ -114,27 +96,39 @@ export default function DallasPage() {
       </section>
 
       {/* FAQs */}
-      <section className="mx-auto max-w-6xl px-4 pb-20">
-        <h2 className="text-2xl md:text-3xl font-bold">FAQs</h2>
-        <div className="mt-4 space-y-3">
-          <FAQItem question={"Where are you located?"}>
-            We are an at‑home swim school. We come to you across Dallas and Collin counties — home pools or condo pools.
-          </FAQItem>
+      <FAQs
+        telHref={telHref}
+        smsHref={smsHref}
+        mailHref={mailHref}
+        phoneDisplay={PHONE}
+        cityName="Dallas"
+        includeRates={false}
+        faqItems={[
+          {
+            question: "Where are you located?",
+            content: <>We are an at-home swim school. We come to you across Dallas and Collin counties - home pools or condo pools.</>,
+          },
+          {
+            question: "What ages do you teach?",
+            content: <>We offer lessons for ages 2 to adult.</>,
+          },
+          {
+            question: "How do I book?",
+            content: (
+              <>
+                <p className="mt-0 text-sm text-slate-700">Simple - call, text, or email us and we'll set it up.</p>
+                <div className="mt-3 flex flex-wrap gap-2 text-sm">
+                  <a href={telHref} className="rounded-full bg-sky-600 px-3 py-1.5 text-white">Call</a>
+                  <a href={smsHref} className="rounded-full border border-slate-300 px-3 py-1.5">Text</a>
+                  <a href={mailHref} className="rounded-full border border-slate-300 px-3 py-1.5">Email</a>
+                </div>
+              </>
+            ),
+          },
+        ]}
+      />
 
-          <FAQItem question={"What ages do you teach?"}>
-            We offer lessons for ages 2 to adult.
-          </FAQItem>
 
-          <FAQItem question={"How do I book?"}>
-            <p className="mt-0 text-sm text-slate-700">Simple — call, text, or email us and we’ll set it up.</p>
-            <div className="mt-3 flex flex-wrap gap-2 text-sm">
-              <a href={telHref} className="rounded-full bg-sky-600 px-3 py-1.5 text-white">Call</a>
-              <a href={smsHref} className="rounded-full border border-slate-300 px-3 py-1.5">Text</a>
-              <a href={mailHref} className="rounded-full border border-slate-300 px-3 py-1.5">Email</a>
-            </div>
-          </FAQItem>
-        </div>
-      </section>
 {/* Reviews */}
 <FeaturableReviews />
       
