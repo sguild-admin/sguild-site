@@ -6,6 +6,7 @@ import FeaturableReviews from '../../components/FeaturableReviews'
 import PageContainer from '../../components/PageContainer'
 import Hero from '../../components/Hero'
 import FAQs from '../../components/FAQs'
+import ContactCTA from '../../components/ContactCTA'
 import Offerings from '../../components/Offerings'
 import { CONTACTS } from '../../config/contact'
 
@@ -113,6 +114,8 @@ export default function OahuPage() {
         smsHref={smsHref}
         mailHref={mailHref}
       />
+
+      <ContactCTA city="Oʻahu" href="/oahu/contact" />
 
       {/* Reviews */}
       <div id="reviews">
