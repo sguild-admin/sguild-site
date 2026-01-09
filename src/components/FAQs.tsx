@@ -44,7 +44,7 @@ export default function FAQs({ city, phoneDisplay, telHref, smsHref, mailHref, i
         <div id="rates">
           <FAQItem question={`How much do lessons cost?`}>
             <ul className="mt-3 list-disc pl-5 text-sm text-slate-700 space-y-1">
-              <li><strong>Private Lessons:</strong> $35 per 30-minute session</li>
+              <li><strong>Private Lessons:</strong> $40 per 30-minute session</li>
               <li><strong>Semi-Private Lessons:</strong> $20 per student per 30-minute session (2 students)</li>
               <li><strong>Group Lessons:</strong> $15 per student per 30-minute session (3+ students)</li>
             </ul>
