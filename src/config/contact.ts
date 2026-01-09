@@ -12,6 +12,11 @@ export const CONTACTS = {
     phoneTel: '+19722105375',
     email: 'info@sguildswim.com',
   },
+  perth: {
+    phoneDisplay: '(08) 6123 4567',
+    phoneTel: '+61861234567',
+    email: 'perth@sguildswim.com',
+  },
 };
 
 export const DEFAULT_CONTACT = CONTACTS.default;

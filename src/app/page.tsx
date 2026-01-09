@@ -5,7 +5,7 @@ import FeaturableReviews from '../components/FeaturableReviews'
 
 
 
-type LocKey = 'oahu' | 'dallas';
+type LocKey = 'oahu' | 'dallas' | 'perth';
 type LocationItem = {
   key: LocKey;
   name: string;
@@ -23,7 +23,7 @@ const LOCATIONS: LocationItem[] = [
     key: 'oahu',
     name: 'O‘ahu, HI',
     href: '/oahu/',
-    image: '/assets/oahu.jpg',
+    image: '/assets/Oahu.png',
     imageAlt: 'O‘ahu swim lessons in Honolulu — private, year-round coaching',
     description: 'Private in-home lessons island-wide. Hotels, condos, and community pools welcome.',
     areaTag: 'Honolulu & Surrounding',
@@ -33,11 +33,21 @@ const LOCATIONS: LocationItem[] = [
     key: 'dallas',
     name: 'Dallas, TX',
     href: '/dallas/',
-    image: '/assets/dallas.jpg',
-    imageAlt: 'DFW summer swim lessons — residential and community pools',
+    image: '/assets/Dallas.png',
+    imageAlt: 'DFW swim lessons — residential and community pools',
     description: 'Our original home base. Book at your home or community pool.',
     areaTag: 'Dallas County • Collin County',
     badges: ['Summer (June–Aug)', 'Residential', 'Community/HOA'],
+  },
+  {
+    key: 'perth',
+    name: 'Perth, AU',
+    href: '/perth/',
+    image: '/assets/Perth.png',
+    imageAlt: 'Perth swim lessons — at-home and community pool instruction',
+    description: 'Mobile at-home and community pool lessons across Perth.',
+    areaTag: 'Perth & Surrounding',
+    badges: ['At-home', 'Community Pools', 'All Ages'],
   },
 ];
 
@@ -46,7 +56,7 @@ const LOCATIONS: LocationItem[] = [
 function LocationCard({ item }: { item: LocationItem }) {
   return (
     <Link href={item.href} className="group block rounded-2xl border border-slate-200 overflow-hidden hover:shadow-sm transition">
-        <figure className="aspect-[4/3] w-full overflow-hidden relative">
+        <figure className="aspect-4/3 w-full overflow-hidden relative">
         <NextImage src={item.image} alt={item.imageAlt} fill className="object-cover transition-transform duration-300 group-hover:scale-105" sizes="(max-width: 768px) 100vw, 50vw" />
       </figure>
       <div className="p-6">

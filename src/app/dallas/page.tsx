@@ -64,7 +64,7 @@ export default function DallasPage() {
           { label: 'Text Us', href: smsHref },
           { label: 'Email', href: mailHref },
         ]}
-        imageSrc={'/assets/dallasSwim.jpg'}
+        imageSrc={'/assets/Dallas.png'}
         imageAlt={'Backyard swim lessons in Dallas'}
           blockquote={"Fitness is what happens when practicing proper technique"}
         />

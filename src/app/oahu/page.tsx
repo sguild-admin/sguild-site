@@ -66,8 +66,8 @@ export default function OahuPage() {
           { label: 'Text Us', href: smsHref },
           { label: 'Email', href: mailHref },
         ]}
-        imageSrc={'/assets/oceanSwim.jpg'}
-        imageAlt={'Ocean swim lessons on Oʻahu with Sguild Swim Instruction'}
+        imageSrc={'/assets/Oahu.png'}
+        imageAlt={'Oahu swim lessons with Sguild Swim Instruction'}
         blockquote={"Fitness is what happens when practicing proper technique"}
       />
 
