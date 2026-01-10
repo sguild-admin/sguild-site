@@ -27,7 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
         <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
         <link rel="manifest" href="/assets/site.webmanifest" />
-        <meta name="theme-color" content="#0ea5e9" />
+        <meta name="theme-color" content="#ffffff" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link
@@ -36,7 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
 
-      <body className="bg-transparent text-slate-800">
+      <body className="bg-white text-slate-800">
         <a href="#content" className="sr-only focus:not-sr-only z-50 inline-block m-4 rounded bg-white px-3 py-2 text-sm font-medium text-sky-700">Skip to content</a>
        
         <noscript>
