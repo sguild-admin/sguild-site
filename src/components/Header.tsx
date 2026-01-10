@@ -6,6 +6,7 @@ import NextImage from "./NextImage";
 
 export default function Header() {
   const [open, setOpen] = useState(false);
+  const [locOpen, setLocOpen] = useState(false);
   return (
     <header className="sticky top-0 z-50 bg-white/80 backdrop-blur border-b border-slate-200">
       <div className="mx-auto max-w-6xl px-4 flex items-center justify-between h-16">
@@ -15,12 +16,35 @@ export default function Header() {
             Sguild <span className="text-slate-500">Swim Instruction</span>
           </span>
         </Link>
-        <nav className="hidden md:flex items-center gap-8 text-sm font-medium">
-          {NAV.filter((n) => n.group === "locations").map((n) => (
-            <Link key={n.href} href={n.href} className="hover:text-sky-600">
-              {n.label}
-            </Link>
-          ))}
+        <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setLocOpen((v) => !v)}
+              className="inline-flex items-center gap-2 hover:text-sky-600"
+              aria-expanded={locOpen}
+            >
+              Locations
+              <svg className="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor">
+                <path d="M6 8l4 4 4-4" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+
+            {locOpen ? (
+              <div className="absolute right-0 mt-2 w-48 rounded-md bg-white shadow-lg ring-1 ring-slate-200">
+                <div className="py-2">
+                  {NAV.filter((n) => n.group === "locations").map((n) => (
+                    <Link key={n.href} href={n.href} className="block px-4 py-2 text-sm hover:bg-slate-50">
+                      {n.label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          <Link href={'/#pricing'} className="hover:text-sky-600">Pricing</Link>
+          <Link href={'/oahu/contact'} className="hover:text-sky-600">Contact</Link>
         </nav>
         <button
           type="button"
@@ -38,8 +62,12 @@ export default function Header() {
 
       <div id="mobile-menu" className={`md:hidden border-t border-slate-200 bg-white ${open ? "" : "hidden"}`}>
         <div className="px-4 py-3 grid gap-3 text-base">
-          <Link href="/oahu/" className="block hover:text-sky-600">O&apos;ahu</Link>
-          <Link href="/dallas/" className="block hover:text-sky-600">Dallas, TX</Link>
+          {NAV.filter((n) => n.group === 'locations').map((n) => (
+            <Link key={n.href} href={n.href} className="block hover:text-sky-600">{n.label}</Link>
+          ))}
+
+          <Link href={'/#pricing'} className="block hover:text-sky-600">Pricing</Link>
+          <Link href={'/oahu/contact'} className="block hover:text-sky-600">Contact</Link>
         </div>
       </div>
     </header>
