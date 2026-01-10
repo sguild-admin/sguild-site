@@ -43,7 +43,7 @@ export default function Header() {
             ) : null}
           </div>
 
-          <Link href={'/#pricing'} className="hover:text-sky-600">Pricing</Link>
+          <Link href={'/pricing'} className="hover:text-sky-600">Pricing</Link>
           <Link href={'/oahu/contact'} className="hover:text-sky-600">Contact</Link>
         </nav>
         <button
@@ -66,7 +66,7 @@ export default function Header() {
             <Link key={n.href} href={n.href} className="block hover:text-sky-600">{n.label}</Link>
           ))}
 
-          <Link href={'/#pricing'} className="block hover:text-sky-600">Pricing</Link>
+          <Link href={'/pricing'} className="block hover:text-sky-600">Pricing</Link>
           <Link href={'/oahu/contact'} className="block hover:text-sky-600">Contact</Link>
         </div>
       </div>

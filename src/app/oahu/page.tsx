@@ -9,6 +9,7 @@ import FAQs from '../../components/FAQs'
 import ContactCTA from '../../components/ContactCTA'
 import Offerings from '../../components/Offerings'
 import ServiceArea from '../../components/ServiceArea'
+import PricingSection from '../../components/PricingSection'
 import { CONTACTS } from '../../config/contact'
 
 const { phoneDisplay: PHONE_DISPLAY, phoneTel: PHONE_TEL, email: EMAIL } = CONTACTS.oahu
@@ -64,8 +65,8 @@ export default function OahuPage() {
         subtitle={"At-home private and small-group swim instruction across Oʻahu. We come to you, ocean or pool."}
         ctas={[
           { label: PHONE_DISPLAY, href: telHref, variant: 'primary' },
-          { label: 'Text Us', href: smsHref },
-          { label: 'Email', href: mailHref },
+          { label: 'Text Us', href: smsHref, variant: 'primary' },
+          { label: 'View Pricing', href: '#pricing', variant: 'secondary' },
         ]}
         imageSrc={'/assets/oahuHero.jpg'}
         imageAlt={'Oahu swim lessons with Sguild Swim Instruction'}
@@ -80,6 +81,12 @@ export default function OahuPage() {
         title="What we offer on Oʻahu"
         description="All lessons are 30 minutes and take place at your home, condo, or an arranged ocean location. Choose the option that best fits your swimmer's goals."
       />
+
+      <PricingSection city="oahu" />
+
+      <div className="mt-2 text-sm">
+        <a href={'/pricing?city=oahu'} className="text-sky-600">Full pricing</a>
+      </div>
 
       <ServiceArea city="oahu" />
 

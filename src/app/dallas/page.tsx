@@ -10,6 +10,7 @@ import FAQs from '../../components/FAQs'
 import ContactCTA from '../../components/ContactCTA'
 import Offerings from '../../components/Offerings'
 import ServiceArea from '../../components/ServiceArea'
+import PricingSection from '../../components/PricingSection'
 import { CONTACTS } from '../../config/contact'
 
 
@@ -62,8 +63,8 @@ export default function DallasPage() {
         subtitle={"At‑home private and small‑group instruction across Dallas and Collin counties - we come to your backyard pool."}
         ctas={[
           { label: '(972) 210-5375', href: telHref, variant: 'primary' },
-          { label: 'Text Us', href: smsHref },
-          { label: 'Email', href: mailHref },
+          { label: 'Text Us', href: smsHref, variant: 'primary' },
+          { label: 'View Pricing', href: '#pricing', variant: 'secondary' },
         ]}
         imageSrc={'/assets/dallasHero.png'}
         imageAlt={'Backyard swim lessons in Dallas'}
@@ -75,6 +76,12 @@ export default function DallasPage() {
         title="What we offer in Dallas"
         description="All lessons are 30 minutes and take place at your home, condo, or community pool. Choose the option that best fits your swimmer's goals."
       />
+
+      <PricingSection city="dallas" />
+
+      <div className="mt-2 text-sm">
+        <Link href={'/pricing?city=dallas'} className="text-sky-600">Full pricing</Link>
+      </div>
 
       <ServiceArea city="dallas" title="Where we teach" />
 

@@ -8,6 +8,7 @@ import FAQs from '../../components/FAQs'
 import Offerings from '../../components/Offerings'
 import ServiceArea from '../../components/ServiceArea'
 import ContactCTA from '../../components/ContactCTA'
+import PricingSection from '../../components/PricingSection'
 import { CONTACTS } from '../../config/contact'
 
 const { phoneDisplay: PHONE_DISPLAY, phoneTel: PHONE_TEL, email: EMAIL } = CONTACTS.perth
@@ -54,8 +55,8 @@ export default function PerthPage() {
         subtitle={"At-home private and small-group swim instruction across Perth. We come to you, home or community pool."}
         ctas={[
           { label: PHONE_DISPLAY || 'Call', href: telHref, variant: 'primary' },
-          { label: 'Text Us', href: smsHref },
-          { label: 'Email', href: mailHref },
+          { label: 'Text Us', href: smsHref, variant: 'primary' },
+          { label: 'View Pricing', href: '#pricing', variant: 'secondary' },
         ]}
         imageSrc={'/assets/perthHero.png'}
         imageAlt={'Perth swim lessons with Sguild Swim Instruction'}
@@ -66,6 +67,12 @@ export default function PerthPage() {
         title="What we offer in Perth"
         description="All lessons are 30 minutes and take place at your home, condo, or community pool. Choose the option that best fits your swimmer's goals."
       />
+
+      <PricingSection city="perth" />
+
+      <div className="mt-2 text-sm">
+        <Link href={'/pricing?city=dallas'} className="text-sky-600">Full pricing</Link>
+      </div>
 
       <ServiceArea city="perth" />
 
