@@ -1,12 +1,21 @@
 "use client";
 import React, { useState } from "react";
 import Link from "next/link";
+import { usePathname } from 'next/navigation'
 import { NAV } from "../config/nav";
 import NextImage from "./NextImage";
 
 export default function Header() {
   const [open, setOpen] = useState(false);
   const [locOpen, setLocOpen] = useState(false);
+  const pathname = usePathname() || '/'
+
+  let city: string | null = null
+  if (pathname.startsWith('/dallas')) city = 'dallas'
+  else if (pathname.startsWith('/oahu')) city = 'oahu'
+  else if (pathname.startsWith('/perth')) city = 'perth'
+
+  const pricingHref = city ? `/pricing?city=${city}` : '/pricing'
   return (
     <header className="sticky top-0 z-50 bg-white/80 backdrop-blur border-b border-slate-200">
       <div className="mx-auto max-w-6xl px-4 flex items-center justify-between h-16">
@@ -43,7 +52,7 @@ export default function Header() {
             ) : null}
           </div>
 
-          <Link href={'/pricing'} className="hover:text-sky-600">Pricing</Link>
+          <Link href={pricingHref} className="hover:text-sky-600">Pricing</Link>
           <Link href={'/oahu/contact'} className="hover:text-sky-600">Contact</Link>
         </nav>
         <button
@@ -66,7 +75,7 @@ export default function Header() {
             <Link key={n.href} href={n.href} className="block hover:text-sky-600">{n.label}</Link>
           ))}
 
-          <Link href={'/pricing'} className="block hover:text-sky-600">Pricing</Link>
+          <Link href={pricingHref} className="block hover:text-sky-600">Pricing</Link>
           <Link href={'/oahu/contact'} className="block hover:text-sky-600">Contact</Link>
         </div>
       </div>
