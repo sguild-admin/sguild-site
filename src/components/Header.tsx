@@ -21,10 +21,11 @@ export default function Header() {
   if (pathname.startsWith('/pricing') && qCity) city = qCity
   const pricingHref = city ? `/pricing?city=${city}` : '/pricing'
   const contactHref = city ? `/${city}/contact` : '/oahu/contact'
+  const logoHref = city ? `/${city}` : '/'
   return (
     <header className="sticky top-0 z-50 bg-white/80 backdrop-blur border-b border-slate-200">
       <div className="mx-auto max-w-6xl px-4 flex items-center justify-start h-16">
-        <Link href="/" className="flex items-center gap-3" aria-label="Sguild Swim Instruction home">
+        <Link href={logoHref} className="flex items-center gap-3" aria-label="Sguild Swim Instruction home">
           <NextImage src="/assets/logo-graphic.png" alt="Sguild Swim Instruction logo" width={36} height={36} className="h-9 w-auto" />
           <span className="text-base font-semibold tracking-tight text-slate-900">
             Sguild <span className="text-slate-500">Swim Instruction</span>
