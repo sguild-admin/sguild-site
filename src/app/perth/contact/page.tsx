@@ -1,9 +1,7 @@
 import Button from '../../../components/Button'
 import NextImage from '../../../components/NextImage'
 import PageContainer from '../../../components/PageContainer'
-import FAQs from '../../../components/FAQs'
 import ContactCard from '../../../components/ContactCard'
-import ServiceArea from '../../../components/ServiceArea'
 import { CONTACTS } from '../../../config/contact'
 
 const { phoneDisplay: PHONE, phoneTel: PHONE_TEL, email: EMAIL } = CONTACTS.perth
@@ -86,17 +84,7 @@ export default function PerthContactPage() {
         </div>
       </section>
 
-      <ServiceArea city="perth" title="Perth service area" />
-
-      <FAQs
-        city="Perth"
-        phoneDisplay={PHONE}
-        telHref={telHref}
-        smsHref={smsHref}
-        mailHref={mailHref}
-        includeOcean={false}
-      />
-
+      {/* Contact page — service areas and FAQs intentionally omitted */}
     </PageContainer>
   )
 }

@@ -1,9 +1,7 @@
 import Button from '../../../components/Button'
 import NextImage from '../../../components/NextImage'
 import PageContainer from '../../../components/PageContainer'
-import FAQs from '../../../components/FAQs'
 import ContactCard from '../../../components/ContactCard'
-import ServiceArea from '../../../components/ServiceArea'
 
 // -----------------------------------------------------------------------------
 // Oʻahu Contact Page — Stabilized build (no arbitrary Tailwind classes)
@@ -94,15 +92,7 @@ export default function OahuContactPage() {
         </div>
       </section>
 
-      <ServiceArea city="oahu" title="Oʻahu service area" />
-
-      <FAQs
-        city="Oʻahu"
-        phoneDisplay={PHONE}
-        telHref={telHref}
-        smsHref={smsHref}
-        mailHref={mailHref}
-      />
+      {/* Contact page — service areas and FAQs intentionally omitted */}
     </PageContainer>
   )
 }

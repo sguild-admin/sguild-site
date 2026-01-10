@@ -1,9 +1,7 @@
 import Button from '../../../components/Button'
 import NextImage from '../../../components/NextImage'
 import PageContainer from '../../../components/PageContainer'
-import FAQs from '../../../components/FAQs'
 import ContactCard from '../../../components/ContactCard'
-import ServiceArea from '../../../components/ServiceArea'
 import { CONTACTS } from '../../../config/contact'
 
 const { phoneDisplay: PHONE, phoneTel: PHONE_TEL, email: EMAIL } = CONTACTS.dallas
@@ -88,16 +86,7 @@ export default function DallasContactPage() {
         </div>
       </section>
 
-      <ServiceArea city="dallas" title="Dallas service area" />
-
-      <FAQs
-        city="Dallas"
-        phoneDisplay={PHONE}
-        telHref={telHref}
-        smsHref={smsHref}
-        mailHref={mailHref}
-        includeOcean={false}
-      />
+      {/* Contact page — service areas and FAQs intentionally omitted */}
       
     </PageContainer>
   )
