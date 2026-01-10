@@ -84,10 +84,6 @@ export default function OahuPage() {
 
       <PricingSection city="oahu" />
 
-      <div className="mt-2 text-sm">
-        <a href={'/pricing?city=oahu'} className="text-sky-600">Full pricing</a>
-      </div>
-
       <ServiceArea city="oahu" />
 
       {/* About */}

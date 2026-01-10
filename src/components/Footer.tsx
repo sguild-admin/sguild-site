@@ -2,15 +2,20 @@
 import React from "react";
 import Link from "next/link";
 import { NAV } from "../config/nav";
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 
 export default function Footer() {
   const pathname = usePathname() || '/'
+  const params = useSearchParams()
+  const qCity = params?.get('city')
 
   let city: string | null = null
   if (pathname.startsWith('/dallas')) city = 'dallas'
   else if (pathname.startsWith('/oahu')) city = 'oahu'
   else if (pathname.startsWith('/perth')) city = 'perth'
+
+  // if on /pricing prefer the query param value
+  if (pathname.startsWith('/pricing') && qCity) city = qCity
 
   const pricingHref = city ? `/pricing?city=${city}` : '/pricing'
   const contactHref = city ? `/${city}/contact` : '/oahu/contact'

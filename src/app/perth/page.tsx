@@ -70,10 +70,6 @@ export default function PerthPage() {
 
       <PricingSection city="perth" />
 
-      <div className="mt-2 text-sm">
-        <Link href={'/pricing?city=dallas'} className="text-sky-600">Full pricing</Link>
-      </div>
-
       <ServiceArea city="perth" />
 
       <section className="mx-auto max-w-6xl px-4 py-12">

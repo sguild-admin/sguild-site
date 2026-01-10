@@ -79,10 +79,6 @@ export default function DallasPage() {
 
       <PricingSection city="dallas" />
 
-      <div className="mt-2 text-sm">
-        <Link href={'/pricing?city=dallas'} className="text-sky-600">Full pricing</Link>
-      </div>
-
       <ServiceArea city="dallas" title="Where we teach" />
 
       {/* About */}

@@ -1,4 +1,5 @@
 import "./globals.css"
+import React from 'react'
 import Header from "../components/Header"
 import Footer from "../components/Footer"
 
@@ -48,11 +49,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           />
         </noscript>
 
-        <Header />
+        <React.Suspense fallback={<div className="h-16" />}>
+          <Header />
+        </React.Suspense>
 
         {children}
 
-        <Footer />
+        <React.Suspense fallback={<div className="h-24" />}>
+          <Footer />
+        </React.Suspense>
       </body>
     </html>
   )
