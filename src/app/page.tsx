@@ -85,10 +85,10 @@ export default function LocationSelectorPage() {
   return (
     <PageContainer className="bg-slate-50 text-slate-800">
       {/* background accents */}
-      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+      {/* <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
         <div className="absolute -top-40 -right-40 h-80 w-80 rounded-full bg-sky-200/50 blur-3xl" />
         <div className="absolute -bottom-40 -left-40 h-96 w-96 rounded-full bg-cyan-200/60 blur-3xl" />
-      </div>
+      </div> */}
 
       
       <section className="relative">
