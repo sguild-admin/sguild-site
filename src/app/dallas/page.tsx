@@ -49,7 +49,7 @@ export default function DallasPage() {
   return (
     <div className="min-h-screen bg-linear-to-b from-sky-50 to-white text-slate-800">
       <SEO
-        title={"Dallas Swim Lessons | Mobile Private Swim Lessons in Dallas & Collin County"}
+        title={"Dallas Mobile Swim Lessons | Home Swim Lessons in Dallas & Collin County"}
         description={"Mobile private and small-group swim lessons in Dallas and surrounding Collin County areas. At-home and backyard pool lessons for kids and adults."}
         url={'https://sguildswim.com/dallas'}
         image={'https://sguildswim.com/assets/dallasSwim.jpg'}
@@ -58,14 +58,14 @@ export default function DallasPage() {
       
 
       <Hero
-        title={"Dallas Swim Lessons"}
-        subtitle={"At‑home private and small‑group instruction across Dallas and Collin counties — we come to your backyard pool."}
+        title={"Dallas Mobile Swim Lessons"}
+        subtitle={"At‑home private and small‑group instruction across Dallas and Collin counties - we come to your backyard pool."}
         ctas={[
           { label: '(972) 210-5375', href: telHref, variant: 'primary' },
           { label: 'Text Us', href: smsHref },
           { label: 'Email', href: mailHref },
         ]}
-        imageSrc={'/assets/Dallas.png'}
+        imageSrc={'/assets/dallasHero.png'}
         imageAlt={'Backyard swim lessons in Dallas'}
           blockquote={"Fitness is what happens when practicing proper technique"}
         />

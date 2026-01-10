@@ -50,14 +50,14 @@ export default function PerthPage() {
       />
 
       <Hero
-        title={"Perth Swim Lessons"}
+        title={"Perth Mobile Swim Lessons"}
         subtitle={"At-home private and small-group swim instruction across Perth. We come to you, home or community pool."}
         ctas={[
           { label: PHONE_DISPLAY || 'Call', href: telHref, variant: 'primary' },
           { label: 'Text Us', href: smsHref },
           { label: 'Email', href: mailHref },
         ]}
-        imageSrc={'/assets/Perth.png'}
+        imageSrc={'/assets/perthHero.png'}
         imageAlt={'Perth swim lessons with Sguild Swim Instruction'}
         blockquote={"Fitness is what happens when practicing proper technique"}
       />

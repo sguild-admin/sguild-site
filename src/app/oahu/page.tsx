@@ -50,7 +50,7 @@ export default function OahuPage() {
   return (
     <div className="min-h-screen bg-linear-to-b from-sky-50 to-white text-slate-800">
       <SEO
-        title={"Oʻahu Swim Lessons | Mobile Private Swim Lessons in Honolulu & North Shore"}
+        title={"Oʻahu Mobile Swim Lessons | Private Swim Lessons in Honolulu & North Shore"}
         description={"Mobile private and small-group swim lessons on Oʻahu. At-home and ocean swim lessons for kids and adults in Honolulu, Waikīkī, Kailua, Kāneʻohe, Ko Olina, and the North Shore."}
         url={'https://sguildswim.com/oahu'}
         image={'https://sguildswim.com/assets/oceanSwim.jpg'}
@@ -60,14 +60,14 @@ export default function OahuPage() {
       
 
       <Hero
-        title={"Oʻahu Swim Lessons"}
+        title={"Oʻahu Mobile Swim Lessons"}
         subtitle={"At-home private and small-group swim instruction across Oʻahu. We come to you, ocean or pool."}
         ctas={[
           { label: PHONE_DISPLAY, href: telHref, variant: 'primary' },
           { label: 'Text Us', href: smsHref },
           { label: 'Email', href: mailHref },
         ]}
-        imageSrc={'/assets/Oahu.png'}
+        imageSrc={'/assets/oahuHero.jpg'}
         imageAlt={'Oahu swim lessons with Sguild Swim Instruction'}
         blockquote={"Fitness is what happens when practicing proper technique"}
       />
