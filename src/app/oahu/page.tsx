@@ -68,7 +68,7 @@ export default function OahuPage() {
           { label: 'Text Us', href: smsHref, variant: 'primary' },
           { label: 'View Pricing', href: '#pricing', variant: 'secondary' },
         ]}
-        imageSrc={'/assets/oahuHero.jpg'}
+        imageSrc={'/assets/oahuHero.png'}
         imageAlt={'Oahu swim lessons with Sguild Swim Instruction'}
         blockquote={"Fitness is what happens when practicing proper technique"}
       />
