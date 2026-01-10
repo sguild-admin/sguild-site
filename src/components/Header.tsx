@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import Link from "next/link";
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { NAV } from "../config/nav";
 import NextImage from "./NextImage";
 
@@ -9,13 +9,18 @@ export default function Header() {
   const [open, setOpen] = useState(false);
   const [locOpen, setLocOpen] = useState(false);
   const pathname = usePathname() || '/'
+  const params = useSearchParams()
+  const qCity = params?.get('city')
 
   let city: string | null = null
   if (pathname.startsWith('/dallas')) city = 'dallas'
   else if (pathname.startsWith('/oahu')) city = 'oahu'
   else if (pathname.startsWith('/perth')) city = 'perth'
 
+  // if on /pricing prefer the query param
+  if (pathname.startsWith('/pricing') && qCity) city = qCity
   const pricingHref = city ? `/pricing?city=${city}` : '/pricing'
+  const contactHref = city ? `/${city}/contact` : '/oahu/contact'
   return (
     <header className="sticky top-0 z-50 bg-white/80 backdrop-blur border-b border-slate-200">
       <div className="mx-auto max-w-6xl px-4 flex items-center justify-start h-16">
@@ -27,7 +32,7 @@ export default function Header() {
         </Link>
         <div className="hidden md:flex items-center gap-6 ml-auto">
           <Link href={pricingHref} className="hover:text-sky-600">Pricing</Link>
-          <Link href={'/oahu/contact'} className="hover:text-sky-600">Contact</Link>
+          <Link href={contactHref} className="hover:text-sky-600">Contact</Link>
 
           <div className="relative" onMouseEnter={() => setLocOpen(true)} onMouseLeave={() => setLocOpen(false)}>
             <button
@@ -84,7 +89,7 @@ export default function Header() {
           ))}
 
           <Link href={pricingHref} className="block hover:text-sky-600">Pricing</Link>
-          <Link href={'/oahu/contact'} className="block hover:text-sky-600">Contact</Link>
+          <Link href={contactHref} className="block hover:text-sky-600">Contact</Link>
         </div>
       </div>
     </header>
