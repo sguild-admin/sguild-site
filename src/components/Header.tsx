@@ -77,25 +77,18 @@ export default function Header() {
             <div
               onMouseEnter={() => setLocOpen(true)}
               onMouseLeave={() => setLocOpen(false)}
-              className={`absolute right-0 top-full w-48 rounded-md bg-white shadow-lg ring-1 ring-slate-200 ${
-                locOpen ? "block" : "hidden"
-              } z-50`}
+              className={`absolute right-0 top-full w-48 rounded-md bg-white shadow-lg ring-1 ring-slate-200 ${locOpen ? 'block' : 'hidden'} z-50`}
             >
               <div className="py-1">
                 {(() => {
-                  const order = ["Dallas", "Oʻahu", "Perth"];
-                  const locs = NAV.filter((n) => n.group === "locations");
+                  const order = ['Dallas', "Oʻahu", 'Perth'];
+                  const locs = NAV.filter((n) => n.group === 'locations');
                   return order
                     .map((label) => locs.find((l) => l.label === label))
-                    .filter((n) => n !== undefined)
+                    .filter(Boolean)
                     .map((n) => (
-                      <Link
-                        key={n.href}
-                        href={n.href}
-                        className="block px-4 py-2 text-sm hover:bg-slate-50"
-                      >
-                        {n.label}
-                      </Link>
+                      // @ts-ignore
+                      <Link key={n.href} href={n.href} className="block px-4 py-2 text-sm hover:bg-slate-50">{n.label}</Link>
                     ));
                 })()}
               </div>
@@ -121,8 +114,7 @@ export default function Header() {
       {/* Aesthetic only: spacing + touch targets */}
       <div
         id="mobile-menu"
-        className={`md:hidden border-t border-slate-200 bg-white ${open ? "" : "hidden"}`}
-      >
+        className={`md:hidden border-t border-slate-200 bg-white ${open ? "" : "hidden"}`}>
         <div className="px-4 py-3 grid gap-1 text-base">
           {/* Single Locations link on mobile */}
           {(() => {
@@ -131,6 +123,7 @@ export default function Header() {
               <Link
                 key={loc.href}
                 href={loc.href}
+                onClick={() => setOpen(false)}
                 className="block rounded-md px-2 py-2.5 font-medium text-slate-900 hover:bg-slate-50 hover:text-sky-700"
               >
                 {loc.label}
@@ -140,12 +133,14 @@ export default function Header() {
 
           <Link
             href={pricingHref}
+            onClick={() => setOpen(false)}
             className="block rounded-md px-2 py-2.5 font-medium text-slate-900 hover:bg-slate-50 hover:text-sky-700"
           >
             Pricing
           </Link>
           <Link
             href={contactHref}
+            onClick={() => setOpen(false)}
             className="block rounded-md px-2 py-2.5 font-medium text-slate-900 hover:bg-slate-50 hover:text-sky-700"
           >
             Contact
