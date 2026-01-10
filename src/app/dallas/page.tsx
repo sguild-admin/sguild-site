@@ -9,6 +9,7 @@ import SEO from '../../components/SEO'
 import FAQs from '../../components/FAQs'
 import ContactCTA from '../../components/ContactCTA'
 import Offerings from '../../components/Offerings'
+import ServiceArea from '../../components/ServiceArea'
 import { CONTACTS } from '../../config/contact'
 
 
@@ -75,15 +76,7 @@ export default function DallasPage() {
         description="All lessons are 30 minutes and take place at your home, condo, or community pool. Choose the option that best fits your swimmer's goals."
       />
 
-      {/* Coverage */}
-      <section className="mx-auto max-w-6xl px-4 py-12">
-        <div className="rounded-3xl bg-linear-to-r from-sky-100 to-cyan-50 p-6 ring-1 ring-slate-200">
-          <h2 className="text-2xl font-bold">Where we teach</h2>
-          <p className="mt-2 text-slate-700">
-            Dallas • Plano • Frisco • Prosper • McKinney • Allen • Richardson • Garland • Addison • University Park • Highland Park • Oak Cliff
-          </p>
-        </div>
-      </section>
+      <ServiceArea city="dallas" title="Where we teach" />
 
       {/* About */}
       <section className="mx-auto max-w-6xl px-4 py-12">

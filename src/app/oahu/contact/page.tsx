@@ -3,6 +3,7 @@ import NextImage from '../../../components/NextImage'
 import PageContainer from '../../../components/PageContainer'
 import FAQs from '../../../components/FAQs'
 import ContactCard from '../../../components/ContactCard'
+import ServiceArea from '../../../components/ServiceArea'
 
 // -----------------------------------------------------------------------------
 // Oʻahu Contact Page — Stabilized build (no arbitrary Tailwind classes)
@@ -32,7 +33,7 @@ export default function OahuContactPage() {
 
         <div className="mx-auto max-w-6xl px-4 py-16 md:py-24 grid md:grid-cols-2 items-center gap-10">
           <div>
-            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">Contact — Oʻahu</h1>
+            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">Contact - Oʻahu</h1>
             <p className="mt-4 text-lg leading-relaxed text-slate-700">
               Ready to book at‑home (or ocean) swim lessons on Oʻahu? Reach out and we’ll get you scheduled.
             </p>
@@ -93,13 +94,7 @@ export default function OahuContactPage() {
         </div>
       </section>
 
-      {/* Service Area */}
-      <section className="mx-auto max-w-6xl px-4 py-12">
-        <div className="rounded-3xl bg-linear-to-r from-sky-100 to-cyan-50 p-6 ring-1 ring-slate-200">
-          <h2 className="text-2xl font-bold">Oʻahu service area</h2>
-          <p className="mt-2 text-slate-700">Honolulu • Waikīkī • Kailua • Kāneʻohe • Ko Olina • North Shore (Haleʻiwa) • and nearby areas</p>
-        </div>
-      </section>
+      <ServiceArea city="oahu" title="Oʻahu service area" />
 
       <FAQs
         city="Oʻahu"

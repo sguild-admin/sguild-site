@@ -8,6 +8,7 @@ import Hero from '../../components/Hero'
 import FAQs from '../../components/FAQs'
 import ContactCTA from '../../components/ContactCTA'
 import Offerings from '../../components/Offerings'
+import ServiceArea from '../../components/ServiceArea'
 import { CONTACTS } from '../../config/contact'
 
 const { phoneDisplay: PHONE_DISPLAY, phoneTel: PHONE_TEL, email: EMAIL } = CONTACTS.oahu
@@ -80,19 +81,7 @@ export default function OahuPage() {
         description="All lessons are 30 minutes and take place at your home, condo, or an arranged ocean location. Choose the option that best fits your swimmer's goals."
       />
 
-      {/* Coverage */}
-      <section id="coverage" className="mx-auto max-w-6xl px-4 py-12">
-        <div className="rounded-3xl bg-linear-to-r from-sky-100 to-cyan-50 p-6 ring-1 ring-slate-200">
-          <h2 className="text-2xl font-bold">Where we teach</h2>
-          <p className="mt-2 text-slate-700">
-            We offer mobile swim lessons across:
-          </p>
-          <p className="mt-1 text-slate-700">
-            Honolulu • Waikīkī • Kailua • Kāneʻohe • Ko Olina • Ewa Beach • Mililani •
-            North Shore (Haleʻiwa) • and nearby areas
-          </p>
-        </div>
-      </section>
+      <ServiceArea city="oahu" />
 
       {/* About */}
       <section className="mx-auto max-w-6xl px-4 py-12">

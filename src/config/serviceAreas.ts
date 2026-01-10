@@ -1,0 +1,32 @@
+export const SERVICE_AREAS: Record<string, string[]> = {
+  oahu: [
+    'Honolulu',
+    'Waikīkī',
+    'Kailua',
+    'Kāneʻohe',
+    'Ko Olina',
+    'Ewa Beach',
+    'Mililani',
+    'North Shore (Haleʻiwa)',
+  ],
+  dallas: [
+    'Dallas',
+    'Plano',
+    'Frisco',
+    'Prosper',
+    'McKinney',
+    'Allen',
+    'Richardson',
+    'Garland',
+    'Addison',
+    'University Park',
+    'Highland Park',
+    'Oak Cliff',
+  ],
+  perth: [
+    'Perth',
+    'Fremantle',
+    'Cottesloe',
+    'Subiaco',
+  ],
+}

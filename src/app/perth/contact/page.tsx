@@ -3,6 +3,7 @@ import NextImage from '../../../components/NextImage'
 import PageContainer from '../../../components/PageContainer'
 import FAQs from '../../../components/FAQs'
 import ContactCard from '../../../components/ContactCard'
+import ServiceArea from '../../../components/ServiceArea'
 import { CONTACTS } from '../../../config/contact'
 
 const { phoneDisplay: PHONE, phoneTel: PHONE_TEL, email: EMAIL } = CONTACTS.perth
@@ -85,13 +86,7 @@ export default function PerthContactPage() {
         </div>
       </section>
 
-      {/* Service Area */}
-      <section className="mx-auto max-w-6xl px-4 py-12">
-        <div className="rounded-3xl bg-linear-to-r from-sky-100 to-cyan-50 p-6 ring-1 ring-slate-200">
-          <h2 className="text-2xl font-bold">Perth service area</h2>
-          <p className="mt-2 text-slate-700">Perth • Fremantle • Cottesloe • Subiaco • and nearby areas</p>
-        </div>
-      </section>
+      <ServiceArea city="perth" title="Perth service area" />
 
       <FAQs
         city="Perth"

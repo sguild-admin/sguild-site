@@ -6,6 +6,7 @@ import PageContainer from '../../components/PageContainer'
 import Hero from '../../components/Hero'
 import FAQs from '../../components/FAQs'
 import Offerings from '../../components/Offerings'
+import ServiceArea from '../../components/ServiceArea'
 import ContactCTA from '../../components/ContactCTA'
 import { CONTACTS } from '../../config/contact'
 
@@ -66,14 +67,7 @@ export default function PerthPage() {
         description="All lessons are 30 minutes and take place at your home, condo, or community pool. Choose the option that best fits your swimmer's goals."
       />
 
-      <section id="coverage" className="mx-auto max-w-6xl px-4 py-12">
-        <div className="rounded-3xl bg-linear-to-r from-sky-100 to-cyan-50 p-6 ring-1 ring-slate-200">
-          <h2 className="text-2xl font-bold">Where we teach</h2>
-          <p className="mt-2 text-slate-700">
-            We offer mobile swim lessons across Perth and nearby areas.
-          </p>
-        </div>
-      </section>
+      <ServiceArea city="perth" />
 
       <section className="mx-auto max-w-6xl px-4 py-12">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

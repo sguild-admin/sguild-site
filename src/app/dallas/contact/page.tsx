@@ -3,6 +3,7 @@ import NextImage from '../../../components/NextImage'
 import PageContainer from '../../../components/PageContainer'
 import FAQs from '../../../components/FAQs'
 import ContactCard from '../../../components/ContactCard'
+import ServiceArea from '../../../components/ServiceArea'
 import { CONTACTS } from '../../../config/contact'
 
 const { phoneDisplay: PHONE, phoneTel: PHONE_TEL, email: EMAIL } = CONTACTS.dallas
@@ -26,7 +27,7 @@ export default function DallasContactPage() {
 
         <div className="mx-auto max-w-6xl px-4 py-16 md:py-24 grid md:grid-cols-2 items-center gap-10">
           <div>
-            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">Contact — Dallas</h1>
+            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">Contact - Dallas</h1>
             <p className="mt-4 text-lg leading-relaxed text-slate-700">
               Ready to book at‑home swim lessons in Dallas or Collin County? Reach out and we’ll get you scheduled.
             </p>
@@ -87,13 +88,7 @@ export default function DallasContactPage() {
         </div>
       </section>
 
-      {/* Service Area */}
-      <section className="mx-auto max-w-6xl px-4 py-12">
-        <div className="rounded-3xl bg-linear-to-r from-sky-100 to-cyan-50 p-6 ring-1 ring-slate-200">
-          <h2 className="text-2xl font-bold">Dallas service area</h2>
-          <p className="mt-2 text-slate-700">Dallas • Plano • Frisco • McKinney • Prosper • Garland • Allen • Richardson • Addison • University Park • Highland Park</p>
-        </div>
-      </section>
+      <ServiceArea city="dallas" title="Dallas service area" />
 
       <FAQs
         city="Dallas"

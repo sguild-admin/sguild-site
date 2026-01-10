@@ -15,7 +15,7 @@ export const CONTACTS = {
   perth: {
     phoneDisplay: '(08) 6123 4567',
     phoneTel: '+61861234567',
-    email: 'perth@sguildswim.com',
+    email: 'info@sguildswim.com',
   },
 };
 
