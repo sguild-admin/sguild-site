@@ -75,61 +75,66 @@ export default function PricingSection({
               : 'border-slate-200 bg-white'
 
             return (
-  <div
-  key={it.key}
-  className={[
-    'relative h-full rounded-2xl border text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md',
-    selectedClasses,
-    it.badge ? 'pt-12 pb-5 px-5' : 'p-5',
-    'flex flex-col', // ✅ makes footer stick
-  ].join(' ')}
->
-  {it.badge ? (
-    <div className="absolute left-1/2 top-3 -translate-x-1/2">
-      <span
-        className={[
-          'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold shadow-sm',
-          it.featured ? 'bg-sky-600 text-white' : 'bg-slate-900 text-white',
-        ].join(' ')}
-      >
-        {it.badge}
-      </span>
-    </div>
-  ) : null}
+              <div
+                key={it.key}
+                className={[
+                  'relative h-full rounded-2xl border text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md',
+                  selectedClasses,
+                  it.badge ? 'pt-12 pb-5 px-5' : 'p-5',
+                  'flex flex-col', // ✅ makes footer stick
+                ].join(' ')}
+              >
+                {it.badge ? (
+                  <div className="absolute left-1/2 top-3 -translate-x-1/2">
+                    <span
+                      className={[
+                        'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold shadow-sm',
+                        it.featured ? 'bg-sky-600 text-white' : 'bg-slate-900 text-white',
+                      ].join(' ')}
+                    >
+                      {it.badge}
+                    </span>
+                  </div>
+                ) : null}
 
-  {/* Content */}
-  <div>
-    <div className="text-sm font-semibold text-slate-900">{it.label}</div>
+                {/* Content */}
+                <div>
+                  <div className="text-sm font-semibold text-slate-900">{it.label}</div>
 
-    <div className="mt-3 text-3xl font-extrabold tracking-tight text-slate-900">{it.price}</div>
+                  <div className="mt-3 text-3xl font-extrabold tracking-tight text-slate-900">{it.price}</div>
 
-    {/* Keep meta line height consistent */}
-    <div className="mt-1 min-h-[20px] text-sm font-medium text-slate-600">
-      {it.meta ?? '\u00A0'}
-    </div>
+                  {/* Keep meta line height consistent */}
+                  <div className="mt-1 min-h-[20px] text-sm font-medium text-slate-600">
+                    {it.meta ?? '\u00A0'}
+                  </div>
 
-    {/* Keep note area height consistent across cards */}
-    <div className="mt-3 min-h-[40px]">
-      {it.note ? (
-        <div className="flex justify-center">
-          <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-semibold text-slate-800">
-            {it.note}
-          </span>
-        </div>
-      ) : (
-        <span className="block">&nbsp;</span>
-      )}
-    </div>
-  </div>
+                  {/* Keep note area height consistent across cards */}
+                  <div className="mt-3 min-h-[40px]">
+                    {it.note ? (
+                      <div className="flex justify-center">
+                        <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-semibold text-slate-800">
+                          {it.note}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="block">&nbsp;</span>
+                    )}
+                  </div>
+                </div>
 
-  {/* Footer pinned to bottom */}
-  <div className="mt-auto pt-4 text-xs text-slate-500">
-    30 minutes • Private or small group
-  </div>
-</div>
+                {/* Footer pinned to bottom */}
+                <div className="mt-auto pt-4 text-xs text-slate-500">
+                  30 minutes • Private or small group
+                </div>
+              </div>
             )
           })}
         </div>
+
+        {/* New footer line */}
+        <p className="mt-4 text-xs text-slate-500">
+          One trial lesson per student. Packages valid for 6 months. No additional fees.
+        </p>
       </div>
     </section>
   )
