@@ -1,5 +1,6 @@
 import "./globals.css"
 import React from 'react'
+import Script from 'next/script'
 import Header from "../components/Header"
 import Footer from "../components/Footer"
 
@@ -37,6 +38,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
 
       <body className="bg-white text-slate-800">
+        <Script
+          id="hs-script-loader"
+          src="//js-na2.hs-scripts.com/244929611.js"
+          strategy="afterInteractive"
+          async
+          defer
+        />
+
         <a href="#content" className="sr-only focus:not-sr-only z-50 inline-block m-4 rounded bg-white px-3 py-2 text-sm font-medium text-sky-700">Skip to content</a>
        
         <noscript>
