@@ -69,7 +69,7 @@ export default function PrivacyPage() {
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-6 text-slate-700">
               <p><strong>Sguild Swim Instruction</strong></p>
               <p className="mt-2">Email: <a href="mailto:info@sguild.com" className="text-sky-600 hover:underline">info@sguild.com</a></p>
-              <p>Website: <a href="https://sguild.com" className="text-sky-600 hover:underline">sguild.com</a></p>
+              <p>Website: <a href="https://www.sguildswim.com" className="text-sky-600 hover:underline">sguild.com</a></p>
             </div>
           </section>
 
