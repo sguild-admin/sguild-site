@@ -81,7 +81,7 @@ export default function OahuPage() {
         title="What we offer on Oʻahu"
         description="All lessons are 30 minutes and take place at your home, condo, or an arranged ocean location. Choose the option that best fits your swimmer's goals."
       />
-
+      {/* Pricing */}
       <PricingSection city="oahu" />
 
       <ServiceArea city="oahu" />

@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import PageContainer from '../../components/PageContainer'
-import PricingSection from '../../components/PricingSection'
+import PricingSection from '../../components/Packages'
 import PricingToggle from '../../components/PricingToggle'
 import { CONTACTS } from '../../config/contact'
 
@@ -33,36 +33,34 @@ export default function PricingClient() {
   const smsHref = `sms:${contact.phoneTel}`
   const cityLabel = city === 'oahu' ? 'O\'ahu' : 'Dallas'
 
-return (
-  <PageContainer>
-  <section className="mx-auto max-w-6xl px-4 py-8">
-   {/* Top header */}
-{/* Top header */}
-<div className="mb-8">
-  <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-          Pricing
-        </h1>
-        <p className="mt-2 text-sm text-slate-600">
-          Private, lessons wherever you swim. No fees.
-        </p>
-      </div>
+  return (
+    <PageContainer>
+      <section className="mx-auto max-w-6xl px-4 py-8">
+        {/* Top header */}
+        <section className="mx-auto max-w-6xl px-4 pt-10 pb-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-baseline sm:justify-between">
+            <div>
+              <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 md:text-5xl">
+                Lesson Pricing
+              </h1>
+              <p className="mt-4 text-lg leading-relaxed text-slate-700">
+                Private, 30-minute lessons. No fees.
+              </p>
+            </div>
+            
 
-      <div className="flex sm:justify-end">
-        <PricingToggle
-          value={city}
-          onChange={(v: City) => {
-            setCity(v)
-            router.replace(`/pricing?city=${v}`)
-          }}
-        />
-      </div>
-    </div>
-  </div>
-</div>
-
+            <div className="flex items-center gap-3">
+              <span className="hidden sm:inline text-sm text-slate-500">Location</span>
+              <PricingToggle
+                value={city}
+                onChange={(v: City) => {
+                  setCity(v)
+                  router.replace(`/pricing?city=${v}`)
+                }}
+              />
+            </div>
+          </div>
+        </section>
     {/* Pricing container */}
     <div className="mt-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">

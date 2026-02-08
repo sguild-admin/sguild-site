@@ -77,7 +77,11 @@ export default function DallasPage() {
         description="All lessons are 30 minutes and take place at your home, condo, or community pool. Choose the option that best fits your swimmer's goals."
       />
 
+
+
+      {/* Pricing */}
       <PricingSection city="dallas" />
+
 
       <ServiceArea city="dallas" title="Where we teach" />
 
