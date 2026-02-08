@@ -11,7 +11,7 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-2xl font-bold mb-4">Introduction</h2>
             <p className="text-slate-700 mb-4">
-              Sguild Swim Instruction ("we," "us," "our," or "Company") operates the sguildswim.com website. This page informs you of our policies regarding the collection, use, and disclosure of personal data when you use our Service and the choices you have associated with that data.
+              Sguild Swim Instruction (&quot;we,&quot; &quot;us,&quot; &quot;our,&quot; or &quot;Company&quot;) operates the sguildswim.com website. This page informs you of our policies regarding the collection, use, and disclosure of personal data when you use our Service and the choices you have associated with that data.
             </p>
           </section>
 
@@ -69,7 +69,7 @@ export default function PrivacyPage() {
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-6 text-slate-700">
               <p><strong>Sguild Swim Instruction</strong></p>
               <p className="mt-2">Email: <a href="mailto:info@sguild.com" className="text-sky-600 hover:underline">info@sguild.com</a></p>
-              <p>Website: <a href="https://www.sguildswim.com" className="text-sky-600 hover:underline">sguild.com</a></p>
+              <p>Website: <a href="https://www.sguildswim.com" className="text-sky-600 hover:underline">www.sguildswim.com</a></p>
             </div>
           </section>
 
