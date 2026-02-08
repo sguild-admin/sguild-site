@@ -5,7 +5,7 @@ import FeaturableReviews from '../components/FeaturableReviews'
 
 
 
-type LocKey = 'oahu' | 'dallas' | 'perth';
+type LocKey = 'oahu' | 'dallas';
 type LocationItem = {
   key: LocKey;
   name: string;
@@ -38,16 +38,6 @@ const LOCATIONS: LocationItem[] = [
     description: 'Our original home base. Book at your home or community pool.',
     areaTag: 'Dallas County • Collin County',
     badges: ['Summer (June–Aug)', 'Residential', 'Community/HOA'],
-  },
-  {
-    key: 'perth',
-    name: 'Perth, AU',
-    href: '/perth/',
-    image: '/assets/Perth.png',
-    imageAlt: 'Perth swim lessons — at-home and community pool instruction',
-    description: 'Mobile at-home and community pool lessons across Perth.',
-    areaTag: 'Perth & Surrounding',
-    badges: ['At-home', 'Community Pools', 'All Ages'],
   },
 ];
 

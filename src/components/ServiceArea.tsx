@@ -1,7 +1,7 @@
 import { SERVICE_AREAS } from '../config/serviceAreas'
 
 type Props = {
-  city: 'oahu' | 'dallas' | 'perth' | string
+  city: 'oahu' | 'dallas' | string
   title?: string
 }
 

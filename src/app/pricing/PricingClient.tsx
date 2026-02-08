@@ -1,48 +1,120 @@
-"use client"
-import React, { useEffect, useState } from 'react'
+'use client'
+
+import React, { useEffect, useMemo, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import PageContainer from '../../components/PageContainer'
 import PricingSection from '../../components/PricingSection'
 import PricingToggle from '../../components/PricingToggle'
-import Link from 'next/link'
+import { CONTACTS } from '../../config/contact'
+
+type City = 'dallas' | 'oahu'
 
 export default function PricingClient() {
   const params = useSearchParams()
-  const qCity = params?.get('city')
-  const defaultCity = qCity === 'oahu' ? 'oahu' : qCity === 'perth' ? 'perth' : 'dallas'
-
-  const [city, setCity] = useState<'dallas' | 'oahu' | 'perth'>(defaultCity as 'dallas' | 'oahu' | 'perth')
   const router = useRouter()
+
+  const qCity = params?.get('city')
+  const defaultCity: City = qCity === 'oahu' ? 'oahu' : 'dallas'
+
+  const [city, setCity] = useState<City>(defaultCity)
 
   useEffect(() => {
     if (qCity === 'oahu' && city !== 'oahu') setCity('oahu')
     if (qCity === 'dallas' && city !== 'dallas') setCity('dallas')
-    if (qCity === 'perth' && city !== 'perth') setCity('perth')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [qCity])
 
-  return (
-    <PageContainer>
-      <section className="mx-auto max-w-6xl px-4 py-12">
-        <h1 className="text-3xl font-bold">Pricing</h1>
-        <p className="mt-2 text-slate-700">Simple pricing. No fees.</p>
+  const contact = useMemo(() => {
+    if (city === 'oahu') return CONTACTS.oahu
+    return CONTACTS.dallas
+  }, [city])
 
-        <div className="mt-6">
-          <PricingToggle
-            value={city}
-            onChange={(v) => {
-              setCity(v)
-              // reflect selection in URL so header/footer can read it
-              router.replace(`/pricing?city=${v}`)
-            }}
-          />
+  const telHref = `tel:${contact.phoneTel}`
+  const smsHref = `sms:${contact.phoneTel}`
+  const cityLabel = city === 'oahu' ? 'O\'ahu' : 'Dallas'
+
+return (
+  <PageContainer>
+  <section className="mx-auto max-w-6xl px-4 py-8">
+   {/* Top header */}
+{/* Top header */}
+<div className="mb-8">
+  <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+          Pricing
+        </h1>
+        <p className="mt-2 text-sm text-slate-600">
+          Private, lessons wherever you swim. No fees.
+        </p>
+      </div>
+
+      <div className="flex sm:justify-end">
+        <PricingToggle
+          value={city}
+          onChange={(v: City) => {
+            setCity(v)
+            router.replace(`/pricing?city=${v}`)
+          }}
+        />
+      </div>
+    </div>
+  </div>
+</div>
+
+    {/* Pricing container */}
+    <div className="mt-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900">Packages</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            All lessons are private, one-on-one, 30-minute sessions at your pool.
+          </p>
         </div>
 
-        <div className="mt-6">
-          <PricingSection city={city} />
-        </div>
 
-        {/* full-pricing cross-link removed — pricing is shown above */}
-      </section>
-    </PageContainer>
-  )
+      </div>
+
+      <div className="mt-6">
+        <PricingSection city={city} />
+      </div>
+
+      <p className="mt-4 text-xs text-slate-500">
+        One trial lesson per student. Packages valid for 6 months. No additional fees.
+      </p>
+    </div>
+
+    {/* Reassurance (avoid widget overlap) */}
+    <div className="mt-8 pb-16">
+  <div className="relative z-10 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+  <p className="text-sm text-slate-700">
+    Questions before you start? Text us and we’ll recommend the best option based on your swimmer’s age and goals.
+  </p>
+
+
+
+<div className="flex items-center gap-2 sm:gap-3">
+  <a
+    href={smsHref}
+    className="inline-flex items-center justify-center rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-200"
+  >
+    Text
+  </a>
+
+  <a
+    href={telHref}
+    className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+  >
+    Call
+  </a>
+</div>
+    </div>
+  </div>
+</div>
+  </section>
+</PageContainer>
+
+)
 }

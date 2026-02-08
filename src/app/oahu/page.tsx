@@ -54,7 +54,7 @@ export default function OahuPage() {
         title={"Oʻahu Mobile Swim Lessons | Private Swim Lessons in Honolulu & North Shore"}
         description={"Mobile private and small-group swim lessons on Oʻahu. At-home and ocean swim lessons for kids and adults in Honolulu, Waikīkī, Kailua, Kāneʻohe, Ko Olina, and the North Shore."}
         url={'https://sguildswim.com/oahu'}
-        image={'https://sguildswim.com/assets/oceanSwim.jpg'}
+        image={'https://sguildswim.com/assets/oahuHero.png'}
         ldJson={[businessStructuredData]}
       />
 

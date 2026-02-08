@@ -23,10 +23,4 @@ export const SERVICE_AREAS: Record<string, string[]> = {
     'Highland Park',
     'Oak Cliff',
   ],
-  perth: [
-    'Perth',
-    'Fremantle',
-    'Cottesloe',
-    'Subiaco',
-  ],
 }

@@ -9,24 +9,16 @@ export type CityPricing = {
 
 export const PRICING: Record<string, CityPricing> = {
   oahu: {
-    trial: '$60',
-    single: '$70',
+    trial: '$55',
+    single: '$65',
     pack4: '$240',
     pack8: '$440',
     savings4: 'Save $40',
     savings8: 'Save $120',
   },
   dallas: {
-    trial: '$55',
-    single: '$65',
-    pack4: '$220',
-    pack8: '$400',
-    savings4: 'Save $40',
-    savings8: 'Save $120',
-  },
-  perth: {
-    trial: '$55',
-    single: '$65',
+    trial: '$50',
+    single: '$60',
     pack4: '$220',
     pack8: '$400',
     savings4: 'Save $40',

@@ -12,16 +12,15 @@ export default function Footer() {
   let city: string | null = null
   if (pathname.startsWith('/dallas')) city = 'dallas'
   else if (pathname.startsWith('/oahu')) city = 'oahu'
-  else if (pathname.startsWith('/perth')) city = 'perth'
-
+  
   // if on /pricing prefer the query param value
-  if (pathname.startsWith('/pricing') && qCity) city = qCity
+  if (pathname.startsWith('/pricing') && (qCity === 'oahu' || qCity === 'dallas')) city = qCity
 
   const pricingHref = city ? `/pricing?city=${city}` : '/pricing'
   const contactHref = city ? `/${city}/contact` : '/oahu/contact'
 
   return (
-    <footer className="border-t border-slate-200 bg-white md:bg-transparent">
+    <footer className="border-t border-slate-200">
       <div className="mx-auto max-w-6xl px-4 py-10 text-sm text-slate-500 flex flex-col md:flex-row items-center justify-between gap-4">
         <p>© {new Date().getFullYear()} Sguild Swim LLC</p>
         <nav className="flex gap-6">

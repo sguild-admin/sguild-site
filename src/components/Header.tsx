@@ -15,10 +15,9 @@ export default function Header() {
   let city: string | null = null;
   if (pathname.startsWith("/dallas")) city = "dallas";
   else if (pathname.startsWith("/oahu")) city = "oahu";
-  else if (pathname.startsWith("/perth")) city = "perth";
-
+  
   // if on /pricing prefer the query param
-  if (pathname.startsWith("/pricing") && qCity) city = qCity;
+  if (pathname.startsWith("/pricing") && (qCity === "oahu" || qCity === "dallas")) city = qCity;
 
   const pricingHref = city ? `/pricing?city=${city}` : "/pricing";
   const contactHref = city ? `/${city}/contact` : "/oahu/contact";
@@ -81,7 +80,7 @@ export default function Header() {
             >
               <div className="py-1">
                 {(() => {
-                  const order = ['Dallas', "Oʻahu", 'Perth'];
+                  const order = ['Dallas', "Oʻahu"];
                   const locs = NAV.filter((n) => n.group === 'locations');
                   return order
                     .map((label) => locs.find((l) => l.label === label))
