@@ -17,7 +17,7 @@ const { phoneDisplay: PHONE_DISPLAY, phoneTel: PHONE_TEL, email: EMAIL } = CONTA
 export default function OahuPage() {
   const telHref = `tel:${PHONE_TEL}`
   const smsHref = `sms:${PHONE_TEL}`
-  const mailHref = `mailto:${EMAIL}`
+  const requestHref = '/lesson-request'
 
   // ---- Structured Data (SEO) ----
   const businessStructuredData = {
@@ -66,7 +66,7 @@ export default function OahuPage() {
         ctas={[
           { label: PHONE_DISPLAY, href: telHref, variant: 'primary' },
           { label: 'Text Us', href: smsHref, variant: 'primary' },
-          { label: 'View Pricing', href: '#pricing', variant: 'secondary' },
+          { label: 'Book Now', href: '/lesson-request', variant: 'secondary' },
         ]}
         imageSrc={'/assets/oahuHero.png'}
         imageAlt={'Oahu swim lessons with Sguild Swim Instruction'}
@@ -104,10 +104,10 @@ export default function OahuPage() {
         phoneDisplay={PHONE_DISPLAY}
         telHref={telHref}
         smsHref={smsHref}
-        mailHref={mailHref}
+        requestHref={requestHref}
       />
 
-      <ContactCTA city="Oʻahu" href="/oahu/contact" />
+      <ContactCTA city="Oʻahu" href="/lesson-request" />
 
       {/* Reviews */}
       <div id="reviews">

@@ -6,11 +6,11 @@ type Props = {
   phoneDisplay: string
   telHref: string
   smsHref: string
-  mailHref: string
+  requestHref: string
   includeOcean?: boolean
 }
 
-export default function FAQs({ city, phoneDisplay, telHref, smsHref, mailHref, includeOcean = true }: Props) {
+export default function FAQs({ city, phoneDisplay, telHref, smsHref, requestHref, includeOcean = true }: Props) {
   const cityDisplay = city
   const locationText = includeOcean
     ? `We are an at-home swim school in ${cityDisplay}. Our instructors come to your home pool, condo pool, or, for confident swimmers, an arranged ocean or outdoor location.`
@@ -33,11 +33,11 @@ export default function FAQs({ city, phoneDisplay, telHref, smsHref, mailHref, i
         </FAQItem>
 
         <FAQItem question={`How do I book?`}>
-          <p className="mt-0 text-sm text-slate-700">Call, text, or email us and we&apos;ll help you schedule your {cityDisplay} swim lessons.</p>
+          <p className="mt-0 text-sm text-slate-700">Call, text, or submit a lesson request and we&apos;ll help you schedule your {cityDisplay} swim lessons.</p>
           <div className="mt-3 flex flex-wrap gap-2 text-sm">
             <a href={telHref} className="rounded-full bg-sky-600 px-3 py-1.5 text-white">{phoneDisplay}</a>
             <a href={smsHref} className="rounded-full border border-slate-300 px-3 py-1.5">Text</a>
-            <a href={mailHref} className="rounded-full border border-slate-300 px-3 py-1.5">Email</a>
+            <a href={requestHref} className="rounded-full border border-slate-300 px-3 py-1.5">Request Lesson</a>
           </div>
         </FAQItem>
 

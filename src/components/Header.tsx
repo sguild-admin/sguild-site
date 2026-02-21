@@ -82,13 +82,12 @@ export default function Header() {
                 {(() => {
                   const order = ['Dallas', "Oʻahu"];
                   const locs = NAV.filter((n) => n.group === 'locations');
-                  return order
+                  const orderedLocs = order
                     .map((label) => locs.find((l) => l.label === label))
-                    .filter(Boolean)
-                    .map((n) => (
-                      // @ts-ignore
-                      <Link key={n.href} href={n.href} className="block px-4 py-2 text-sm hover:bg-slate-50">{n.label}</Link>
-                    ));
+                    .filter((n): n is (typeof locs)[number] => Boolean(n));
+                  return orderedLocs.map((n) => (
+                    <Link key={n.href} href={n.href} className="block px-4 py-2 text-sm hover:bg-slate-50">{n.label}</Link>
+                  ));
                 })()}
               </div>
             </div>

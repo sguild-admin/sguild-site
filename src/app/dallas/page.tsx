@@ -19,7 +19,7 @@ const { phoneDisplay: PHONE, phoneTel: PHONE_TEL, email: EMAIL } = CONTACTS.dall
 export default function DallasPage() {
   const telHref = `tel:${PHONE_TEL}`
   const smsHref = `sms:${PHONE_TEL}`
-  const mailHref = `mailto:${EMAIL}`
+  const requestHref = '/lesson-request'
 
   const businessStructuredData = {
     '@context': 'https://schema.org',
@@ -64,7 +64,7 @@ export default function DallasPage() {
         ctas={[
           { label: '(972) 210-5375', href: telHref, variant: 'primary' },
           { label: 'Text Us', href: smsHref, variant: 'primary' },
-          { label: 'View Pricing', href: '#pricing', variant: 'secondary' },
+          { label: 'Book Now', href: '/lesson-request', variant: 'secondary' },
         ]}
         imageSrc={'/assets/dallasHero.png'}
         imageAlt={'Backyard swim lessons in Dallas'}
@@ -101,11 +101,11 @@ export default function DallasPage() {
         phoneDisplay={PHONE}
         telHref={telHref}
         smsHref={smsHref}
-        mailHref={mailHref}
+        requestHref={requestHref}
         includeOcean={false}
       />
       
-      <ContactCTA city="Dallas" href="/dallas/contact" />
+      <ContactCTA city="Dallas" href="/lesson-request" />
 {/* Reviews */}
 <FeaturableReviews />
       
