@@ -35,9 +35,9 @@ export default function DallasContactPage() {
             <div className="mt-6 rounded-2xl bg-white/80 p-4 ring-1 ring-slate-200">
               <h2 className="text-base font-semibold text-slate-900">Helpful details to include</h2>
               <ul className="mt-2 list-disc pl-5 text-sm text-slate-700">
-                <li>Lesson location preference</li>
-                <li>Who the lessons are for</li>
-                <li>Your timeline to start</li>
+                <li>Pool type (home pool, condo/public pool)</li>
+                <li>Who the lessons are for (adult or child)</li>
+                <li>When you would like to start</li>
                 <li>Your contact info (name, phone number, ZIP code)</li>
               </ul>
             </div>

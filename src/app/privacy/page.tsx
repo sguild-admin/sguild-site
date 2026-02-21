@@ -54,7 +54,7 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-2xl font-bold mb-4">Changes to This Privacy Policy</h2>
             <p className="text-slate-700 mb-4">
-              We may update our Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page and updating the "Last updated" date at the top of this Privacy Policy.
+              We may update our Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page and updating the &quot;Last updated&quot; date at the top of this Privacy Policy.
             </p>
             <p className="text-slate-700 mb-4">
               You are advised to review this Privacy Policy periodically for any changes. Changes to this Privacy Policy are effective when they are posted on this page.
@@ -86,7 +86,7 @@ export default function PrivacyPage() {
               Our Service may contain links to other sites that are not operated by us. This Privacy Policy does not apply to third-party websites, and we are not responsible for their privacy practices. We encourage you to review the privacy policy of any third-party site before providing your information.
             </p>
 
-            <h3 className="text-lg font-semibold mt-6 mb-3">Children's Privacy</h3>
+            <h3 className="text-lg font-semibold mt-6 mb-3">Children&apos;s Privacy</h3>
             <p className="text-slate-700 mb-4">
               Our Service does not address anyone under the age of 18. We do not knowingly collect personally identifiable information from children under 18. If we become aware that a child under 18 has provided us with Personal Data, we immediately delete such information from our servers.
             </p>
