@@ -35,17 +35,17 @@ export default function OahuContactPage() {
             <div className="mt-6 rounded-2xl bg-white/80 p-4 ring-1 ring-slate-200">
               <h2 className="text-base font-semibold text-slate-900">Helpful details to include</h2>
               <ul className="mt-2 list-disc pl-5 text-sm text-slate-700">
-                <li>Lesson location: Home Pool, Condo/Public Pool, or Open Water (Ocean)</li>
-                <li>Who lessons are for: Adult or Child</li>
-                <li>Timeline: next 2 weeks, next month, spring/summer, or exploring options</li>
-                <li>Contact info: First Name, Last Name, Phone Number, and ZIP code</li>
+                <li>Lesson location preference</li>
+                <li>Who the lessons are for</li>
+                <li>Your timeline to start</li>
+                <li>Your contact info (name, phone number, ZIP code)</li>
               </ul>
             </div>
           </div>
 
           <div className="relative">
             <div className="w-full overflow-hidden rounded-3xl shadow-2xl ring-1 ring-slate-200 relative" style={{ aspectRatio: '4 / 3' }}>
-              <NextImage src="/assets/contact.JPG" alt="Ocean swim lessons on Oahu" fill className="object-cover" sizes="(max-width: 768px) 100vw, 50vw" />
+              <NextImage src="/assets/oahu_swimmer_v2.png" alt="Ocean swim lessons on Oahu" fill className="object-cover" sizes="(max-width: 768px) 100vw, 50vw" />
             </div>
             <div className="absolute -bottom-4 -right-4 bg-white/80 backdrop-blur rounded-2xl px-4 py-3 shadow ring-1 ring-slate-200">
               <p className="text-sm font-medium">Flexible scheduling - Home pools - Ocean safety</p>

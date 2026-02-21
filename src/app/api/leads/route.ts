@@ -7,6 +7,10 @@ type Utms = {
   utm_content?: string;
 };
 
+const LEADS_TABLE = "Leads";
+const SOURCES_TABLE = "Lead Attribution";
+const CAMPAIGNS_TABLE = "Campaigns";
+
 type LeadRequestBody = {
   lessonLocation?: string;
   lessonFor?: string;
@@ -173,11 +177,8 @@ export async function POST(request: Request) {
   try {
     const token = process.env.AIRTABLE_TOKEN;
     const baseId = process.env.AIRTABLE_BASE_ID;
-    const leadsTable = process.env.AIRTABLE_LEADS_TABLE;
-    const sourcesTable = process.env.AIRTABLE_SOURCES_TABLE;
-    const campaignsTable = process.env.AIRTABLE_CAMPAIGNS_TABLE;
 
-    if (!token || !baseId || !leadsTable || !sourcesTable || !campaignsTable) {
+    if (!token || !baseId) {
       return NextResponse.json(
         { ok: false, error: "Airtable configuration is missing." },
         { status: 500 },
@@ -240,7 +241,7 @@ export async function POST(request: Request) {
 
     const normalizedPhone = normalizePhone(body.phoneNumber.trim());
     const formattedPhone = formatPhone(normalizedPhone);
-    const leadCreate = await createAirtableRecord(baseId, leadsTable, token, {
+    const leadCreate = await createAirtableRecord(baseId, LEADS_TABLE, token, {
       Name: fullName,
       Phone: formattedPhone,
       Zip: body.zipCode.trim(),
@@ -261,7 +262,7 @@ export async function POST(request: Request) {
     try {
       let campaignRecordId: string | null = null;
       if (campaignCode) {
-        campaignRecordId = await findCampaignRecordId(baseId, campaignsTable, token, campaignCode);
+        campaignRecordId = await findCampaignRecordId(baseId, CAMPAIGNS_TABLE, token, campaignCode);
       }
 
       const attributionFields: Record<string, unknown> = {
@@ -270,7 +271,7 @@ export async function POST(request: Request) {
       };
       if (campaignRecordId) attributionFields.Campaign = [campaignRecordId];
 
-      await createAirtableRecord(baseId, sourcesTable, token, attributionFields);
+      await createAirtableRecord(baseId, SOURCES_TABLE, token, attributionFields);
     } catch (attributionError) {
       console.warn("Lead saved but attribution write failed", {
         leadId,
