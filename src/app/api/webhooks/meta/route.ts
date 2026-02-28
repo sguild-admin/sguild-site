@@ -29,7 +29,11 @@ export async function POST(req: NextRequest) {
   if (!appSecret) return new Response("Server misconfigured", { status: 500 })
 
   const rawBody = await req.text()
-
+console.log("META_WEBHOOK_HIT", {
+  method: "POST",
+  sig: req.headers.get("x-hub-signature-256"),
+  len: rawBody.length,
+})
   const sigHeader = req.headers.get("x-hub-signature-256") || ""
   const expected =
     "sha256=" + crypto.createHmac("sha256", appSecret).update(rawBody, "utf8").digest("hex")
