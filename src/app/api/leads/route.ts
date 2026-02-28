@@ -235,7 +235,8 @@ export async function POST(request: Request) {
     const lessonSetting = normalizeLessonSetting(body.lessonLocation);
     const ageGroup = normalizeAgeGroup(body.lessonFor);
     const startTimeline = normalizeTimeline(body.lessonTimeline);
-    const campaignCode = typeof body.utms?.utm_campaign === "string" ? body.utms.utm_campaign.trim() : "";
+    const campaignCode =
+      typeof body.utms?.utm_campaign === "string" ? body.utms.utm_campaign.trim().toLowerCase() : "";
 
     const fullName = `${body.firstName.trim()} ${body.lastName.trim()}`.trim();
 
