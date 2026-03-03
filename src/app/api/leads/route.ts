@@ -8,7 +8,7 @@ type Utms = {
 };
 
 const LEADS_TABLE = "Leads";
-const SOURCES_TABLE = "Lead Attribution";
+const SOURCES_TABLE = "Lead Intake";
 const CAMPAIGNS_TABLE = "Campaigns";
 
 type LeadRequestBody = {
