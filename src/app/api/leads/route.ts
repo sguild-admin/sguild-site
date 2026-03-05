@@ -7,8 +7,8 @@ type Utms = {
   utm_content?: string;
 };
 
-const LEADS_TABLE = "Leads";
-const SOURCES_TABLE = "Lead Intake";
+const LEADS_TABLE = "Lead Intakes";
+const SOURCES_TABLE = "Lead Attributions";
 const CAMPAIGNS_TABLE = "Campaigns";
 
 type LeadRequestBody = {
@@ -235,21 +235,24 @@ export async function POST(request: Request) {
     const lessonSetting = normalizeLessonSetting(body.lessonLocation);
     const ageGroup = normalizeAgeGroup(body.lessonFor);
     const startTimeline = normalizeTimeline(body.lessonTimeline);
+    const createdAt = new Date().toISOString().slice(0, 10);
     const campaignCode =
       typeof body.utms?.utm_campaign === "string" ? body.utms.utm_campaign.trim().toLowerCase() : "";
 
-    const fullName = `${body.firstName.trim()} ${body.lastName.trim()}`.trim();
+    const firstName = body.firstName.trim();
+    const lastName = body.lastName.trim();
 
     const normalizedPhone = normalizePhone(body.phoneNumber.trim());
     const formattedPhone = formatPhone(normalizedPhone);
     const leadCreate = await createAirtableRecord(baseId, LEADS_TABLE, token, {
-      Name: fullName,
+      First: firstName,
+      Last: lastName,
       Phone: formattedPhone,
       Zip: body.zipCode.trim(),
+      "Created At": createdAt,
       "Lesson Setting": lessonSetting,
       "Age Group": ageGroup,
       "Start Timeline": startTimeline,
-      "External Provider": "Website",
     });
 
     const leadId = leadCreate.records?.[0]?.id;
@@ -267,7 +270,7 @@ export async function POST(request: Request) {
       }
 
       const attributionFields: Record<string, unknown> = {
-        Lead: [leadId],
+        "Lead Intake": [leadId],
         "Landing URL": landingUrl,
       };
       if (campaignRecordId) attributionFields.Campaign = [campaignRecordId];
