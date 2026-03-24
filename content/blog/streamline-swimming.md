@@ -57,4 +57,6 @@ Think: **"Long, locked, and quiet."**
 
 If the body stays long, the core stays locked, and the water around you stays quiet, you are likely in a strong streamline.
 
+---
+
 If you would like personalized instruction, submit a [lesson request](/lesson-request) and we can help match the right coaching plan for your location.

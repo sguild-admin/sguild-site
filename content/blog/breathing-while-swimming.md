@@ -32,4 +32,6 @@ To practice, incorporate continuous exhalation, or "bubble blowing," into your w
 
 In our last post, we recommended starting each session with 5 to 10 streamline glides. During each glide, try exhaling the entire time, only stopping when you lose momentum or run out of air. This helps you stay more aware of your breathing throughout the rest of the session.
 
+---
+
 If you would like personalized instruction, submit a [lesson request](/lesson-request) and we can help match the right coaching plan for your location.

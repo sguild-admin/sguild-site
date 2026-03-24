@@ -42,11 +42,14 @@ export default function Header() {
 
           <span className="leading-tight">
             <span className="text-lg font-semibold tracking-tight text-slate-900">
-              <span className="sm:hidden">Sguild Swim</span>
+              <span className="sm:hidden">
+                Sguild <span className="text-slate-600">Swim</span>
+              </span>
               <span className="hidden sm:inline">
                 Sguild <span className="text-slate-600">Swim Instruction</span>
               </span>
             </span>
+            <span className="block text-[11px] text-slate-600 sm:hidden">Private Swim Lessons</span>
             <span className="hidden sm:block text-xs text-slate-600">Private Swim Lessons for All Ages</span>
           </span>
         </Link>

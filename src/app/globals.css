@@ -75,3 +75,9 @@ body {
   color: #0369a1;
   text-decoration: underline;
 }
+
+.blog-content hr {
+  margin-top: 2rem;
+  border: 0;
+  border-top: 1px solid #cbd5e1;
+}
