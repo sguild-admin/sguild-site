@@ -58,10 +58,39 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function StreamlineSwimmingPage() {
   const post = await getArticleOrThrow();
+  const siteUrl = getSiteUrl();
+  const articleUrl = `${siteUrl}/swim-tips/swim-fundamentals/streamline-swimming`;
+  const articleStructuredData = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: post.title,
+    description: post.excerpt,
+    datePublished: post.date,
+    dateModified: post.date,
+    image: post.coverImage ? [`${siteUrl}${post.coverImage}`] : undefined,
+    author: {
+      "@type": "Organization",
+      name: post.author ?? "Sguild Swim Instruction",
+    },
+    publisher: {
+      "@type": "Organization",
+      name: "Sguild Swim Instruction",
+      sameAs: [
+        "https://www.facebook.com/profile.php?id=61585015406844",
+        "https://www.instagram.com/sguildswim/",
+      ],
+    },
+    mainEntityOfPage: articleUrl,
+    url: articleUrl,
+  };
 
   return (
     <PageContainer>
       <main className="mx-auto max-w-3xl px-4 py-12 md:py-16">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(articleStructuredData) }}
+        />
         <p className="text-sm font-medium text-slate-500">
           <Link href="/swim-tips" className="hover:text-sky-700">
             Swim Tips

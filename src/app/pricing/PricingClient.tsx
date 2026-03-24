@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import PageContainer from '../../components/PageContainer'
 import PricingSection from '../../components/Packages'
 import PricingToggle from '../../components/PricingToggle'
+import PaymentsPanel from '../../components/PaymentsPanel'
 import { CONTACTS } from '../../config/contact'
 
 type City = 'dallas' | 'oahu'
@@ -41,7 +42,7 @@ export default function PricingClient() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-baseline sm:justify-between">
             <div>
               <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 md:text-5xl">
-                Lesson Pricing
+                Pricing
               </h1>
               <p className="mt-4 text-lg leading-relaxed text-slate-700">
                 Private, 30-minute lessons. No fees.
@@ -63,24 +64,20 @@ export default function PricingClient() {
         </section>
     {/* Pricing container */}
     <div className="mt-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-xl font-bold text-slate-900">Packages</h2>
+          <h2 className="text-2xl font-bold text-slate-900 md:text-3xl">Lessons and Packages</h2>
           <p className="mt-1 text-sm text-slate-600">
             All lessons are private, one-on-one, 30-minute sessions at your pool.
           </p>
         </div>
-
-
       </div>
 
       <div className="mt-6">
         <PricingSection city={city} />
       </div>
 
-      <p className="mt-4 text-xs text-slate-500">
-        One trial lesson per student. Packages valid for 6 months. No additional fees.
-      </p>
+      <PaymentsPanel />
     </div>
 
     {/* Reassurance (avoid widget overlap) */}

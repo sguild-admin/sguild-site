@@ -1,5 +1,6 @@
 import React from 'react'
 import Packages from './Packages'
+import PaymentsPanel from './PaymentsPanel'
 
 type Props = {
   city: 'oahu' | 'dallas' | string
@@ -36,9 +37,7 @@ export default function PricingSection({
           <Packages city={city} />
         </div>
 
-        <p className="mt-4 text-xs text-slate-500">
-          One trial lesson per student. Packages valid for 6 months. No additional fees.
-        </p>
+        <PaymentsPanel />
       </div>
     </section>
   )

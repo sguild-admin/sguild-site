@@ -1,13 +1,17 @@
 import "./globals.css"
 import React from 'react'
 import Script from 'next/script'
+import type { Metadata } from "next"
 import Header from "../components/Header"
 import Footer from "../components/Footer"
 
-export const metadata = {
-  title: "Sguild Swim Instruction — Choose Your Location",
+const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://sguildswim.com").replace(/\/$/, "")
+
+export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
+  title: "Sguild Swim Instruction - Choose Your Location",
   description:
-    "Select your city to get started with Sguild Swim Instruction. Serving O'ahu (Honolulu) and Dallas–Fort Worth with private lessons focused on technique and water safety.",
+    "Select your city to get started with Sguild Swim Instruction. Serving O'ahu (Honolulu) and Dallas-Fort Worth with private lessons focused on technique and water safety.",
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -47,7 +51,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
 
         <a href="#content" className="sr-only focus:not-sr-only z-50 inline-block m-4 rounded bg-white px-3 py-2 text-sm font-medium text-sky-700">Skip to content</a>
-       
+
         <noscript>
           <img
             height="1"
