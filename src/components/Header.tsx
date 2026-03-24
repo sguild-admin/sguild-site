@@ -101,7 +101,7 @@ export default function Header() {
 
           <Link
             href={lessonRequestHref}
-            className="inline-flex items-center rounded-full bg-sky-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-800"
+            className="inline-flex items-center rounded-full bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-700"
           >
             Book Lessons
           </Link>
@@ -158,7 +158,7 @@ export default function Header() {
           <Link
             href={lessonRequestHref}
             onClick={() => setOpen(false)}
-            className="mt-1 inline-flex w-full items-center justify-center rounded-full bg-sky-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-800"
+            className="mt-1 inline-flex w-full items-center justify-center rounded-full bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-700"
           >
             Book Lessons
           </Link>

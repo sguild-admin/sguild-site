@@ -14,7 +14,7 @@ export default function Button({ href, onClick, variant = "primary", children, c
   const base = "inline-flex items-center rounded-2xl px-5 py-3 font-medium";
   const variants: Record<string, string> = {
     primary: "bg-sky-600 text-white shadow hover:bg-sky-700",
-    secondary: "border border-slate-300 text-slate-800 hover:bg-slate-50",
+    secondary: "border border-slate-300 text-sky-700 hover:bg-slate-50",
   };
 
   const cls = `${base} ${variants[variant]} ${className}`.trim();

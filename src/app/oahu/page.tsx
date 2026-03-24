@@ -64,9 +64,9 @@ export default function OahuPage() {
         title={"Oʻahu Mobile Swim Lessons"}
         subtitle={"At-home private and small-group swim instruction across Oʻahu. We come to you, ocean or pool."}
         ctas={[
-          { label: PHONE_DISPLAY, href: telHref, variant: 'primary' },
-          { label: 'Text Us', href: smsHref, variant: 'primary' },
-          { label: 'Book Now', href: '/lesson-request', variant: 'secondary' },
+          { label: 'Book Lessons', href: '/lesson-request', variant: 'primary' },
+          { label: PHONE_DISPLAY, href: telHref, variant: 'secondary' },
+          { label: 'View Pricing', href: '#pricing', variant: 'secondary' },
         ]}
         imageSrc={'/assets/oahuHero.png'}
         imageAlt={'Oahu swim lessons with Sguild Swim Instruction'}

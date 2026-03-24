@@ -62,9 +62,9 @@ export default function DallasPage() {
         title={"Dallas Mobile Swim Lessons"}
         subtitle={"At‑home private and small‑group instruction across Dallas and Collin counties - we come to your backyard pool."}
         ctas={[
-          { label: '(972) 210-5375', href: telHref, variant: 'primary' },
-          { label: 'Text Us', href: smsHref, variant: 'primary' },
-          { label: 'Book Now', href: '/lesson-request', variant: 'secondary' },
+          { label: 'Book Lessons', href: '/lesson-request', variant: 'primary' },
+          { label: PHONE, href: telHref, variant: 'secondary' },
+          { label: 'View Pricing', href: '#pricing', variant: 'secondary' },
         ]}
         imageSrc={'/assets/dallasHero.png'}
         imageAlt={'Backyard swim lessons in Dallas'}
@@ -112,3 +112,4 @@ export default function DallasPage() {
     </div>
   )
 }
+

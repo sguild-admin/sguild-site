@@ -1,6 +1,7 @@
 import React from "react";
 import Button from "./Button";
 import NextImage from "./NextImage";
+import { Phone } from "lucide-react";
 
 type CTA = { label: string; href: string; variant?: "primary" | "secondary" };
 
@@ -22,9 +23,9 @@ export default function Hero({
   return (
     <section className="relative overflow-hidden">
       <div className="absolute inset-0 -z-10">
-        <div className="absolute inset-0 bg-linear-to-t from-sky-100 to-transparent" />
-        <div className="absolute left-0 top-0 h-40 w-40 rounded-full bg-sky-300/30 blur-3xl" />
-        <div className="absolute right-0 bottom-0 h-40 w-40 rounded-full bg-cyan-300/20 blur-3xl" />
+        <div className="absolute inset-0 bg-linear-to-t from-slate-100 to-transparent" />
+        <div className="absolute left-0 top-0 h-40 w-40 rounded-full bg-slate-300/25 blur-3xl" />
+        <div className="absolute right-0 bottom-0 h-40 w-40 rounded-full bg-slate-200/30 blur-3xl" />
       </div>
 
       <div className="mx-auto max-w-6xl px-4 py-16 md:py-24 grid md:grid-cols-2 items-center gap-10">
@@ -42,7 +43,14 @@ export default function Hero({
             <div className="mt-6 flex flex-wrap gap-3">
               {ctas.map((c) => (
                 <Button key={c.href + c.label} href={c.href} variant={c.variant}>
-                  {c.label}
+                  {c.href.startsWith("tel:") ? (
+                    <span className="inline-flex items-center gap-2">
+                      <Phone className="h-4 w-4" aria-hidden="true" />
+                      {c.label}
+                    </span>
+                  ) : (
+                    c.label
+                  )}
                 </Button>
               ))}
             </div>

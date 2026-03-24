@@ -8,8 +8,8 @@ export const CONTACTS = {
     email: 'info@sguildswim.com',
   },
   dallas: {
-    phoneDisplay: '(972) 210-5375',
-    phoneTel: '+19722105375',
+    phoneDisplay: '(469) 722-5592',
+    phoneTel: '+14697225592',
     email: 'info@sguildswim.com',
   },
 };
