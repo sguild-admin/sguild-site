@@ -12,22 +12,22 @@ const defaultOfferings = [
   {
     title: 'Semi-Private Lessons',
     body:
-      'Share a lesson with a sibling or friend of similar level. Semi-private lessons make swim instruction more affordable while keeping groups small and focused.',
+      'Share a lesson with a sibling or friend of similar level. Additional students are included at no additional cost for semi-private lessons.',
   },
   {
-    title: 'Group Lessons',
+    title: 'Parent-Child Lessons',
     body:
-      'Perfect for families, neighbors, or friends (3+ swimmers). Build skills together in a fun, supportive atmosphere while learning essential water safety.',
+      'Parents can be in the water during the lesson to learn the teaching process and support progress between sessions.',
+  },
+  {
+    title: 'Infant Water Safety',
+    body:
+      'Lessons emphasize awareness, control, survival skills, and safe movement in water. Essential for all ages and skill levels.',
   },
   {
     title: 'Adult Swim Lessons',
     body:
       'From first-time swimmers to triathlon prep, our adult lessons focus on comfort, efficiency, and technique. We tailor sessions to your goals with clear, personalized guidance.',
-  },
-  {
-    title: 'Water Safety & Skills',
-    body:
-      'Lessons emphasize awareness, control, and safe movement in water. Essential for all ages and skill levels.',
   },
   {
     title: 'Technique & Stroke Development',

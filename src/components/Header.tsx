@@ -19,8 +19,9 @@ export default function Header() {
   // if on /pricing prefer the query param
   if (pathname.startsWith("/pricing") && (qCity === "oahu" || qCity === "dallas")) city = qCity;
 
+  const swimTipsHref = "/swim-tips";
   const pricingHref = city ? `/pricing?city=${city}` : "/pricing";
-  const contactHref = city ? `/${city}/contact` : "/oahu/contact";
+  const lessonRequestHref = "/lesson-request";
   const logoHref = city ? `/${city}` : "/";
 
   return (
@@ -36,24 +37,26 @@ export default function Header() {
             alt="Sguild Swim Instruction logo"
             width={36}
             height={36}
-            className="h-9 w-auto"
+            className="h-10 w-auto"
           />
 
-          {/* Aesthetic only: shorten brand on mobile to avoid wrap/clipping */}
-          <span className="text-base font-semibold tracking-tight text-slate-900 leading-none">
-            <span className="sm:hidden">Sguild Swim</span>
-            <span className="hidden sm:inline">
-              Sguild <span className="text-slate-500">Swim Instruction</span>
+          <span className="leading-tight">
+            <span className="text-lg font-semibold tracking-tight text-slate-900">
+              <span className="sm:hidden">Sguild Swim</span>
+              <span className="hidden sm:inline">
+                Sguild <span className="text-slate-600">Swim Instruction</span>
+              </span>
             </span>
+            <span className="hidden sm:block text-xs text-slate-600">Private Swim Lessons for All Ages</span>
           </span>
         </Link>
 
         <div className="hidden md:flex items-center gap-6 ml-auto">
+          <Link href={swimTipsHref} className="hover:text-sky-600">
+            Swim Tips
+          </Link>
           <Link href={pricingHref} className="hover:text-sky-600">
             Pricing
-          </Link>
-          <Link href={contactHref} className="hover:text-sky-600">
-            Contact
           </Link>
 
           <div
@@ -92,6 +95,13 @@ export default function Header() {
               </div>
             </div>
           </div>
+
+          <Link
+            href={lessonRequestHref}
+            className="inline-flex items-center rounded-full bg-sky-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-800"
+          >
+            Book Lessons
+          </Link>
         </div>
 
         {/* Aesthetic only: more contrast + nicer button styling on mobile */}
@@ -114,6 +124,20 @@ export default function Header() {
         id="mobile-menu"
         className={`md:hidden border-t border-slate-200 bg-white ${open ? "" : "hidden"}`}>
         <div className="px-4 py-3 grid gap-1 text-base">
+          <Link
+            href={swimTipsHref}
+            onClick={() => setOpen(false)}
+            className="block rounded-md px-2 py-2.5 font-medium text-slate-900 hover:bg-slate-50 hover:text-sky-700"
+          >
+            Swim Tips
+          </Link>
+          <Link
+            href={pricingHref}
+            onClick={() => setOpen(false)}
+            className="block rounded-md px-2 py-2.5 font-medium text-slate-900 hover:bg-slate-50 hover:text-sky-700"
+          >
+            Pricing
+          </Link>
           {/* Single Locations link on mobile */}
           {(() => {
             const loc = NAV.find((n) => n.label === "Locations");
@@ -128,20 +152,12 @@ export default function Header() {
               </Link>
             ) : null;
           })()}
-
           <Link
-            href={pricingHref}
+            href={lessonRequestHref}
             onClick={() => setOpen(false)}
-            className="block rounded-md px-2 py-2.5 font-medium text-slate-900 hover:bg-slate-50 hover:text-sky-700"
+            className="mt-1 inline-flex w-full items-center justify-center rounded-full bg-sky-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-800"
           >
-            Pricing
-          </Link>
-          <Link
-            href={contactHref}
-            onClick={() => setOpen(false)}
-            className="block rounded-md px-2 py-2.5 font-medium text-slate-900 hover:bg-slate-50 hover:text-sky-700"
-          >
-            Contact
+            Book Lessons
           </Link>
         </div>
       </div>

@@ -31,3 +31,47 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+.blog-content {
+  line-height: 1.8;
+}
+
+.blog-content h2,
+.blog-content h3,
+.blog-content h4 {
+  margin-top: 1.5rem;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.blog-content h2 {
+  font-size: 1.5rem;
+}
+
+.blog-content h3 {
+  font-size: 1.25rem;
+}
+
+.blog-content p,
+.blog-content ul,
+.blog-content ol {
+  margin-top: 1rem;
+}
+
+.blog-content ul,
+.blog-content ol {
+  padding-left: 1.25rem;
+}
+
+.blog-content ul {
+  list-style: disc;
+}
+
+.blog-content ol {
+  list-style: decimal;
+}
+
+.blog-content a {
+  color: #0369a1;
+  text-decoration: underline;
+}
