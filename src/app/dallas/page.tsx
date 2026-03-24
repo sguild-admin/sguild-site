@@ -60,7 +60,11 @@ export default function DallasPage() {
 
       <Hero
         title={"Dallas Mobile Swim Lessons"}
-        subtitle={"At‑home private and small‑group instruction across Dallas and Collin counties - we come to your backyard pool."}
+        subtitle={<>
+            Private swim lessons at your home across Dallas &amp; Collin County.
+            <br />
+            We come to your pool.
+          </>}
         ctas={[
           { label: 'Book Lessons', href: '/lesson-request', variant: 'primary' },
           { label: PHONE, href: telHref, variant: 'secondary' },
@@ -112,4 +116,5 @@ export default function DallasPage() {
     </div>
   )
 }
+
 
