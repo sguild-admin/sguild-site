@@ -1,7 +1,7 @@
-import React from "react";
+﻿import React from "react";
 import Button from "./Button";
 import NextImage from "./NextImage";
-import { Phone } from "lucide-react";
+import { Phone, Star } from "lucide-react";
 
 type CTA = { label: string; href: string; variant?: "primary" | "secondary" };
 
@@ -12,6 +12,7 @@ export default function Hero({
   imageSrc,
   imageAlt,
   blockquote,
+  trustCityLabel,
 }: {
   title: React.ReactNode;
   subtitle?: React.ReactNode;
@@ -19,6 +20,7 @@ export default function Hero({
   imageSrc?: string;
   imageAlt?: string;
   blockquote?: React.ReactNode;
+  trustCityLabel?: string;
 }) {
   return (
     <section className="relative overflow-hidden">
@@ -28,10 +30,10 @@ export default function Hero({
         <div className="absolute right-0 bottom-0 h-40 w-40 rounded-full bg-slate-200/30 blur-3xl" />
       </div>
 
-      <div className="mx-auto max-w-6xl px-4 py-16 md:py-24 grid md:grid-cols-2 items-center gap-10">
-        <div>
-          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">{title}</h1>
-          {subtitle && <p className="mt-4 text-lg leading-relaxed text-slate-700">{subtitle}</p>}
+      <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 md:grid-cols-2 md:py-24 lg:gap-12">
+        <div className="max-w-xl">
+          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl lg:text-5xl">{title}</h1>
+          {subtitle && <p className="mt-4 max-w-lg text-base leading-relaxed text-slate-700 md:mt-5 md:text-lg">{subtitle}</p>}
 
           {blockquote && (
             <blockquote className="mt-4 rounded-xl bg-white/70 p-4 text-slate-700 ring-1 ring-slate-200 italic">
@@ -55,6 +57,15 @@ export default function Hero({
               ))}
             </div>
           )}
+
+          <div className="mt-5 inline-flex items-center gap-2 text-xs text-slate-700 sm:text-sm">
+            <div className="flex items-center gap-0.5 text-amber-400">
+              {[0, 1, 2, 3, 4].map((i) => (
+                <Star key={i} className="h-3.5 w-3.5 fill-current sm:h-4 sm:w-4" />
+              ))}
+            </div>
+            <p className="font-medium">5.0 rated by {trustCityLabel ?? "local families"}</p>
+          </div>
         </div>
 
         {imageSrc && (
@@ -62,8 +73,8 @@ export default function Hero({
             <div className="w-full overflow-hidden rounded-3xl shadow-2xl ring-1 ring-slate-200 relative" style={{ aspectRatio: '4 / 3' }}>
               <NextImage src={imageSrc} alt={imageAlt || "Hero image"} fill className="object-cover" />
             </div>
-            <div className="absolute -bottom-4 -right-4 bg-white/80 backdrop-blur rounded-2xl px-4 py-3 shadow ring-1 ring-slate-200">
-              <p className="text-sm font-medium">Flexible scheduling • Home pools • Water safety</p>
+            <div className="absolute -bottom-5 -right-5 max-w-[90%] bg-white/80 backdrop-blur rounded-2xl px-4 py-3 shadow ring-1 ring-slate-200 sm:max-w-none">
+              <p className="text-xs font-medium sm:text-sm">We come to you • Flexible scheduling • Kids & adults</p>
             </div>
           </div>
         )}
@@ -71,3 +82,4 @@ export default function Hero({
     </section>
   );
 }
+

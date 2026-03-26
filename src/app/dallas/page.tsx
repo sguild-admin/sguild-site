@@ -1,4 +1,4 @@
-import type { Metadata } from "next"
+﻿import type { Metadata } from "next"
 import FeaturableReviews from '../../components/FeaturableReviews'
 import Hero from '../../components/Hero'
 import FAQs from '../../components/FAQs'
@@ -64,27 +64,23 @@ export default function DallasPage() {
       />
 
       <Hero
-        title={'Dallas Mobile Swim Lessons'}
-        subtitle={
-          <>
-            Private swim lessons at your home across Dallas &amp; Collin County.
-            <br />
-            We come to your pool.
-          </>
-        }
+        title={'Mobile Swim Lessons in Dallas'}
+        subtitle={'Personalized swim instruction for kids and adults, focused on confidence, safety, and technique.'}
         ctas={[
-          { label: 'Book Lessons', href: '/lesson-request', variant: 'primary' },
+          { label: 'Get Started Today', href: '/lesson-request', variant: 'primary' },
           { label: PHONE, href: telHref, variant: 'secondary' },
           { label: 'View Pricing', href: '#pricing', variant: 'secondary' },
         ]}
         imageSrc={'/assets/dallasHero.png'}
         imageAlt={'Backyard swim lessons in Dallas'}
-        blockquote={'Fitness is what happens when practicing proper technique'}
+        trustCityLabel="Dallas families"
       />
 
       <Offerings
-        title="What we offer in Dallas"
-        description="All lessons are 30 minutes and take place at your home, condo, or community pool. Choose the option that best fits your swimmer's goals."
+        title="Swim Lessons for Every Level"
+        titleSubline="Personalized instruction at your home pool"
+        description="From first-time swimmers to advanced training, lessons are tailored to your goals and comfort level."
+        youthLabel="For Kids"
       />
 
       <PricingSection city="dallas" />
@@ -116,3 +112,4 @@ export default function DallasPage() {
     </div>
   )
 }
+

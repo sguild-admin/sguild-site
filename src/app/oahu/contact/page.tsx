@@ -23,9 +23,9 @@ export default function OahuContactPage() {
 
         <div className="mx-auto max-w-6xl px-4 py-16 md:py-24 grid md:grid-cols-2 items-center gap-10">
           <div>
-            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">Contact - Oahu</h1>
+            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">Contact - Oʻahu</h1>
             <p className="mt-4 text-lg leading-relaxed text-slate-700">
-              Ready to book at-home (or ocean) swim lessons on Oahu? Reach out and we will get you scheduled.
+              Ready to book at-home (or ocean) swim lessons on Oʻahu? Reach out and we will get you scheduled.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Button href={telHref} variant="primary">Call Now</Button>
@@ -45,7 +45,7 @@ export default function OahuContactPage() {
 
           <div className="relative">
             <div className="w-full overflow-hidden rounded-3xl shadow-2xl ring-1 ring-slate-200 relative" style={{ aspectRatio: '4 / 3' }}>
-              <NextImage src="/assets/contact.JPG" alt="Ocean swim lessons on Oahu" fill className="object-cover" sizes="(max-width: 768px) 100vw, 50vw" />
+              <NextImage src="/assets/contact.JPG" alt="Ocean swim lessons on Oʻahu" fill className="object-cover" sizes="(max-width: 768px) 100vw, 50vw" />
             </div>
             <div className="absolute -bottom-4 -right-4 bg-white/80 backdrop-blur rounded-2xl px-4 py-3 shadow ring-1 ring-slate-200">
               <p className="text-sm font-medium">Flexible scheduling - Home pools - Ocean safety</p>

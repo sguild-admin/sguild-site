@@ -1,4 +1,4 @@
-import React from 'react'
+﻿import React from 'react'
 import Packages from './Packages'
 import PaymentsPanel from './PaymentsPanel'
 
@@ -14,7 +14,7 @@ export default function PricingSection({
   city,
   title = 'Pricing',
   subtitle = 'All lessons are private, one-on-one, 30-minute sessions at your pool.',
-  badgeText = 'No fees • Simple packages',
+  badgeText = 'No fees - Simple packages',
   sectionId = 'pricing',
 }: Props) {
   return (
@@ -42,3 +42,5 @@ export default function PricingSection({
     </section>
   )
 }
+
+

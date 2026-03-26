@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: "Sguild Swim Instruction - Choose Your Location",
   description:
-    "Select your city to get started with Sguild Swim Instruction. Serving O'ahu (Honolulu) and Dallas-Fort Worth with private lessons focused on technique and water safety.",
+    "Select your city to get started with Sguild Swim Instruction. Serving Oʻahu (Honolulu) and Dallas-Fort Worth with private lessons focused on technique and water safety.",
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

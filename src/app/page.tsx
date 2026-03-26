@@ -1,4 +1,4 @@
-import NextImage from '../components/NextImage'
+﻿import NextImage from '../components/NextImage'
 import Link from "next/link";
 import PageContainer from "../components/PageContainer";
 import FeaturableReviews from '../components/FeaturableReviews'
@@ -21,10 +21,10 @@ const FEATURABLE_ID = 'featurable-a6f4f535-5df6-4b9b-b6a4-6865a4acf5e1'
 const LOCATIONS: LocationItem[] = [
   {
     key: 'oahu',
-    name: 'O‘ahu, HI',
+    name: 'Oʻahu, HI',
     href: '/oahu/',
     image: '/assets/Oahu.png',
-    imageAlt: 'O‘ahu swim lessons in Honolulu — private, year-round coaching',
+    imageAlt: 'Oʻahu swim lessons in Honolulu â€” private, year-round coaching',
     description: 'Private in-home lessons island-wide. Hotels, condos, and community pools welcome.',
     areaTag: 'Honolulu & Surrounding',
     badges: ['Island-wide', 'Year-round', 'Vacation-friendly'],
@@ -34,10 +34,10 @@ const LOCATIONS: LocationItem[] = [
     name: 'Dallas, TX',
     href: '/dallas/',
     image: '/assets/Dallas.png',
-    imageAlt: 'DFW swim lessons — residential and community pools',
+    imageAlt: 'DFW swim lessons â€” residential and community pools',
     description: 'Our original home base. Book at your home or community pool.',
-    areaTag: 'Dallas County • Collin County',
-    badges: ['Summer (June–Aug)', 'Residential', 'Community/HOA'],
+    areaTag: 'Dallas County â€¢ Collin County',
+    badges: ['Summer (Juneâ€“Aug)', 'Residential', 'Community/HOA'],
   },
 ];
 
@@ -100,3 +100,4 @@ export default function LocationSelectorPage() {
     </PageContainer>
   );
 }
+

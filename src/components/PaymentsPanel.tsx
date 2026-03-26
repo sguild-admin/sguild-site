@@ -1,11 +1,11 @@
-import Image from "next/image";
+﻿import Image from "next/image";
 import { Lock } from "lucide-react";
 
 export default function PaymentsPanel() {
   return (
     <section className="mt-4">
       <div className="mx-auto mb-3 h-px w-full max-w-4xl bg-slate-200" />
-      <p className="text-center text-sm text-slate-600">We accept Square, Apple Pay, and all major cards.</p>
+      <p className="mt-2 text-center text-sm text-slate-600">No fees or charges for additional students - Packages valid for 12 months</p>
 
       <div className="mt-4 flex items-center justify-center">
         <Image
@@ -22,7 +22,7 @@ export default function PaymentsPanel() {
         Secure checkout powered by Square
       </p>
 
-      <p className="mt-2 text-center text-sm text-slate-600">No additional fees • Packages valid for 12 months</p>
     </section>
   );
 }
+
