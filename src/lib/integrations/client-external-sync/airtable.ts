@@ -42,6 +42,15 @@ function readString(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function readStringLike(value: unknown): string | null {
+  if (typeof value === "string") return readString(value);
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const asString = String(value).trim();
+    return asString.length > 0 ? asString : null;
+  }
+  return null;
+}
+
 function readFirstLinkedId(value: unknown): string | null {
   if (!Array.isArray(value) || value.length === 0) return null;
   const [first] = value;
@@ -106,7 +115,7 @@ async function getAirtableRecord(
 
 function readFirstStringFromFields(fields: Record<string, unknown>, keys: string[]): string | null {
   for (const key of keys) {
-    const value = readString(fields[key]);
+    const value = readStringLike(fields[key]);
     if (value) return value;
   }
   return null;
@@ -145,8 +154,14 @@ export async function getClientExternalRecord(recordId: string): Promise<ClientE
     clientCanonicalName: readString(clientFields["Client Name"]),
     clientCanonicalFirstName: readString(clientFields["First Name"]),
     clientCanonicalLastName: readString(clientFields["Last Name"]),
-    latestPhoneNormalized: readString(fields["Latest Phone Normalized"]),
-    clientCanonicalPhone: readFirstStringFromFields(clientFields, ["Latest Phone Normalized"]),
+    latestPhoneNormalized: readFirstStringFromFields(fields, [
+      "Latest Phone Normalized",
+      "Latest phone normalized",
+    ]),
+    clientCanonicalPhone: readFirstStringFromFields(clientFields, [
+      "Latest Phone Normalized",
+      "Latest phone normalized",
+    ]),
     nameSnapshot: readString(fields["Name Snapshot"]),
     phoneSnapshot: readString(fields["Phone Snapshot"]),
     emailSnapshot: readString(fields["Email Snapshot"]),

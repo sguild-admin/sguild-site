@@ -46,6 +46,11 @@ function normalizePhone(value: string | null): string | null {
   if (!value) return null;
   const trimmed = value.trim();
   if (trimmed.length === 0) return null;
+
+  const digits = trimmed.replace(/\D/g, "");
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith("1")) return `+${digits}`;
+  if (trimmed.startsWith("+") && digits.length >= 8) return `+${digits}`;
   return trimmed;
 }
 
@@ -191,6 +196,7 @@ function applyConservativeChanges(
   },
 ): Record<string, string> {
   const patch: Record<string, string> = {};
+  const existingPhone = normalizePhone(existing.phone_number ?? null);
 
   if (desired.nickname && desired.nickname !== (existing.nickname ?? "").trim()) {
     patch.nickname = desired.nickname;
@@ -201,7 +207,7 @@ function applyConservativeChanges(
   if (desired.familyName && desired.familyName !== (existing.family_name ?? "").trim()) {
     patch.family_name = desired.familyName;
   }
-  if (desired.phoneNumber && desired.phoneNumber !== (existing.phone_number ?? "").trim()) {
+  if (desired.phoneNumber && desired.phoneNumber !== existingPhone) {
     patch.phone_number = desired.phoneNumber;
   }
   if (desired.emailAddress && desired.emailAddress !== (existing.email_address ?? "").trim()) {
