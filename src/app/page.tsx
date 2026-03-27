@@ -24,20 +24,20 @@ const LOCATIONS: LocationItem[] = [
     name: 'Oʻahu, HI',
     href: '/oahu/',
     image: '/assets/Oahu.png',
-    imageAlt: 'Oʻahu swim lessons in Honolulu â€” private, year-round coaching',
-    description: 'Private in-home lessons island-wide. Hotels, condos, and community pools welcome.',
-    areaTag: 'Honolulu & Surrounding',
-    badges: ['Island-wide', 'Year-round', 'Vacation-friendly'],
+    imageAlt: 'Oʻahu swim lessons in Honolulu — private, year-round coaching',
+    description: 'Private, island-wide lessons at your home, community pool, or beach.',
+    areaTag: 'Honolulu, Windward, and West O‘ahu',
+    badges: ['Year-round', 'Pool/Ocean Lessons','Water Safety'],
   },
   {
     key: 'dallas',
     name: 'Dallas, TX',
     href: '/dallas/',
     image: '/assets/Dallas.png',
-    imageAlt: 'DFW swim lessons â€” residential and community pools',
+    imageAlt: 'DFW swim lessons at residential and community pools',
     description: 'Our original home base. Book at your home or community pool.',
-    areaTag: 'Dallas County â€¢ Collin County',
-    badges: ['Summer (Juneâ€“Aug)', 'Residential', 'Community/HOA'],
+    areaTag: 'Dallas County & Collin County',
+    badges: ['Summer (June–Aug)', 'Home Pools', 'Community Pools'],
   },
 ];
 
@@ -85,7 +85,7 @@ export default function LocationSelectorPage() {
         <div className="mx-auto max-w-6xl px-4 py-20 md:py-28 text-center">
           <h2 className="text-4xl md:text-6xl font-extrabold leading-tight">Select your location</h2>
           <p className="mt-3 text-lg text-slate-600">
-            We come to your pool - home, condo, HOA, or resort. Choose your area to see schedules and pricing.
+            Build real water confidence - pool or ocean. Choose your area to see schedules and pricing.
           </p>
 
           <div className="mt-12 grid gap-6 md:grid-cols-2">

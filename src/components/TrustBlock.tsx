@@ -7,6 +7,7 @@ type TrustBlockProps = {
   subtext?: ReactNode;
   author?: string;
   ctaLabel?: string;
+  showCta?: boolean;
   className?: string;
   showTopBorder?: boolean;
 };
@@ -16,6 +17,7 @@ export default function TrustBlock({
   subtext,
   author,
   ctaLabel = "Book Lessons Today",
+  showCta = true,
   className = "",
   showTopBorder = false,
 }: TrustBlockProps) {
@@ -45,7 +47,7 @@ export default function TrustBlock({
         </div>
 
         {(author || true) && (
-          <div className="mt-5 flex items-center gap-3">
+          <div className="mt-5 inline-flex w-fit items-center gap-3 rounded-xl border border-slate-200 px-3 py-1.5">
             <div
               className="flex items-center gap-0.5 text-amber-400"
               aria-label="5 out of 5 stars"
@@ -63,14 +65,16 @@ export default function TrustBlock({
           </div>
         )}
 
-        <div className="mt-6 pr-4 sm:pr-8">
-          <Link
-            href="/lesson-request"
-            className="inline-flex w-full items-center justify-center rounded-lg bg-sky-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-sky-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 sm:w-auto"
-          >
-            {ctaLabel}
-          </Link>
-        </div>
+        {showCta && (
+          <div className="mt-6 pr-4 sm:pr-8">
+            <Link
+              href="/lesson-request"
+              className="inline-flex w-full items-center justify-center rounded-lg bg-sky-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-sky-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 sm:w-auto"
+            >
+              {ctaLabel}
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );
