@@ -11,6 +11,8 @@ function assertOperationalPrerequisites(record: {
   missingRequiredLinks: string | null;
   nameSnapshot: string | null;
   clientCanonicalName: string | null;
+  clientCanonicalFirstName: string | null;
+  clientCanonicalLastName: string | null;
 }): void {
   if (!record.providerAccountId) {
     throw new SyncEndpointError("Missing required links: Provider Account.", 422);
@@ -24,9 +26,14 @@ function assertOperationalPrerequisites(record: {
     throw new SyncEndpointError(record.missingRequiredLinks, 422);
   }
 
-  if (!record.nameSnapshot && !record.clientCanonicalName) {
+  if (
+    !record.nameSnapshot &&
+    !record.clientCanonicalName &&
+    !record.clientCanonicalFirstName &&
+    !record.clientCanonicalLastName
+  ) {
     throw new SyncEndpointError(
-      "Missing customer identity: Name Snapshot or linked Clients.Client Name is required.",
+      "Missing customer identity: Name Snapshot or linked Clients name fields are required.",
       422,
     );
   }
@@ -35,7 +42,18 @@ function assertOperationalPrerequisites(record: {
 export async function runClientExternalSync(recordId: string): Promise<SyncSuccessResponse> {
   const clientExternal = await getClientExternalRecord(recordId);
   assertOperationalPrerequisites(clientExternal);
-  const effectiveNameSnapshot = clientExternal.nameSnapshot ?? clientExternal.clientCanonicalName;
+  const canonicalJoinedName = [
+    clientExternal.clientCanonicalFirstName,
+    clientExternal.clientCanonicalLastName,
+  ]
+    .filter((part): part is string => Boolean(part))
+    .join(" ")
+    .trim();
+  const effectiveNameSnapshot = (
+    clientExternal.nameSnapshot ??
+    clientExternal.clientCanonicalName ??
+    (canonicalJoinedName || null)
+  );
   const syncInput = {
     ...clientExternal,
     nameSnapshot: effectiveNameSnapshot,

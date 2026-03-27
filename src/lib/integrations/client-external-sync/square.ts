@@ -18,6 +18,8 @@ type SquareErrorResponse = {
 type SquareCustomer = {
   id: string;
   nickname?: string;
+  given_name?: string;
+  family_name?: string;
   email_address?: string;
   phone_number?: string;
 };
@@ -85,21 +87,57 @@ function deterministicCreateIdempotencyKey(recordId: string): string {
 
 function buildDesiredCustomerPayload(clientExternal: ClientExternalRecord): {
   nickname: string | null;
+  givenName: string | null;
+  familyName: string | null;
   phoneNumber: string | null;
   emailAddress: string | null;
 } {
+  const canonicalFirstName = clientExternal.clientCanonicalFirstName?.trim() || null;
+  const canonicalLastName = clientExternal.clientCanonicalLastName?.trim() || null;
+  const snapshotName = clientExternal.nameSnapshot?.trim() || null;
+
+  let splitGivenName: string | null = null;
+  let splitFamilyName: string | null = null;
+  if (snapshotName) {
+    const parts = snapshotName.split(/\s+/).filter((part) => part.length > 0);
+    if (parts.length > 0) {
+      splitGivenName = parts[0] ?? null;
+      splitFamilyName = parts.length > 1 ? parts.slice(1).join(" ") : null;
+    }
+  }
+
   return {
-    nickname: clientExternal.nameSnapshot?.trim() || null,
+    nickname: snapshotName,
+    givenName: canonicalFirstName ?? splitGivenName,
+    familyName: canonicalLastName ?? splitFamilyName,
     phoneNumber: normalizePhone(clientExternal.phoneSnapshot ?? clientExternal.matchPhoneNormalized),
     emailAddress: clientExternal.emailSnapshot?.trim() || null,
   };
 }
 
-function requireUsableName(name: string | null): string {
-  if (!name) {
-    throw new SyncEndpointError("Missing customer name for Square sync.", 422);
+function hasSquareRequiredIdentity(desired: {
+  givenName: string | null;
+  familyName: string | null;
+  emailAddress: string | null;
+  phoneNumber: string | null;
+}): boolean {
+  return Boolean(
+    desired.givenName || desired.familyName || desired.emailAddress || desired.phoneNumber,
+  );
+}
+
+function assertSquareRequiredIdentity(desired: {
+  givenName: string | null;
+  familyName: string | null;
+  emailAddress: string | null;
+  phoneNumber: string | null;
+}): void {
+  if (!hasSquareRequiredIdentity(desired)) {
+    throw new SyncEndpointError(
+      "Missing customer identity for Square sync. Provide name, email, or phone.",
+      422,
+    );
   }
-  return name;
 }
 
 async function retrieveSquareCustomer(
@@ -140,12 +178,24 @@ async function retrieveSquareCustomer(
 
 function applyConservativeChanges(
   existing: SquareCustomer,
-  desired: { nickname: string | null; phoneNumber: string | null; emailAddress: string | null },
+  desired: {
+    nickname: string | null;
+    givenName: string | null;
+    familyName: string | null;
+    phoneNumber: string | null;
+    emailAddress: string | null;
+  },
 ): Record<string, string> {
   const patch: Record<string, string> = {};
 
   if (desired.nickname && desired.nickname !== (existing.nickname ?? "").trim()) {
     patch.nickname = desired.nickname;
+  }
+  if (desired.givenName && desired.givenName !== (existing.given_name ?? "").trim()) {
+    patch.given_name = desired.givenName;
+  }
+  if (desired.familyName && desired.familyName !== (existing.family_name ?? "").trim()) {
+    patch.family_name = desired.familyName;
   }
   if (desired.phoneNumber && desired.phoneNumber !== (existing.phone_number ?? "").trim()) {
     patch.phone_number = desired.phoneNumber;
@@ -191,14 +241,16 @@ async function createSquareCustomer(
   context: SquareContext,
 ): Promise<string> {
   const desired = buildDesiredCustomerPayload(clientExternal);
-  const nickname = requireUsableName(desired.nickname);
+  assertSquareRequiredIdentity(desired);
 
   const body: Record<string, string> = {
     idempotency_key: deterministicCreateIdempotencyKey(clientExternal.recordId),
-    nickname,
     reference_id: clientExternal.recordId,
   };
 
+  if (desired.nickname) body.nickname = desired.nickname;
+  if (desired.givenName) body.given_name = desired.givenName;
+  if (desired.familyName) body.family_name = desired.familyName;
   if (desired.phoneNumber) body.phone_number = desired.phoneNumber;
   if (desired.emailAddress) body.email_address = desired.emailAddress;
 
@@ -239,7 +291,7 @@ export async function syncSquareCustomer(
   context: SquareContext,
 ): Promise<SyncSquareCustomerResult> {
   const desired = buildDesiredCustomerPayload(clientExternal);
-  requireUsableName(desired.nickname);
+  assertSquareRequiredIdentity(desired);
 
   if (!clientExternal.externalCustomerId) {
     const externalCustomerId = await createSquareCustomer(clientExternal, context);
@@ -263,4 +315,3 @@ export async function syncSquareCustomer(
     path: "update",
   };
 }
-
