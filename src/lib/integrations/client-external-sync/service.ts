@@ -5,6 +5,18 @@ import { syncSquareCustomer } from "./square";
 
 const OPERATION = "sync_client_external";
 
+function buildSquareSnapshotName(syncResult: {
+  squareGivenName: string | null;
+  squareFamilyName: string | null;
+  squareNickname: string | null;
+}): string | null {
+  const given = syncResult.squareGivenName?.trim() || null;
+  const family = syncResult.squareFamilyName?.trim() || null;
+  const combined = [given, family].filter((part): part is string => Boolean(part)).join(" ").trim();
+  if (combined) return combined;
+  return syncResult.squareNickname?.trim() || null;
+}
+
 function assertOperationalPrerequisites(record: {
   providerAccountId: string | null;
   clientId: string | null;
@@ -56,18 +68,13 @@ export async function runClientExternalSync(recordId: string): Promise<SyncSucce
   );
   const effectivePhoneSnapshot = (
     clientExternal.phoneSnapshot ??
+    clientExternal.latestPhoneNormalized ??
     clientExternal.clientCanonicalPhone
   );
 
   const snapshotPatch: Partial<Record<"Name Snapshot" | "Phone Snapshot", string>> = {};
   if (!clientExternal.nameSnapshot && effectiveNameSnapshot) {
     snapshotPatch["Name Snapshot"] = effectiveNameSnapshot;
-  }
-  if (!clientExternal.phoneSnapshot && effectivePhoneSnapshot) {
-    snapshotPatch["Phone Snapshot"] = effectivePhoneSnapshot;
-  }
-  if (Object.keys(snapshotPatch).length > 0) {
-    await updateClientExternalSnapshots(clientExternal.recordId, snapshotPatch);
   }
 
   const syncInput = {
@@ -87,6 +94,27 @@ export async function runClientExternalSync(recordId: string): Promise<SyncSucce
     providerAccountId = squareContext.providerAccountId;
 
     const syncResult = await syncSquareCustomer(syncInput, squareContext);
+
+    const postSyncSnapshotPatch: Partial<Record<"Name Snapshot" | "Phone Snapshot", string>> = {
+      ...snapshotPatch,
+    };
+    const desiredNameSnapshot = buildSquareSnapshotName(syncResult) ?? effectiveNameSnapshot;
+    if (
+      desiredNameSnapshot &&
+      desiredNameSnapshot !== (clientExternal.nameSnapshot ?? null)
+    ) {
+      postSyncSnapshotPatch["Name Snapshot"] = desiredNameSnapshot;
+    }
+    const desiredPhoneSnapshot = syncResult.squarePhoneNumber ?? effectivePhoneSnapshot;
+    if (
+      desiredPhoneSnapshot &&
+      desiredPhoneSnapshot !== (clientExternal.phoneSnapshot ?? null)
+    ) {
+      postSyncSnapshotPatch["Phone Snapshot"] = desiredPhoneSnapshot;
+    }
+    if (Object.keys(postSyncSnapshotPatch).length > 0) {
+      await updateClientExternalSnapshots(clientExternal.recordId, postSyncSnapshotPatch);
+    }
 
     console.info("Client external sync completed", {
       operation: OPERATION,

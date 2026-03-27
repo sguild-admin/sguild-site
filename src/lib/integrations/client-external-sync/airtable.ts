@@ -24,6 +24,7 @@ export type ClientExternalRecord = {
   clientCanonicalName: string | null;
   clientCanonicalFirstName: string | null;
   clientCanonicalLastName: string | null;
+  latestPhoneNormalized: string | null;
   clientCanonicalPhone: string | null;
   nameSnapshot: string | null;
   phoneSnapshot: string | null;
@@ -144,6 +145,7 @@ export async function getClientExternalRecord(recordId: string): Promise<ClientE
     clientCanonicalName: readString(clientFields["Client Name"]),
     clientCanonicalFirstName: readString(clientFields["First Name"]),
     clientCanonicalLastName: readString(clientFields["Last Name"]),
+    latestPhoneNormalized: readString(fields["Latest Phone Normalized"]),
     clientCanonicalPhone: readFirstStringFromFields(clientFields, ["Latest Phone Normalized"]),
     nameSnapshot: readString(fields["Name Snapshot"]),
     phoneSnapshot: readString(fields["Phone Snapshot"]),

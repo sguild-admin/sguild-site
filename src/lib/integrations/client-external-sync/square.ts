@@ -36,6 +36,10 @@ type SyncSquareCustomerResult = {
   externalCustomerId: string;
   mode: SyncMode;
   path: "create" | "update" | "verify";
+  squarePhoneNumber: string | null;
+  squareGivenName: string | null;
+  squareFamilyName: string | null;
+  squareNickname: string | null;
 };
 
 function normalizePhone(value: string | null): string | null {
@@ -239,7 +243,13 @@ async function updateSquareCustomer(
 async function createSquareCustomer(
   clientExternal: ClientExternalRecord,
   context: SquareContext,
-): Promise<string> {
+): Promise<{
+  id: string;
+  phoneNumber: string | null;
+  givenName: string | null;
+  familyName: string | null;
+  nickname: string | null;
+}> {
   const desired = buildDesiredCustomerPayload(clientExternal);
   assertSquareRequiredIdentity(desired);
 
@@ -283,7 +293,28 @@ async function createSquareCustomer(
     throw new SyncEndpointError("Square customer create returned no customer ID.", 502);
   }
 
-  return createdCustomerId;
+  const createdPhone =
+    "customer" in data ? normalizePhone(data.customer?.phone_number ?? null) : null;
+  const createdGivenName =
+    "customer" in data
+      ? data.customer?.given_name?.trim() || null
+      : null;
+  const createdFamilyName =
+    "customer" in data
+      ? data.customer?.family_name?.trim() || null
+      : null;
+  const createdNickname =
+    "customer" in data
+      ? data.customer?.nickname?.trim() || null
+      : null;
+
+  return {
+    id: createdCustomerId,
+    phoneNumber: createdPhone ?? desired.phoneNumber ?? null,
+    givenName: createdGivenName ?? desired.givenName ?? null,
+    familyName: createdFamilyName ?? desired.familyName ?? null,
+    nickname: createdNickname ?? desired.nickname ?? null,
+  };
 }
 
 export async function syncSquareCustomer(
@@ -294,8 +325,16 @@ export async function syncSquareCustomer(
   assertSquareRequiredIdentity(desired);
 
   if (!clientExternal.externalCustomerId) {
-    const externalCustomerId = await createSquareCustomer(clientExternal, context);
-    return { externalCustomerId, mode: "created", path: "create" };
+    const created = await createSquareCustomer(clientExternal, context);
+    return {
+      externalCustomerId: created.id,
+      mode: "created",
+      path: "create",
+      squarePhoneNumber: created.phoneNumber,
+      squareGivenName: created.givenName,
+      squareFamilyName: created.familyName,
+      squareNickname: created.nickname,
+    };
   }
 
   const existing = await retrieveSquareCustomer(clientExternal.externalCustomerId, context);
@@ -305,13 +344,27 @@ export async function syncSquareCustomer(
       externalCustomerId: existing.id,
       mode: "verified",
       path: "verify",
+      squarePhoneNumber: normalizePhone(existing.phone_number ?? null),
+      squareGivenName: existing.given_name?.trim() || null,
+      squareFamilyName: existing.family_name?.trim() || null,
+      squareNickname: existing.nickname?.trim() || null,
     };
   }
 
   await updateSquareCustomer(existing.id, updatePatch, context);
+  const squarePhoneAfterUpdate =
+    normalizePhone(updatePatch.phone_number ?? null) ??
+    normalizePhone(existing.phone_number ?? null);
   return {
     externalCustomerId: existing.id,
     mode: "updated",
     path: "update",
+    squarePhoneNumber: squarePhoneAfterUpdate,
+    squareGivenName:
+      (updatePatch.given_name?.trim() || null) ?? (existing.given_name?.trim() || null),
+    squareFamilyName:
+      (updatePatch.family_name?.trim() || null) ?? (existing.family_name?.trim() || null),
+    squareNickname:
+      (updatePatch.nickname?.trim() || null) ?? (existing.nickname?.trim() || null),
   };
 }
