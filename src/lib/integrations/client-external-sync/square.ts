@@ -32,10 +32,14 @@ type SquareCreateOrUpdateResponse = {
   customer?: SquareCustomer;
 };
 
+type SquareSearchCustomersResponse = {
+  customers?: SquareCustomer[];
+};
+
 type SyncSquareCustomerResult = {
   externalCustomerId: string;
   mode: SyncMode;
-  path: "create" | "update" | "verify";
+  path: "create" | "update" | "verify" | "matched";
   squarePhoneNumber: string | null;
   squareGivenName: string | null;
   squareFamilyName: string | null;
@@ -52,6 +56,23 @@ function normalizePhone(value: string | null): string | null {
   if (digits.length === 11 && digits.startsWith("1")) return `+${digits}`;
   if (trimmed.startsWith("+") && digits.length >= 8) return `+${digits}`;
   return trimmed;
+}
+
+function digitsOnly(value: string | null): string {
+  return (value ?? "").replace(/\D/g, "");
+}
+
+function normalizeNameForMatch(value: string | null): string {
+  return (value ?? "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function nameTokens(value: string): string[] {
+  if (!value) return [];
+  return value.split(" ").filter((token) => token.length > 0);
 }
 
 function parseSquareErrorMessage(body: unknown): string {
@@ -122,6 +143,48 @@ function buildDesiredCustomerPayload(clientExternal: ClientExternalRecord): {
     phoneNumber: normalizePhone(clientExternal.phoneSnapshot ?? clientExternal.matchPhoneNormalized),
     emailAddress: clientExternal.emailSnapshot?.trim() || null,
   };
+}
+
+function getDesiredComparableName(desired: {
+  nickname: string | null;
+  givenName: string | null;
+  familyName: string | null;
+}): string {
+  const combined = [desired.givenName, desired.familyName]
+    .filter((part): part is string => Boolean(part))
+    .join(" ")
+    .trim();
+  return normalizeNameForMatch(combined || desired.nickname || null);
+}
+
+function getSquareCustomerComparableName(customer: SquareCustomer): string {
+  const combined = [customer.given_name?.trim(), customer.family_name?.trim()]
+    .filter((part): part is string => Boolean(part))
+    .join(" ")
+    .trim();
+  return normalizeNameForMatch(combined || customer.nickname || null);
+}
+
+function fuzzyNameScore(desiredName: string, candidateName: string): number {
+  if (!desiredName || !candidateName) return 0;
+  if (desiredName === candidateName) return 1;
+  if (desiredName.includes(candidateName) || candidateName.includes(desiredName)) {
+    return 0.9;
+  }
+
+  const desiredTokens = nameTokens(desiredName);
+  const candidateTokens = nameTokens(candidateName);
+  if (desiredTokens.length === 0 || candidateTokens.length === 0) return 0;
+
+  const desiredSet = new Set(desiredTokens);
+  const candidateSet = new Set(candidateTokens);
+  let overlap = 0;
+  for (const token of desiredSet) {
+    if (candidateSet.has(token)) overlap += 1;
+  }
+
+  const denominator = Math.max(desiredSet.size, candidateSet.size);
+  return denominator === 0 ? 0 : overlap / denominator;
 }
 
 function hasSquareRequiredIdentity(desired: {
@@ -323,6 +386,71 @@ async function createSquareCustomer(
   };
 }
 
+async function findExistingSquareCustomerByPhoneAndName(
+  desired: {
+    nickname: string | null;
+    givenName: string | null;
+    familyName: string | null;
+    phoneNumber: string | null;
+  },
+  context: SquareContext,
+): Promise<SquareCustomer | null> {
+  if (!desired.phoneNumber) return null;
+
+  const response = await squareRequest(
+    "/v2/customers/search",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        limit: 100,
+        query: {
+          filter: {
+            phone_number: {
+              exact: desired.phoneNumber,
+            },
+          },
+        },
+      }),
+    },
+    context,
+  );
+
+  let data: SquareSearchCustomersResponse | SquareErrorResponse = {};
+  try {
+    data = (await response.json()) as SquareSearchCustomersResponse | SquareErrorResponse;
+  } catch {
+    return null;
+  }
+
+  if (!response.ok) {
+    // Duplicate prevention helper should not hard-fail sync when search is unavailable.
+    return null;
+  }
+
+  if (!("customers" in data) || !Array.isArray(data.customers) || data.customers.length === 0) {
+    return null;
+  }
+
+  const desiredComparableName = getDesiredComparableName(desired);
+  const desiredDigits = digitsOnly(desired.phoneNumber);
+
+  let best: { customer: SquareCustomer; score: number } | null = null;
+
+  for (const candidate of data.customers) {
+    const candidateDigits = digitsOnly(candidate.phone_number ?? null);
+    if (!candidateDigits || candidateDigits !== desiredDigits) continue;
+
+    const candidateComparableName = getSquareCustomerComparableName(candidate);
+    const score = fuzzyNameScore(desiredComparableName, candidateComparableName);
+    if (!best || score > best.score) {
+      best = { customer: candidate, score };
+    }
+  }
+
+  if (!best) return null;
+  return best.score >= 0.5 ? best.customer : null;
+}
+
 export async function syncSquareCustomer(
   clientExternal: ClientExternalRecord,
   context: SquareContext,
@@ -331,6 +459,32 @@ export async function syncSquareCustomer(
   assertSquareRequiredIdentity(desired);
 
   if (!clientExternal.externalCustomerId) {
+    const existingByPhoneAndName = await findExistingSquareCustomerByPhoneAndName(desired, context);
+    if (existingByPhoneAndName) {
+      const updatePatch = applyConservativeChanges(existingByPhoneAndName, desired);
+      if (Object.keys(updatePatch).length > 0) {
+        await updateSquareCustomer(existingByPhoneAndName.id, updatePatch, context);
+      }
+
+      return {
+        externalCustomerId: existingByPhoneAndName.id,
+        mode: Object.keys(updatePatch).length > 0 ? "updated" : "verified",
+        path: "matched",
+        squarePhoneNumber:
+          normalizePhone(updatePatch.phone_number ?? null) ??
+          normalizePhone(existingByPhoneAndName.phone_number ?? null),
+        squareGivenName:
+          (updatePatch.given_name?.trim() || null) ??
+          (existingByPhoneAndName.given_name?.trim() || null),
+        squareFamilyName:
+          (updatePatch.family_name?.trim() || null) ??
+          (existingByPhoneAndName.family_name?.trim() || null),
+        squareNickname:
+          (updatePatch.nickname?.trim() || null) ??
+          (existingByPhoneAndName.nickname?.trim() || null),
+      };
+    }
+
     const created = await createSquareCustomer(clientExternal, context);
     return {
       externalCustomerId: created.id,
