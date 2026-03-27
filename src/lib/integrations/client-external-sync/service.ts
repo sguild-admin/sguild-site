@@ -10,6 +10,7 @@ function assertOperationalPrerequisites(record: {
   clientId: string | null;
   missingRequiredLinks: string | null;
   nameSnapshot: string | null;
+  clientCanonicalName: string | null;
 }): void {
   if (!record.providerAccountId) {
     throw new SyncEndpointError("Missing required links: Provider Account.", 422);
@@ -23,14 +24,22 @@ function assertOperationalPrerequisites(record: {
     throw new SyncEndpointError(record.missingRequiredLinks, 422);
   }
 
-  if (!record.nameSnapshot) {
-    throw new SyncEndpointError("Missing customer identity: Name Snapshot is required.", 422);
+  if (!record.nameSnapshot && !record.clientCanonicalName) {
+    throw new SyncEndpointError(
+      "Missing customer identity: Name Snapshot or linked Clients.Client Name is required.",
+      422,
+    );
   }
 }
 
 export async function runClientExternalSync(recordId: string): Promise<SyncSuccessResponse> {
   const clientExternal = await getClientExternalRecord(recordId);
   assertOperationalPrerequisites(clientExternal);
+  const effectiveNameSnapshot = clientExternal.nameSnapshot ?? clientExternal.clientCanonicalName;
+  const syncInput = {
+    ...clientExternal,
+    nameSnapshot: effectiveNameSnapshot,
+  };
 
   const requestedPath = clientExternal.externalCustomerId ? "update_or_verify" : "create";
 
@@ -38,11 +47,11 @@ export async function runClientExternalSync(recordId: string): Promise<SyncSucce
   let providerAccountId: string | null = clientExternal.providerAccountId ?? null;
 
   try {
-    const squareContext = resolveSquareContext(clientExternal);
+    const squareContext = resolveSquareContext(syncInput);
     provider = squareContext.provider;
     providerAccountId = squareContext.providerAccountId;
 
-    const syncResult = await syncSquareCustomer(clientExternal, squareContext);
+    const syncResult = await syncSquareCustomer(syncInput, squareContext);
 
     console.info("Client external sync completed", {
       operation: OPERATION,

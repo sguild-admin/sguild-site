@@ -2,6 +2,7 @@ import { SyncEndpointError } from "./response";
 
 const CLIENT_EXTERNALS_TABLE = "Client Externals";
 const DEFAULT_PROVIDER_ACCOUNTS_TABLE = "Provider Accounts";
+const DEFAULT_CLIENTS_TABLE = "Clients";
 
 type AirtableRecord = {
   id: string;
@@ -20,6 +21,7 @@ export type ClientExternalRecord = {
   externalCustomerId: string | null;
   providerAccountId: string | null;
   clientId: string | null;
+  clientCanonicalName: string | null;
   nameSnapshot: string | null;
   phoneSnapshot: string | null;
   emailSnapshot: string | null;
@@ -101,6 +103,7 @@ async function getAirtableRecord(
 export async function getClientExternalRecord(recordId: string): Promise<ClientExternalRecord> {
   const providerAccountsTable =
     readString(process.env.AIRTABLE_PROVIDER_ACCOUNTS_TABLE) ?? DEFAULT_PROVIDER_ACCOUNTS_TABLE;
+  const clientsTable = readString(process.env.AIRTABLE_CLIENTS_TABLE) ?? DEFAULT_CLIENTS_TABLE;
 
   const clientExternal = await getAirtableRecord(
     CLIENT_EXTERNALS_TABLE,
@@ -111,18 +114,23 @@ export async function getClientExternalRecord(recordId: string): Promise<ClientE
 
   const providerAccountId = readFirstLinkedId(fields["Provider Account"]);
   const providerAccount =
-      providerAccountId != null
+    providerAccountId != null
       ? await getAirtableRecord(providerAccountsTable, providerAccountId, "Provider account")
       : null;
+  const clientId = readFirstLinkedId(fields.Client);
+  const clientRecord =
+    clientId != null ? await getAirtableRecord(clientsTable, clientId, "Client") : null;
 
   const providerFields = providerAccount?.fields ?? {};
+  const clientFields = clientRecord?.fields ?? {};
   const missingRequiredLinksRaw = fields["Missing Required Links"];
 
   return {
     recordId: clientExternal.id,
     externalCustomerId: readString(fields["External Customer ID"]),
     providerAccountId,
-    clientId: readFirstLinkedId(fields.Client),
+    clientId,
+    clientCanonicalName: readString(clientFields["Client Name"]),
     nameSnapshot: readString(fields["Name Snapshot"]),
     phoneSnapshot: readString(fields["Phone Snapshot"]),
     emailSnapshot: readString(fields["Email Snapshot"]),
