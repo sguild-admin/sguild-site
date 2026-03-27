@@ -42,6 +42,7 @@ export type ExistingCardExternal = {
   recordId: string;
   externalCardId: string | null;
   enabled: boolean;
+  clientExternalIds: string[];
 };
 
 function readString(value: unknown): string | null {
@@ -68,6 +69,15 @@ function readFirstLinkedId(value: unknown): string | null {
   if (!Array.isArray(value) || value.length === 0) return null;
   const [first] = value;
   return typeof first === "string" && first.trim().length > 0 ? first.trim() : null;
+}
+
+function readLinkedIds(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const ids: string[] = [];
+  for (const item of value) {
+    if (typeof item === "string" && item.trim().length > 0) ids.push(item.trim());
+  }
+  return ids;
 }
 
 function readNullableBoolean(value: unknown): boolean | null {
@@ -215,6 +225,7 @@ export async function listCardExternalsByClientExternal(
         recordId: record.id,
         externalCardId: readString(f["External Card ID"]),
         enabled: isEnabled(f.Enabled),
+        clientExternalIds: readLinkedIds(f["Client External"]),
       });
     }
 
@@ -222,6 +233,48 @@ export async function listCardExternalsByClientExternal(
   } while (offset);
 
   return rows;
+}
+
+export async function findCardExternalByKey(
+  clientExternalRecordId: string,
+  externalCardId: string,
+): Promise<ExistingCardExternal | null> {
+  const escapedCardId = escapeAirtableFormulaString(externalCardId);
+  const params = new URLSearchParams({
+    maxRecords: "20",
+    filterByFormula: `{External Card ID}='${escapedCardId}'`,
+  });
+
+  const response = await airtableRequest(
+    `${encodeURIComponent(CARD_EXTERNALS_TABLE)}?${params.toString()}`,
+    {
+      method: "GET",
+    },
+  );
+
+  if (!response.ok) {
+    const message = await parseAirtableError(response);
+    throw new SyncEndpointError(`Failed to query Card Externals by key: ${message}`, 502);
+  }
+
+  const body = (await response.json()) as {
+    records?: AirtableRecord[];
+  };
+
+  for (const record of body.records ?? []) {
+    const f = record.fields ?? {};
+    const linkedIds = readLinkedIds(f["Client External"]);
+    if (!linkedIds.includes(clientExternalRecordId)) continue;
+
+    return {
+      recordId: record.id,
+      externalCardId: readString(f["External Card ID"]),
+      enabled: isEnabled(f.Enabled),
+      clientExternalIds: linkedIds,
+    };
+  }
+
+  return null;
 }
 
 export async function createCardExternal(fields: CardExternalFields): Promise<void> {

@@ -3,6 +3,7 @@ import {
   createCardExternal,
   disableCardExternal,
   ExistingCardExternal,
+  findCardExternalByKey,
   getClientExternalRecord,
   listCardExternalsByClientExternal,
   updateCardExternal,
@@ -81,9 +82,14 @@ export async function runCardExternalSync(recordId: string): Promise<CardSyncSuc
     };
 
     const existing = existingMap.get(card.id);
-    if (existing) {
-      await updateCardExternal(existing.recordId, baseFields);
+    const fallbackExisting =
+      existing ??
+      (await findCardExternalByKey(clientExternal.recordId, card.id));
+
+    if (fallbackExisting) {
+      await updateCardExternal(fallbackExisting.recordId, baseFields);
       updatedCount += 1;
+      existingMap.set(card.id, fallbackExisting);
     } else {
       await createCardExternal(baseFields);
       createdCount += 1;
