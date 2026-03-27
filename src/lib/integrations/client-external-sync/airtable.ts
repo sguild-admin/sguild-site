@@ -48,6 +48,12 @@ function readStringLike(value: unknown): string | null {
     const asString = String(value).trim();
     return asString.length > 0 ? asString : null;
   }
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const parsed = readStringLike(item);
+      if (parsed) return parsed;
+    }
+  }
   return null;
 }
 
