@@ -1,4 +1,4 @@
-import { getClientExternalRecord } from "./airtable";
+import { getClientExternalRecord, updateClientExternalSnapshots } from "./airtable";
 import { resolveSquareContext } from "./provider-context";
 import { successResponse, SyncEndpointError, SyncSuccessResponse } from "./response";
 import { syncSquareCustomer } from "./square";
@@ -54,9 +54,26 @@ export async function runClientExternalSync(recordId: string): Promise<SyncSucce
     clientExternal.clientCanonicalName ??
     (canonicalJoinedName || null)
   );
+  const effectivePhoneSnapshot = (
+    clientExternal.phoneSnapshot ??
+    clientExternal.clientCanonicalPhone
+  );
+
+  const snapshotPatch: Partial<Record<"Name Snapshot" | "Phone Snapshot", string>> = {};
+  if (!clientExternal.nameSnapshot && effectiveNameSnapshot) {
+    snapshotPatch["Name Snapshot"] = effectiveNameSnapshot;
+  }
+  if (!clientExternal.phoneSnapshot && effectivePhoneSnapshot) {
+    snapshotPatch["Phone Snapshot"] = effectivePhoneSnapshot;
+  }
+  if (Object.keys(snapshotPatch).length > 0) {
+    await updateClientExternalSnapshots(clientExternal.recordId, snapshotPatch);
+  }
+
   const syncInput = {
     ...clientExternal,
     nameSnapshot: effectiveNameSnapshot,
+    phoneSnapshot: effectivePhoneSnapshot,
   };
 
   const requestedPath = clientExternal.externalCustomerId ? "update_or_verify" : "create";

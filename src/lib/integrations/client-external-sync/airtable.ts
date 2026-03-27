@@ -24,6 +24,7 @@ export type ClientExternalRecord = {
   clientCanonicalName: string | null;
   clientCanonicalFirstName: string | null;
   clientCanonicalLastName: string | null;
+  clientCanonicalPhone: string | null;
   nameSnapshot: string | null;
   phoneSnapshot: string | null;
   emailSnapshot: string | null;
@@ -70,9 +71,9 @@ async function getAirtableRecord(
   recordId: string,
   resourceLabel: string,
 ): Promise<AirtableRecord> {
-  const token = readString(process.env.AIRTABLE_OPERATIONS_TOKEN) ?? readString(process.env.AIRTABLE_TOKEN);
-  const baseId =
-    readString(process.env.AIRTABLE_OPERATIONS_BASE_ID) ?? readString(process.env.AIRTABLE_BASE_ID);
+  const token =
+    readString(process.env.AIRTABLE_OPERATIONS_TOKEN) ?? readString(process.env.AIRTABLE_TOKEN);
+  const baseId = readString(process.env.AIRTABLE_OPERATIONS_BASE_ID) ?? readString(process.env.AIRTABLE_BASE_ID);
 
   if (!token || !baseId) {
     throw new SyncEndpointError("Airtable configuration is missing.", 500, {
@@ -100,6 +101,14 @@ async function getAirtableRecord(
   }
 
   return (await response.json()) as AirtableRecord;
+}
+
+function readFirstStringFromFields(fields: Record<string, unknown>, keys: string[]): string | null {
+  for (const key of keys) {
+    const value = readString(fields[key]);
+    if (value) return value;
+  }
+  return null;
 }
 
 export async function getClientExternalRecord(recordId: string): Promise<ClientExternalRecord> {
@@ -135,6 +144,7 @@ export async function getClientExternalRecord(recordId: string): Promise<ClientE
     clientCanonicalName: readString(clientFields["Client Name"]),
     clientCanonicalFirstName: readString(clientFields["First Name"]),
     clientCanonicalLastName: readString(clientFields["Last Name"]),
+    clientCanonicalPhone: readFirstStringFromFields(clientFields, ["Latest Phone Normalized"]),
     nameSnapshot: readString(fields["Name Snapshot"]),
     phoneSnapshot: readString(fields["Phone Snapshot"]),
     emailSnapshot: readString(fields["Email Snapshot"]),
@@ -146,4 +156,43 @@ export async function getClientExternalRecord(recordId: string): Promise<ClientE
     provider: readString(providerFields.Provider),
     providerAccessTokenAlias: readString(providerFields["Access Token"]),
   };
+}
+
+export async function updateClientExternalSnapshots(
+  recordId: string,
+  fields: Partial<Record<"Name Snapshot" | "Phone Snapshot", string>>,
+): Promise<void> {
+  const token =
+    readString(process.env.AIRTABLE_OPERATIONS_TOKEN) ?? readString(process.env.AIRTABLE_TOKEN);
+  const baseId = readString(process.env.AIRTABLE_OPERATIONS_BASE_ID) ?? readString(process.env.AIRTABLE_BASE_ID);
+
+  if (!token || !baseId) {
+    throw new SyncEndpointError("Airtable configuration is missing.", 500, {
+      exposeMessage: false,
+    });
+  }
+
+  const sanitizedFields = Object.fromEntries(
+    Object.entries(fields).filter(([, value]) => typeof value === "string" && value.trim().length > 0),
+  ) as Partial<Record<"Name Snapshot" | "Phone Snapshot", string>>;
+
+  if (Object.keys(sanitizedFields).length === 0) {
+    return;
+  }
+
+  const url = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(CLIENT_EXTERNALS_TABLE)}/${encodeURIComponent(recordId)}`;
+  const response = await fetch(url, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ fields: sanitizedFields }),
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const message = await parseAirtableError(response);
+    throw new SyncEndpointError(`Airtable snapshot update failed: ${message}`, 502);
+  }
 }
