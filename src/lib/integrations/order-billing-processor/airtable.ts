@@ -998,8 +998,15 @@ export async function updateOrderExternal(
 ): Promise<void> {
   const path = `${encodeURIComponent(ORDER_EXTERNALS_TABLE)}/${encodeURIComponent(orderExternalRecordId)}`;
   const optionalFields = new Set([
+    "Sync Status",
+    "Sync Error",
+    "Last Synced At",
+    "External Action",
     "Raw Payload",
     "External Invoice URL",
+    "Customer ID Snapshot",
+    "Card ID Snapshot",
+    "Amount Snapshot",
     "External Process Status",
     "External Process At",
     "External Process Error",
@@ -1077,6 +1084,17 @@ export async function writeOrderExternalFailure(
     "Sync Error": errorMessage,
     "Last Synced At": new Date().toISOString(),
     "External Action": action,
+    "External Process Status": "Failed",
+    "External Process At": new Date().toISOString(),
+    "External Process Error": errorMessage,
+    "Writeback Status": "Failed",
+    "Writeback At": new Date().toISOString(),
+    "Writeback Error": errorMessage,
+    "Writeback Last Attempt At": new Date().toISOString(),
+    "Reconciliation Status": "Needs Review",
+    "Last Sync Activity At": new Date().toISOString(),
+    "Last API Message": errorMessage,
     ...(rawPayload ? { "Raw Payload": rawPayload } : {}),
+    ...(rawPayload ? { "External Process Raw Payload": rawPayload } : {}),
   });
 }
