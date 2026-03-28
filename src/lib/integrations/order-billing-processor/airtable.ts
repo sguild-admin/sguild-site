@@ -88,6 +88,15 @@ function readFirstLinkedId(value: unknown): string | null {
   return typeof first === "string" && first.trim().length > 0 ? first.trim() : null;
 }
 
+function readLinkedIds(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const ids: string[] = [];
+  for (const item of value) {
+    if (typeof item === "string" && item.trim().length > 0) ids.push(item.trim());
+  }
+  return ids;
+}
+
 function readNumber(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string") {
@@ -111,6 +120,17 @@ function isEnabled(value: unknown): boolean {
     const normalized = value.trim().toLowerCase();
     if (normalized === "") return true;
     return normalized === "true" || normalized === "yes" || normalized === "enabled";
+  }
+  if (Array.isArray(value)) {
+    if (value.length === 0) return true;
+    return value.some((item) => isEnabled(item));
+  }
+  if (typeof value === "object") {
+    const asRecord = value as Record<string, unknown>;
+    const name = readString(asRecord.name);
+    if (name) return isEnabled(name);
+    const id = readString(asRecord.id);
+    if (id) return true;
   }
   return false;
 }
@@ -281,33 +301,19 @@ export async function getClientExternalById(
 export async function findActiveCardExternalsByClientExternal(
   clientExternalRecordId: string,
 ): Promise<CardExternalRecord[]> {
-  const escapedClientExternalId = escapeAirtableFormulaString(clientExternalRecordId);
-  const formula = `FIND('${escapedClientExternalId}', ARRAYJOIN({Client External}))`;
-  let offset: string | undefined;
   const rows: CardExternalRecord[] = [];
 
-  do {
-    const params = new URLSearchParams({
-      pageSize: "100",
-      filterByFormula: formula,
-    });
-    if (offset) params.set("offset", offset);
+  // Preferred path: trust direct link graph Client Externals -> Card Externals.
+  const clientExternal = await getRecord(
+    CLIENT_EXTERNALS_TABLE,
+    clientExternalRecordId,
+    "Client External",
+  );
+  const linkedCardExternalIds = readLinkedIds((clientExternal.fields ?? {})["Card Externals"]);
 
-    const response = await airtableRequest(
-      `${encodeURIComponent(CARD_EXTERNALS_TABLE)}?${params.toString()}`,
-      { method: "GET" },
-    );
-    if (!response.ok) {
-      const message = await parseAirtableError(response);
-      throw new SyncEndpointError(`Failed to resolve Card Externals: ${message}`, 502);
-    }
-
-    const body = (await response.json()) as {
-      records?: AirtableRecord[];
-      offset?: string;
-    };
-
-    for (const record of body.records ?? []) {
+  if (linkedCardExternalIds.length > 0) {
+    for (const cardExternalId of linkedCardExternalIds) {
+      const record = await getRecord(CARD_EXTERNALS_TABLE, cardExternalId, "Card External");
       const fields = record.fields ?? {};
       if (!isEnabled(fields.Enabled)) continue;
       rows.push({
@@ -316,9 +322,46 @@ export async function findActiveCardExternalsByClientExternal(
         modifiedAt: readString(fields["Modified At"]),
       });
     }
+  } else {
+    // Fallback path for legacy rows where reverse links are missing.
+    const escapedClientExternalId = escapeAirtableFormulaString(clientExternalRecordId);
+    const formula = `FIND('${escapedClientExternalId}', ARRAYJOIN({Client External}))`;
+    let offset: string | undefined;
 
-    offset = body.offset;
-  } while (offset);
+    do {
+      const params = new URLSearchParams({
+        pageSize: "100",
+        filterByFormula: formula,
+      });
+      if (offset) params.set("offset", offset);
+
+      const response = await airtableRequest(
+        `${encodeURIComponent(CARD_EXTERNALS_TABLE)}?${params.toString()}`,
+        { method: "GET" },
+      );
+      if (!response.ok) {
+        const message = await parseAirtableError(response);
+        throw new SyncEndpointError(`Failed to resolve Card Externals: ${message}`, 502);
+      }
+
+      const body = (await response.json()) as {
+        records?: AirtableRecord[];
+        offset?: string;
+      };
+
+      for (const record of body.records ?? []) {
+        const fields = record.fields ?? {};
+        if (!isEnabled(fields.Enabled)) continue;
+        rows.push({
+          recordId: record.id,
+          externalCardId: readString(fields["External Card ID"]),
+          modifiedAt: readString(fields["Modified At"]),
+        });
+      }
+
+      offset = body.offset;
+    } while (offset);
+  }
 
   rows.sort((a, b) => {
     const aTs = Date.parse(a.modifiedAt ?? "");
