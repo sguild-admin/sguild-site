@@ -88,13 +88,14 @@ function assertOrderBillingReady(order: OrderRecord, action: BillingAction): voi
 function pickNewestUsableCard(
   cards: Array<{ externalCardId: string | null }>,
   clientExternalRecordId: string,
+  activeCardCount: number | null,
 ): string {
   const usable = cards.find(
     (card) => typeof card.externalCardId === "string" && card.externalCardId.length > 0,
   );
   if (!usable?.externalCardId) {
     throw new SyncEndpointError(
-      `Missing usable Card External with External Card ID. Resolved Client External=${clientExternalRecordId}, enabledCardsFound=${cards.length}, enabledCardsWithExternalCardId=${cards.filter((card) => Boolean(card.externalCardId)).length}.`,
+      `Missing usable Card External with External Card ID. Resolved Client External=${clientExternalRecordId}, activeCardCount=${activeCardCount ?? "null"}, enabledCardsFound=${cards.length}, enabledCardsWithExternalCardId=${cards.filter((card) => Boolean(card.externalCardId)).length}.`,
       422,
     );
   }
@@ -176,6 +177,7 @@ export async function runOrderBillingProcessor(
       clientExternalRecordId: clientExternal?.recordId ?? null,
       providerAccountId: clientExternal?.providerAccountId ?? null,
       hasExternalCustomerId: Boolean(clientExternal?.externalCustomerId),
+      activeCardCount: clientExternal?.activeCardCount ?? null,
       expectedProviderAccountId: context.providerAccountId,
       resolutionSource: orderExternal.clientExternalId ? "order_external_link" : "client_provider_lookup",
     });
@@ -198,9 +200,14 @@ export async function runOrderBillingProcessor(
         loaded: cardExternals.length > 0,
         count: cardExternals.length,
         clientExternalRecordId: clientExternal.recordId,
+        activeCardCount: clientExternal.activeCardCount,
         withExternalCardId: cardExternals.filter((card) => Boolean(card.externalCardId)).length,
       });
-      const externalCardId = pickNewestUsableCard(cardExternals, clientExternal.recordId);
+      const externalCardId = pickNewestUsableCard(
+        cardExternals,
+        clientExternal.recordId,
+        clientExternal.activeCardCount,
+      );
       debugLog("Resolved provider charge inputs", {
         action: request.action,
         customerId: clientExternal.externalCustomerId,

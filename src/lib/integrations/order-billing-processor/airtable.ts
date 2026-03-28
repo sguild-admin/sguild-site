@@ -50,6 +50,7 @@ export type ClientExternalRecord = {
   recordId: string;
   providerAccountId: string | null;
   externalCustomerId: string | null;
+  activeCardCount: number | null;
 };
 
 export type CardExternalRecord = {
@@ -92,6 +93,12 @@ function readNumber(value: unknown): number | null {
   if (typeof value === "string") {
     const parsed = Number(value.trim());
     return Number.isFinite(parsed) ? parsed : null;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const parsed = readNumber(item);
+      if (parsed != null) return parsed;
+    }
   }
   return null;
 }
@@ -253,6 +260,7 @@ export async function findClientExternalByContext(
     recordId: record.id,
     providerAccountId: readFirstLinkedId(fields["Provider Account"]),
     externalCustomerId: readString(fields["External Customer ID"]),
+    activeCardCount: readNumber(fields["Active Card Count"]),
   };
 }
 
@@ -266,6 +274,7 @@ export async function getClientExternalById(
     recordId: record.id,
     providerAccountId: readFirstLinkedId(fields["Provider Account"]),
     externalCustomerId: readString(fields["External Customer ID"]),
+    activeCardCount: readNumber(fields["Active Card Count"]),
   };
 }
 
