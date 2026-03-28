@@ -22,6 +22,7 @@ type AirtableError = {
 export type OrderExternalRecord = {
   recordId: string;
   orderId: string | null;
+  clientExternalId: string | null;
   externalAction: string | null;
   syncStatus: string | null;
   externalPaymentId: string | null;
@@ -47,6 +48,7 @@ export type OrgIntegrationRecord = {
 
 export type ClientExternalRecord = {
   recordId: string;
+  providerAccountId: string | null;
   externalCustomerId: string | null;
 };
 
@@ -183,6 +185,7 @@ export async function getOrderExternalRecord(recordId: string): Promise<OrderExt
   return {
     recordId: record.id,
     orderId: readFirstLinkedId(fields.Order),
+    clientExternalId: readFirstLinkedId(fields["Client External"]),
     externalAction: readString(fields["External Action"]),
     syncStatus: readString(fields["Sync Status"]),
     externalPaymentId: readString(fields["External Payment ID"]),
@@ -246,6 +249,20 @@ export async function findClientExternalByContext(
 
   return {
     recordId: record.id,
+    providerAccountId: readFirstLinkedId(fields["Provider Account"]),
+    externalCustomerId: readString(fields["External Customer ID"]),
+  };
+}
+
+export async function getClientExternalById(
+  clientExternalRecordId: string,
+): Promise<ClientExternalRecord> {
+  const record = await getRecord(CLIENT_EXTERNALS_TABLE, clientExternalRecordId, "Client External");
+  const fields = record.fields ?? {};
+
+  return {
+    recordId: record.id,
+    providerAccountId: readFirstLinkedId(fields["Provider Account"]),
     externalCustomerId: readString(fields["External Customer ID"]),
   };
 }

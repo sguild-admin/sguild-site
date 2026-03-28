@@ -1,6 +1,7 @@
 import {
   findActiveCardExternalsByClientExternal,
   findClientExternalByContext,
+  getClientExternalById,
   getOrderExternalRecord,
   getOrderRecord,
   getOrgIntegrationRecord,
@@ -159,15 +160,25 @@ export async function runOrderBillingProcessor(
     });
     const context = resolveProviderContext(orgIntegration, request.action);
 
-    const clientExternal = await findClientExternalByContext(order.clientId as string, context.providerAccountId);
+    const clientExternal = orderExternal.clientExternalId
+      ? await getClientExternalById(orderExternal.clientExternalId)
+      : await findClientExternalByContext(order.clientId as string, context.providerAccountId);
     debugLog("Loaded client external", {
       loaded: Boolean(clientExternal),
       clientExternalRecordId: clientExternal?.recordId ?? null,
+      providerAccountId: clientExternal?.providerAccountId ?? null,
       hasExternalCustomerId: Boolean(clientExternal?.externalCustomerId),
-      providerAccountId: context.providerAccountId,
+      expectedProviderAccountId: context.providerAccountId,
+      resolutionSource: orderExternal.clientExternalId ? "order_external_link" : "client_provider_lookup",
     });
     if (!clientExternal) {
       throw new SyncEndpointError("Missing Client External for provider account context.", 422);
+    }
+    if (clientExternal.providerAccountId !== context.providerAccountId) {
+      throw new SyncEndpointError(
+        "Order External Client External is not in the same provider account context.",
+        422,
+      );
     }
     if (!clientExternal.externalCustomerId) {
       throw new SyncEndpointError("Missing External Customer ID.", 422);

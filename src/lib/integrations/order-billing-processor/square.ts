@@ -78,8 +78,14 @@ async function squarePost(
   }
 
   if (!response.ok) {
+    const parsedMessage = parseSquareErrorMessage(parsed);
+    const authHint =
+      response.status === 401 || parsedMessage.toLowerCase().includes("unauthorized")
+        ? " Check Access Token alias mapping, token environment (prod vs sandbox), and External Location ID ownership."
+        : "";
+
     throw new SyncEndpointError(
-      parseSquareErrorMessage(parsed),
+      `Square API error (${response.status}): ${parsedMessage}.${authHint}`.trim(),
       502,
       { rawPayload: safeStringify(parsed) },
     );
