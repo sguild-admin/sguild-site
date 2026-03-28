@@ -31,6 +31,7 @@ import { resolveProviderContext } from "./provider-context";
 import {
   cancelInvoice,
   chargeWithCardOnFile,
+  createInvoiceFromOrderItems,
   createOrderFromOrderItems,
   getInvoiceDetails,
   getInvoicePublicUrl,
@@ -694,19 +695,12 @@ export async function runOrderBillingProcessor(
         fallbackInvoiceFromOrder?.recordId,
       );
 
-      const knownExternalInvoiceIdBeforeResolution = firstNonEmptyString(
+      let knownExternalInvoiceIdBeforeResolution = firstNonEmptyString(
         request.externalInvoiceId,
         orderExternal.externalInvoiceId,
       );
 
       if (!resolvedInvoiceRecordId) {
-        if (!knownExternalInvoiceIdBeforeResolution) {
-          throw new SyncEndpointError(
-            "Missing invoiceRecordId and no externalInvoiceId available to recover. Provide invoiceRecordId, link Invoice on Order External, or include externalInvoiceId.",
-            400,
-          );
-        }
-
         const createdInvoice = await createInvoiceForOrder({
           Order: [request.orderRecordId],
           Status: "Pending",
@@ -885,24 +879,54 @@ export async function runOrderBillingProcessor(
       const knownExternalInvoiceId = firstNonEmptyString(
         knownExternalInvoiceIdBeforeResolution,
       );
-      if (!knownExternalInvoiceId) {
-        throw new SyncEndpointError(
-          "Missing externalInvoiceId. Invoice External write path will not create a provider invoice unless an explicit override flag is added.",
-          422,
+
+      let externalOrderIdForInvoice = orderExternal.externalOrderId;
+      let externalInvoiceUrlFromProvider: string | null = null;
+      let providerInvoiceRawPayload: string | null = null;
+      let resolvedExternalInvoiceId = knownExternalInvoiceId;
+
+      if (!resolvedExternalInvoiceId) {
+        const orderItems = await listOrderItems(request.orderRecordId);
+        if (orderItems.length === 0) {
+          throw new SyncEndpointError("Missing Order Items for Create Invoice.", 422);
+        }
+
+        const invalidItem = orderItems.find(
+          (item) => !item.description || item.netAmount == null || item.netAmount <= 0,
         );
+        if (invalidItem) {
+          throw new SyncEndpointError("Invalid Order Items for Create Invoice.", 422);
+        }
+
+        const createdProviderInvoice = await createInvoiceFromOrderItems({
+          context,
+          orderExternalRecordId: request.orderExternalRecordId,
+          externalCustomerId: clientExternal.externalCustomerId,
+          orderItems,
+          currency: order.currency as string,
+        });
+
+        externalOrderIdForInvoice = createdProviderInvoice.externalOrderId;
+        externalInvoiceUrlFromProvider = createdProviderInvoice.externalInvoiceUrl;
+        providerInvoiceRawPayload = createdProviderInvoice.rawPayload;
+        resolvedExternalInvoiceId = createdProviderInvoice.externalInvoiceId;
+        knownExternalInvoiceIdBeforeResolution = resolvedExternalInvoiceId;
       }
 
       let hostedInvoiceUrl = firstNonEmptyString(orderExternal.externalInvoiceUrl);
+      if (!hostedInvoiceUrl && externalInvoiceUrlFromProvider) {
+        hostedInvoiceUrl = externalInvoiceUrlFromProvider;
+      }
       if (!hostedInvoiceUrl) {
         try {
           hostedInvoiceUrl = await getInvoicePublicUrl({
             context,
-            externalInvoiceId: knownExternalInvoiceId,
+            externalInvoiceId: resolvedExternalInvoiceId as string,
           });
         } catch (error) {
           debugLog("Invoice URL lookup skipped for invoice external create", {
             invoiceRecordId: invoice.recordId,
-            externalInvoiceId: knownExternalInvoiceId,
+            externalInvoiceId: resolvedExternalInvoiceId,
             error: error instanceof Error ? error.message : String(error),
           });
         }
@@ -917,17 +941,19 @@ export async function runOrderBillingProcessor(
       }
 
       const amountPaid = invoice.amountPaid ?? 0;
-      const createRawPayload = JSON.stringify({
-        source: "order_external_upstream",
-        idempotencyKey: invoiceExternalIdempotencyKey,
-        externalInvoiceId: knownExternalInvoiceId,
-      });
+      const createRawPayload =
+        providerInvoiceRawPayload ??
+        JSON.stringify({
+          source: "order_external_upstream",
+          idempotencyKey: invoiceExternalIdempotencyKey,
+          externalInvoiceId: resolvedExternalInvoiceId,
+        });
 
       const createdInvoiceExternal = await createInvoiceExternal({
         Invoice: [invoice.recordId],
         Order: [request.orderRecordId],
         "Org Integration": [request.orgIntegrationRecordId],
-        "External Invoice ID": knownExternalInvoiceId,
+        "External Invoice ID": resolvedExternalInvoiceId as string,
         "External Status": invoice.status ?? "Pending",
         "Amount Due": amountDue,
         "Amount Paid": amountPaid,
@@ -952,8 +978,8 @@ export async function runOrderBillingProcessor(
         "External Process Raw Payload": createRawPayload,
         "Customer ID Snapshot": clientExternal.externalCustomerId,
         "Amount Snapshot": amountDue,
-        ...(orderExternal.externalOrderId ? { "External Order ID": orderExternal.externalOrderId } : {}),
-        "External Invoice ID": knownExternalInvoiceId,
+        ...(externalOrderIdForInvoice ? { "External Order ID": externalOrderIdForInvoice } : {}),
+        "External Invoice ID": resolvedExternalInvoiceId as string,
         ...(hostedInvoiceUrl ? { "External Invoice URL": hostedInvoiceUrl } : {}),
         "Raw Payload": createRawPayload,
         ...(writebackAction === "Skip Writeback"
@@ -1001,8 +1027,8 @@ export async function runOrderBillingProcessor(
         request.action,
         "processed",
         {
-          externalOrderId: orderExternal.externalOrderId,
-          externalInvoiceId: knownExternalInvoiceId,
+          externalOrderId: externalOrderIdForInvoice,
+          externalInvoiceId: resolvedExternalInvoiceId,
         },
         {
           resolvedInvoiceRecordId,
