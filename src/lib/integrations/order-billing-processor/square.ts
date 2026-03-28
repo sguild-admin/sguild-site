@@ -227,6 +227,9 @@ export async function createInvoiceFromOrderItems(input: {
         {
           request_type: "BALANCE",
           due_date: buildInvoiceDueDateIso(7),
+          accepted_payment_methods: {
+            card: true,
+          },
         },
       ],
     },
