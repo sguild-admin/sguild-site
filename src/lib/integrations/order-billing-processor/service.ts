@@ -552,7 +552,7 @@ export async function runOrderBillingProcessor(
               amountPaid: recoveredAmountPaid,
             }) === "Paid"
               ? "Paid"
-              : "Pending",
+              : "Draft",
             ...(order.amountDue != null ? { "Amount Due": order.amountDue } : {}),
             "Amount Paid": recoveredAmountPaid,
             "Issued At": new Date().toISOString(),
@@ -588,8 +588,8 @@ export async function runOrderBillingProcessor(
                 amountDue: order.amountDue,
                 amountPaid: recoveredAmountPaid,
               }) === "Paid"
-                ? "PAID"
-                : "PENDING",
+                ? "Paid"
+                : "Draft",
               "Last Synced At": new Date().toISOString(),
               "Sync Status": "Synced",
               "Sync Error": "",
@@ -610,8 +610,8 @@ export async function runOrderBillingProcessor(
                 amountDue: order.amountDue,
                 amountPaid: recoveredAmountPaid,
               }) === "Paid"
-                ? "PAID"
-                : "PENDING",
+                ? "Paid"
+                : "Draft",
               "Last Synced At": new Date().toISOString(),
               "Sync Status": "Synced",
               "Sync Error": "",
@@ -703,7 +703,7 @@ export async function runOrderBillingProcessor(
       if (!resolvedInvoiceRecordId) {
         const createdInvoice = await createInvoiceForOrder({
           Order: [request.orderRecordId],
-          Status: "Pending",
+          Status: "Draft",
           ...(order.amountDue != null ? { "Amount Due": order.amountDue } : {}),
           "Amount Paid": 0,
           "Issued At": new Date().toISOString(),
@@ -954,7 +954,7 @@ export async function runOrderBillingProcessor(
         Order: [request.orderRecordId],
         "Org Integration": [request.orgIntegrationRecordId],
         "External Invoice ID": resolvedExternalInvoiceId as string,
-        "External Status": invoice.status ?? "Pending",
+        "External Status": invoice.status ?? "Draft",
         "Amount Due": amountDue,
         "Amount Paid": amountPaid,
         ...(invoice.issuedAt ? { "Issued At": invoice.issuedAt } : {}),
@@ -1035,7 +1035,7 @@ export async function runOrderBillingProcessor(
           invoiceId: invoice.recordId,
           orderId: request.orderRecordId,
           invoiceExternalRecordId: createdInvoiceExternal.recordId,
-          externalStatus: createdInvoiceExternal.externalStatus ?? invoice.status ?? "Pending",
+          externalStatus: createdInvoiceExternal.externalStatus ?? invoice.status ?? "Draft",
           amountDue,
           amountPaid,
           issuedAt: invoice.issuedAt,
