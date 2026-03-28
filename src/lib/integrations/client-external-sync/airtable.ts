@@ -177,7 +177,9 @@ export async function getClientExternalRecord(recordId: string): Promise<ClientE
       ? "Missing required links"
       : null,
     provider: readString(providerFields.Provider),
-    providerAccessTokenAlias: readString(providerFields["Access Token"]),
+    providerAccessTokenAlias:
+      readString(providerFields["Access Token Alias"]) ??
+      readString(providerFields["Access Token"]),
   };
 }
 

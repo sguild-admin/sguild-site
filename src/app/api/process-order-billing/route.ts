@@ -20,6 +20,15 @@ type ProcessOrderBillingBody = {
   action?: unknown;
 };
 
+function isDebugEnabled(): boolean {
+  return process.env.ORDER_BILLING_DEBUG === "true" || process.env.NODE_ENV !== "production";
+}
+
+function debugLog(message: string, data?: Record<string, unknown>): void {
+  if (!isDebugEnabled()) return;
+  console.info(message, data ?? {});
+}
+
 function methodNotAllowed(): NextResponse {
   return NextResponse.json(
     { ok: false, error: "Method Not Allowed" },
@@ -61,6 +70,7 @@ export async function POST(request: Request) {
   let parsed: OrderBillingRequest | null = null;
 
   try {
+    debugLog("Order billing request received");
     validateAirtableSecret(request);
     const contentType = request.headers.get("content-type") ?? "";
     if (!contentType.toLowerCase().includes("application/json")) {
@@ -75,6 +85,12 @@ export async function POST(request: Request) {
     }
 
     parsed = parseBody(body);
+    debugLog("Order billing request parsed", {
+      orderRecordId: parsed.orderRecordId,
+      orderExternalRecordId: parsed.orderExternalRecordId,
+      orgIntegrationRecordId: parsed.orgIntegrationRecordId,
+      action: parsed.action,
+    });
     const response = await runOrderBillingProcessor(parsed);
     return NextResponse.json(response, { status: 200 });
   } catch (error) {
@@ -88,6 +104,7 @@ export async function POST(request: Request) {
       action: parsed?.action ?? null,
       status,
       error: error instanceof Error ? error.message : "Unknown error",
+      stack: error instanceof Error ? error.stack : null,
     });
 
     return NextResponse.json(body, { status });
@@ -109,4 +126,3 @@ export async function PATCH() {
 export async function DELETE() {
   return methodNotAllowed();
 }
-

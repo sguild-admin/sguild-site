@@ -21,6 +21,15 @@ import { chargeWithCardOnFile, createInvoiceFromOrderItems } from "./square";
 
 const OPERATION = "process_order_billing";
 
+function isDebugEnabled(): boolean {
+  return process.env.ORDER_BILLING_DEBUG === "true" || process.env.NODE_ENV !== "production";
+}
+
+function debugLog(message: string, data?: Record<string, unknown>): void {
+  if (!isDebugEnabled()) return;
+  console.info(message, data ?? {});
+}
+
 export type OrderBillingRequest = {
   orderRecordId: string;
   orderExternalRecordId: string;
@@ -86,8 +95,30 @@ function pickNewestUsableCard(cards: Array<{ externalCardId: string | null }>): 
 export async function runOrderBillingProcessor(
   request: OrderBillingRequest,
 ): Promise<BillingProcessSuccessResponse> {
+  debugLog("Billing processor start", {
+    operation: OPERATION,
+    action: request.action,
+    orderRecordId: request.orderRecordId,
+    orderExternalRecordId: request.orderExternalRecordId,
+    orgIntegrationRecordId: request.orgIntegrationRecordId,
+  });
+
   const orderExternal = await getOrderExternalRecord(request.orderExternalRecordId);
+  debugLog("Loaded order external", {
+    loaded: Boolean(orderExternal),
+    orderExternalRecordId: orderExternal.recordId,
+    externalAction: orderExternal.externalAction,
+    syncStatus: orderExternal.syncStatus,
+  });
   const order = await getOrderRecord(request.orderRecordId);
+  debugLog("Loaded order", {
+    loaded: Boolean(order),
+    orderRecordId: order.recordId,
+    hasClient: Boolean(order.clientId),
+    amountDue: order.amountDue,
+    currency: order.currency,
+    billingStatus: order.billingStatus,
+  });
   const orderRecordIdForFailure: string | null = order.recordId;
 
   try {
@@ -118,9 +149,23 @@ export async function runOrderBillingProcessor(
     assertOrderBillingReady(order, request.action);
 
     const orgIntegration = await getOrgIntegrationRecord(request.orgIntegrationRecordId);
+    debugLog("Loaded org integration", {
+      loaded: Boolean(orgIntegration),
+      orgIntegrationRecordId: orgIntegration.recordId,
+      provider: orgIntegration.provider,
+      providerAccountId: orgIntegration.providerAccountId,
+      hasExternalLocationId: Boolean(orgIntegration.externalLocationId),
+      hasAccessToken: Boolean(orgIntegration.accessToken),
+    });
     const context = resolveProviderContext(orgIntegration, request.action);
 
     const clientExternal = await findClientExternalByContext(order.clientId as string, context.providerAccountId);
+    debugLog("Loaded client external", {
+      loaded: Boolean(clientExternal),
+      clientExternalRecordId: clientExternal?.recordId ?? null,
+      hasExternalCustomerId: Boolean(clientExternal?.externalCustomerId),
+      providerAccountId: context.providerAccountId,
+    });
     if (!clientExternal) {
       throw new SyncEndpointError("Missing Client External for provider account context.", 422);
     }
@@ -130,7 +175,20 @@ export async function runOrderBillingProcessor(
 
     if (request.action === "Charge") {
       const cardExternals = await findActiveCardExternalsByClientExternal(clientExternal.recordId);
+      debugLog("Loaded card externals", {
+        loaded: cardExternals.length > 0,
+        count: cardExternals.length,
+        clientExternalRecordId: clientExternal.recordId,
+      });
       const externalCardId = pickNewestUsableCard(cardExternals);
+      debugLog("Resolved provider charge inputs", {
+        action: request.action,
+        customerId: clientExternal.externalCustomerId,
+        cardId: externalCardId,
+        locationId: context.externalLocationId,
+        amount: order.amountDue,
+        currency: order.currency,
+      });
 
       const chargeResult = await chargeWithCardOnFile({
         context,
@@ -171,6 +229,11 @@ export async function runOrderBillingProcessor(
 
     if (request.action === "Invoice") {
       const orderItems = await listOrderItems(request.orderRecordId);
+      debugLog("Loaded order items", {
+        loaded: orderItems.length > 0,
+        count: orderItems.length,
+        orderRecordId: request.orderRecordId,
+      });
       if (orderItems.length === 0) {
         throw new SyncEndpointError("Missing Order Items.", 422);
       }
@@ -181,6 +244,14 @@ export async function runOrderBillingProcessor(
       if (invalidItem) {
         throw new SyncEndpointError("Invalid Order Items for invoice creation.", 422);
       }
+
+      debugLog("Resolved provider invoice inputs", {
+        action: request.action,
+        customerId: clientExternal.externalCustomerId,
+        locationId: context.externalLocationId,
+        currency: order.currency,
+        itemCount: orderItems.length,
+      });
 
       const invoiceResult = await createInvoiceFromOrderItems({
         context,

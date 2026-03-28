@@ -187,7 +187,9 @@ export async function getClientExternalRecord(recordId: string): Promise<ClientE
     clientId: readFirstLinkedId(fields.Client),
     cardSyncEligible: readNullableBoolean(fields["Card Sync Eligible"]),
     provider: readString(fields.Provider) ?? readString(providerFields.Provider),
-    providerAccessTokenAlias: readString(providerFields["Access Token"]),
+    providerAccessTokenAlias:
+      readString(providerFields["Access Token Alias"]) ??
+      readString(providerFields["Access Token"]),
   };
 }
 

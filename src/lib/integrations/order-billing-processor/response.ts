@@ -13,6 +13,7 @@ export type BillingProcessSuccessResponse = {
 export type BillingProcessErrorResponse = {
   ok: false;
   error: string;
+  stack?: string | null;
 };
 
 export class SyncEndpointError extends Error {
@@ -59,12 +60,15 @@ export function successResponse(
 export function failureFromError(
   error: unknown,
 ): { status: number; body: BillingProcessErrorResponse } {
+  const isDev = process.env.NODE_ENV !== "production";
+
   if (error instanceof SyncEndpointError) {
     return {
       status: error.status,
       body: {
         ok: false,
         error: error.exposeMessage ? error.message : "Unexpected server error.",
+        ...(isDev && error instanceof Error ? { stack: error.stack ?? null } : {}),
       },
     };
   }
@@ -73,8 +77,8 @@ export function failureFromError(
     status: 500,
     body: {
       ok: false,
-      error: "Unexpected server error.",
+      error: error instanceof Error ? error.message : "Unexpected server error.",
+      ...(isDev && error instanceof Error ? { stack: error.stack ?? null } : {}),
     },
   };
 }
-
