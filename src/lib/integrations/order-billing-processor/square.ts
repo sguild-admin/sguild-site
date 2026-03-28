@@ -283,3 +283,58 @@ export async function getInvoicePublicUrl(input: {
   const url = retrieveResponse.invoice?.public_url;
   return typeof url === "string" && url.trim().length > 0 ? url.trim() : null;
 }
+
+export async function getInvoiceDetails(input: {
+  context: ProviderContext;
+  externalInvoiceId: string;
+}): Promise<{
+  externalInvoiceId: string;
+  status: string | null;
+  version: number | null;
+  externalOrderId: string | null;
+  publicUrl: string | null;
+  rawPayload: string;
+}> {
+  const retrieveResponse = (await squareGet(
+    `/v2/invoices/${encodeURIComponent(input.externalInvoiceId)}`,
+    input.context,
+  )) as {
+    invoice?: {
+      id?: string;
+      status?: string;
+      version?: number;
+      order_id?: string;
+      public_url?: string;
+    };
+  };
+
+  return {
+    externalInvoiceId: retrieveResponse.invoice?.id ?? input.externalInvoiceId,
+    status: retrieveResponse.invoice?.status ?? null,
+    version:
+      typeof retrieveResponse.invoice?.version === "number"
+        ? retrieveResponse.invoice.version
+        : null,
+    externalOrderId: retrieveResponse.invoice?.order_id ?? null,
+    publicUrl: retrieveResponse.invoice?.public_url ?? null,
+    rawPayload: safeStringify(retrieveResponse),
+  };
+}
+
+export async function cancelInvoice(input: {
+  context: ProviderContext;
+  externalInvoiceId: string;
+  version: number;
+}): Promise<{ rawPayload: string }> {
+  const response = await squarePost(
+    `/v2/invoices/${encodeURIComponent(input.externalInvoiceId)}/cancel`,
+    {
+      version: input.version,
+    },
+    input.context,
+  );
+
+  return {
+    rawPayload: safeStringify(response),
+  };
+}

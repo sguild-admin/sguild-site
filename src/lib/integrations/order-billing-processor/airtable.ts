@@ -366,6 +366,82 @@ export async function findSingleInvoiceByOrder(
   return matches[0];
 }
 
+export async function listInvoicesByOrder(orderRecordId: string): Promise<InvoiceRecord[]> {
+  const escapedOrderId = escapeAirtableFormulaString(orderRecordId);
+
+  async function queryByLinkField(linkField: string): Promise<InvoiceRecord[] | null> {
+    const formula = `FIND('${escapedOrderId}', ARRAYJOIN({${linkField}}))`;
+    let offset: string | undefined;
+    const rows: InvoiceRecord[] = [];
+
+    do {
+      const params = new URLSearchParams({
+        pageSize: "100",
+        filterByFormula: formula,
+      });
+      if (offset) params.set("offset", offset);
+
+      const response = await airtableRequest(
+        `${encodeURIComponent(INVOICES_TABLE)}?${params.toString()}`,
+        { method: "GET" },
+      );
+      if (!response.ok) {
+        const message = await parseAirtableError(response);
+        if (/Unknown field name/i.test(message) || /Unknown field names/i.test(message)) {
+          return null;
+        }
+        throw new SyncEndpointError(`Failed to list Invoices by Order: ${message}`, 502);
+      }
+
+      const body = (await response.json()) as {
+        records?: AirtableRecord[];
+        offset?: string;
+      };
+      for (const record of body.records ?? []) rows.push(toInvoiceRecord(record));
+      offset = body.offset;
+    } while (offset);
+
+    return rows;
+  }
+
+  for (const fieldName of ["Order", "Orders", "Parent Order"]) {
+    const rows = await queryByLinkField(fieldName);
+    if (rows && rows.length > 0) return rows;
+  }
+
+  let offset: string | undefined;
+  const scannedRows: InvoiceRecord[] = [];
+  do {
+    const params = new URLSearchParams({ pageSize: "100" });
+    if (offset) params.set("offset", offset);
+
+    const response = await airtableRequest(
+      `${encodeURIComponent(INVOICES_TABLE)}?${params.toString()}`,
+      { method: "GET" },
+    );
+    if (!response.ok) {
+      const message = await parseAirtableError(response);
+      throw new SyncEndpointError(`Failed to list Invoices by Order: ${message}`, 502);
+    }
+
+    const body = (await response.json()) as { records?: AirtableRecord[]; offset?: string };
+    for (const record of body.records ?? []) {
+      const fields = record.fields ?? {};
+      const linksToOrder = Object.values(fields).some(
+        (value) =>
+          Array.isArray(value) &&
+          value.some((item) => typeof item === "string" && item.trim() === orderRecordId),
+      );
+      if (!linksToOrder) continue;
+      scannedRows.push(toInvoiceRecord(record));
+    }
+
+    offset = body.offset;
+  } while (offset);
+
+  return scannedRows;
+}
+
 export async function getOrgIntegrationRecord(recordId: string): Promise<OrgIntegrationRecord> {
   const record = await getRecord(ORG_INTEGRATIONS_TABLE, recordId, "Org Integration");
   const fields = record.fields ?? {};
@@ -772,6 +848,49 @@ export async function writeInvoiceExternalFailure(
     "Last Synced At": new Date().toISOString(),
     ...(rawPayload ? { "Raw Payload": rawPayload } : {}),
   });
+}
+
+export async function listOrderExternalsByInvoice(
+  invoiceRecordId: string,
+): Promise<OrderExternalRecord[]> {
+  const escapedInvoiceId = escapeAirtableFormulaString(invoiceRecordId);
+  const formula = `FIND('${escapedInvoiceId}', ARRAYJOIN({Invoice}))`;
+
+  let offset: string | undefined;
+  const rows: OrderExternalRecord[] = [];
+  do {
+    const params = new URLSearchParams({ pageSize: "100", filterByFormula: formula });
+    if (offset) params.set("offset", offset);
+
+    const response = await airtableRequest(
+      `${encodeURIComponent(ORDER_EXTERNALS_TABLE)}?${params.toString()}`,
+      { method: "GET" },
+    );
+    if (!response.ok) {
+      const message = await parseAirtableError(response);
+      throw new SyncEndpointError(`Failed to list Order Externals by Invoice: ${message}`, 502);
+    }
+
+    const body = (await response.json()) as { records?: AirtableRecord[]; offset?: string };
+    for (const record of body.records ?? []) {
+      const fields = record.fields ?? {};
+      rows.push({
+        recordId: record.id,
+        orderId: readFirstLinkedId(fields.Order),
+        invoiceId: readFirstLinkedId(fields.Invoice),
+        clientExternalId: readFirstLinkedId(fields["Client External"]),
+        externalAction: readString(fields["External Action"]),
+        syncStatus: readString(fields["Sync Status"]),
+        externalPaymentId: readString(fields["External Payment ID"]),
+        externalOrderId: readString(fields["External Order ID"]),
+        externalInvoiceId: readString(fields["External Invoice ID"]),
+        externalInvoiceUrl: readString(fields["External Invoice URL"]),
+      });
+    }
+    offset = body.offset;
+  } while (offset);
+
+  return rows;
 }
 
 type OrderExternalWritebackFields = {

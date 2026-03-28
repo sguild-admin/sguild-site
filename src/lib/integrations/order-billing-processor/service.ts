@@ -9,6 +9,7 @@ import {
   getOrderExternalRecord,
   getOrderRecord,
   getOrgIntegrationRecord,
+  listOrderExternalsByInvoice,
   OrderRecord,
   updateOrderBillingStatus,
   updateInvoiceExternal,
@@ -22,7 +23,7 @@ import {
   SyncEndpointError,
 } from "./response";
 import { resolveProviderContext } from "./provider-context";
-import { chargeWithCardOnFile, getInvoicePublicUrl } from "./square";
+import { cancelInvoice, chargeWithCardOnFile, getInvoiceDetails, getInvoicePublicUrl } from "./square";
 
 const OPERATION = "process_order_billing";
 
@@ -115,6 +116,76 @@ function pickNewestUsableCard(
     );
   }
   return usable.externalCardId;
+}
+
+async function cancelDuplicateSquareInvoicesForInvoice(input: {
+  invoiceRecordId: string;
+  canonicalExternalInvoiceId: string;
+  context: Parameters<typeof getInvoiceDetails>[0]["context"];
+}): Promise<{
+  canceledExternalInvoiceIds: string[];
+  skippedDuplicateInvoiceCancellations: Array<{ externalInvoiceId: string; reason: string }>;
+}> {
+  const rows = await listOrderExternalsByInvoice(input.invoiceRecordId);
+  const candidateIds = [...new Set(
+    rows
+      .map((row) => row.externalInvoiceId)
+      .filter((value): value is string => typeof value === "string" && value.length > 0),
+  )];
+
+  const duplicates = candidateIds.filter((id) => id !== input.canonicalExternalInvoiceId);
+  const canceledExternalInvoiceIds: string[] = [];
+  const skippedDuplicateInvoiceCancellations: Array<{ externalInvoiceId: string; reason: string }> = [];
+
+  for (const duplicateExternalInvoiceId of duplicates) {
+    try {
+      const details = await getInvoiceDetails({
+        context: input.context,
+        externalInvoiceId: duplicateExternalInvoiceId,
+      });
+      const status = (details.status ?? "").toUpperCase();
+
+      if (status === "CANCELED") {
+        skippedDuplicateInvoiceCancellations.push({
+          externalInvoiceId: duplicateExternalInvoiceId,
+          reason: "Already canceled",
+        });
+        continue;
+      }
+      if (status === "PAID") {
+        skippedDuplicateInvoiceCancellations.push({
+          externalInvoiceId: duplicateExternalInvoiceId,
+          reason: "Already paid; cancellation skipped",
+        });
+        continue;
+      }
+      if (details.version == null) {
+        skippedDuplicateInvoiceCancellations.push({
+          externalInvoiceId: duplicateExternalInvoiceId,
+          reason: "Missing Square invoice version",
+        });
+        continue;
+      }
+
+      await cancelInvoice({
+        context: input.context,
+        externalInvoiceId: duplicateExternalInvoiceId,
+        version: details.version,
+      });
+
+      canceledExternalInvoiceIds.push(duplicateExternalInvoiceId);
+    } catch (error) {
+      skippedDuplicateInvoiceCancellations.push({
+        externalInvoiceId: duplicateExternalInvoiceId,
+        reason: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return {
+    canceledExternalInvoiceIds,
+    skippedDuplicateInvoiceCancellations,
+  };
 }
 
 export async function runOrderBillingProcessor(
@@ -410,6 +481,12 @@ export async function runOrderBillingProcessor(
         });
         await updateOrderBillingStatus(request.orderRecordId, "Payment Pending");
 
+        const cancellationResult = await cancelDuplicateSquareInvoicesForInvoice({
+          invoiceRecordId: invoice.recordId,
+          canonicalExternalInvoiceId: knownExternalInvoiceId,
+          context,
+        });
+
         return successResponse(
           request.action,
           "noop",
@@ -430,6 +507,9 @@ export async function runOrderBillingProcessor(
             hostedInvoiceUrl: knownHostedInvoiceUrl,
             wasExistingMappingReused: true,
             rawPayload: existingInvoiceExternal.rawPayload,
+            canceledDuplicateExternalInvoiceIds: cancellationResult.canceledExternalInvoiceIds,
+            skippedDuplicateInvoiceCancellations:
+              cancellationResult.skippedDuplicateInvoiceCancellations,
           },
         );
       }
@@ -508,6 +588,12 @@ export async function runOrderBillingProcessor(
       });
       await updateOrderBillingStatus(request.orderRecordId, "Payment Pending");
 
+      const cancellationResult = await cancelDuplicateSquareInvoicesForInvoice({
+        invoiceRecordId: invoice.recordId,
+        canonicalExternalInvoiceId: knownExternalInvoiceId,
+        context,
+      });
+
       console.info("Order billing processed", {
         operation: OPERATION,
         action: request.action,
@@ -539,6 +625,9 @@ export async function runOrderBillingProcessor(
           hostedInvoiceUrl,
           wasExistingMappingReused: false,
           rawPayload: createRawPayload,
+          canceledDuplicateExternalInvoiceIds: cancellationResult.canceledExternalInvoiceIds,
+          skippedDuplicateInvoiceCancellations:
+            cancellationResult.skippedDuplicateInvoiceCancellations,
         },
       );
     }

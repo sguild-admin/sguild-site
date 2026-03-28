@@ -20,6 +20,8 @@ export type BillingProcessSuccessResponse = {
   hostedInvoiceUrl?: string;
   wasExistingMappingReused?: boolean;
   rawPayload?: string;
+  canceledDuplicateExternalInvoiceIds?: string[];
+  skippedDuplicateInvoiceCancellations?: Array<{ externalInvoiceId: string; reason: string }>;
 };
 
 export type BillingProcessErrorResponse = {
@@ -67,6 +69,8 @@ export function successResponse(
     hostedInvoiceUrl?: string | null;
     wasExistingMappingReused?: boolean;
     rawPayload?: string | null;
+    canceledDuplicateExternalInvoiceIds?: string[];
+    skippedDuplicateInvoiceCancellations?: Array<{ externalInvoiceId: string; reason: string }>;
   },
 ): BillingProcessSuccessResponse {
   const body: BillingProcessSuccessResponse = {
@@ -98,6 +102,12 @@ export function successResponse(
     body.wasExistingMappingReused = metadata.wasExistingMappingReused;
   }
   if (metadata?.rawPayload) body.rawPayload = metadata.rawPayload;
+  if (metadata?.canceledDuplicateExternalInvoiceIds?.length) {
+    body.canceledDuplicateExternalInvoiceIds = metadata.canceledDuplicateExternalInvoiceIds;
+  }
+  if (metadata?.skippedDuplicateInvoiceCancellations?.length) {
+    body.skippedDuplicateInvoiceCancellations = metadata.skippedDuplicateInvoiceCancellations;
+  }
 
   return body;
 }
