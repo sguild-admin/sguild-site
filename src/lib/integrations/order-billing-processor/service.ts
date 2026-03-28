@@ -15,6 +15,7 @@ import {
   listOrderExternalsByInvoice,
   OrderRecord,
   updateOrderBillingStatus,
+  updateOrderAmountPaid,
   updateInvoiceExternal,
   updateOrderExternal,
   writeOrderExternalFailure,
@@ -423,6 +424,9 @@ export async function runOrderBillingProcessor(
         "Last API Response Code": 200,
         "Last API Message": "Charge processed",
       });
+      if (order.amountDue != null) {
+        await updateOrderAmountPaid(request.orderRecordId, order.amountDue);
+      }
       await updateOrderBillingStatus(request.orderRecordId, "Paid");
 
       console.info("Order billing processed", {
@@ -663,6 +667,8 @@ export async function runOrderBillingProcessor(
           "Last API Response Code": 200,
           "Last API Message": "Create Invoice reused existing mapping",
         });
+        const paidAmount = invoice.amountPaid ?? 0;
+        await updateOrderAmountPaid(request.orderRecordId, paidAmount);
         await updateOrderBillingStatus(request.orderRecordId, "Payment Pending");
 
         const cancellationResult = await cancelDuplicateSquareInvoicesForInvoice({
@@ -791,6 +797,7 @@ export async function runOrderBillingProcessor(
         "Last API Response Code": 200,
         "Last API Message": "Create Invoice processed",
       });
+      await updateOrderAmountPaid(request.orderRecordId, amountPaid);
       await updateOrderBillingStatus(request.orderRecordId, "Payment Pending");
 
       const cancellationResult = await cancelDuplicateSquareInvoicesForInvoice({

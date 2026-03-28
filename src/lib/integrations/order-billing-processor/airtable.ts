@@ -1073,6 +1073,28 @@ export async function updateOrderBillingStatus(
   }
 }
 
+export async function updateOrderAmountPaid(
+  orderRecordId: string,
+  amountPaid: number,
+): Promise<void> {
+  const response = await airtableRequest(
+    `${encodeURIComponent(ORDERS_TABLE)}/${encodeURIComponent(orderRecordId)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({
+        fields: {
+          "Amount Paid": amountPaid,
+        },
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    const message = await parseAirtableError(response);
+    throw new SyncEndpointError(`Failed to update Order Amount Paid: ${message}`, 502);
+  }
+}
+
 export async function writeOrderExternalFailure(
   orderExternalRecordId: string,
   action: BillingAction,
