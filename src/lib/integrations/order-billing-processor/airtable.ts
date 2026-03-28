@@ -396,8 +396,9 @@ export async function listOrderItems(orderRecordId: string): Promise<OrderItem[]
       );
       if (!response.ok) {
         const message = await parseAirtableError(response);
-        if (message.includes(`Unknown field names: ${linkField}`)) return null;
-        if (message.includes(`Unknown field name: "${linkField}"`)) return null;
+        if (/Unknown field name/i.test(message) || /Unknown field names/i.test(message)) {
+          return null;
+        }
         throw new SyncEndpointError(`Failed to load Order Items: ${message}`, 502);
       }
 
