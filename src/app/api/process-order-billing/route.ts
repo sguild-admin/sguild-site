@@ -64,9 +64,6 @@ function parseBody(body: unknown): OrderBillingRequest {
   if (!orderRecordId) throw new SyncEndpointError("Missing orderRecordId.", 400);
   if (!orderExternalRecordId) throw new SyncEndpointError("Missing orderExternalRecordId.", 400);
   if (!orgIntegrationRecordId) throw new SyncEndpointError("Missing orgIntegrationRecordId.", 400);
-  if (action === "Invoice" && !invoiceRecordId) {
-    throw new SyncEndpointError("Missing invoiceRecordId for Invoice action.", 400);
-  }
 
   return {
     orderRecordId,

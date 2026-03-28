@@ -5,6 +5,7 @@ export type BillingProcessSuccessResponse = {
   syncStatus: "Synced";
   action: BillingAction;
   result: "processed" | "noop";
+  resolvedInvoiceRecordId?: string;
   invoiceId?: string;
   orderId?: string;
   invoiceExternalRecordId?: string;
@@ -54,6 +55,7 @@ export function successResponse(
     externalInvoiceId?: string | null;
   },
   metadata?: {
+    resolvedInvoiceRecordId?: string | null;
     invoiceId?: string | null;
     orderId?: string | null;
     invoiceExternalRecordId?: string | null;
@@ -78,6 +80,9 @@ export function successResponse(
   if (externalIds?.externalOrderId) body.externalOrderId = externalIds.externalOrderId;
   if (externalIds?.externalInvoiceId) body.externalInvoiceId = externalIds.externalInvoiceId;
 
+  if (metadata?.resolvedInvoiceRecordId) {
+    body.resolvedInvoiceRecordId = metadata.resolvedInvoiceRecordId;
+  }
   if (metadata?.invoiceId) body.invoiceId = metadata.invoiceId;
   if (metadata?.orderId) body.orderId = metadata.orderId;
   if (metadata?.invoiceExternalRecordId) {

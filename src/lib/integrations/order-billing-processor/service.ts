@@ -308,11 +308,18 @@ export async function runOrderBillingProcessor(
     }
 
     if (request.action === "Invoice") {
-      if (!request.invoiceRecordId) {
-        throw new SyncEndpointError("Missing invoiceRecordId for Invoice action.", 400);
+      const resolvedInvoiceRecordId = firstNonEmptyString(
+        request.invoiceRecordId,
+        orderExternal.invoiceId,
+      );
+      if (!resolvedInvoiceRecordId) {
+        throw new SyncEndpointError(
+          "Missing invoiceRecordId for Invoice action. Provide invoiceRecordId in the request or link Invoice on Order External.",
+          400,
+        );
       }
 
-      const invoice = await getInvoiceRecord(request.invoiceRecordId);
+      const invoice = await getInvoiceRecord(resolvedInvoiceRecordId);
       if (!invoice.orderId) {
         throw new SyncEndpointError("Invoice is not linked to an Order.", 422);
       }
@@ -395,6 +402,7 @@ export async function runOrderBillingProcessor(
             externalInvoiceId: knownExternalInvoiceId,
           },
           {
+            resolvedInvoiceRecordId,
             invoiceId: invoice.recordId,
             orderId: request.orderRecordId,
             invoiceExternalRecordId: existingInvoiceExternal.recordId,
@@ -503,6 +511,7 @@ export async function runOrderBillingProcessor(
           externalInvoiceId: knownExternalInvoiceId,
         },
         {
+          resolvedInvoiceRecordId,
           invoiceId: invoice.recordId,
           orderId: request.orderRecordId,
           invoiceExternalRecordId: createdInvoiceExternal.recordId,

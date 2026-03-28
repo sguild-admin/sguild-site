@@ -24,6 +24,7 @@ type AirtableError = {
 export type OrderExternalRecord = {
   recordId: string;
   orderId: string | null;
+  invoiceId: string | null;
   clientExternalId: string | null;
   externalAction: string | null;
   syncStatus: string | null;
@@ -248,6 +249,7 @@ export async function getOrderExternalRecord(recordId: string): Promise<OrderExt
   return {
     recordId: record.id,
     orderId: readFirstLinkedId(fields.Order),
+    invoiceId: readFirstLinkedId(fields.Invoice),
     clientExternalId: readFirstLinkedId(fields["Client External"]),
     externalAction: readString(fields["External Action"]),
     syncStatus: readString(fields["Sync Status"]),
