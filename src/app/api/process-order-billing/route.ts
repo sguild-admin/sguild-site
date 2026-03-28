@@ -17,6 +17,8 @@ type ProcessOrderBillingBody = {
   orderRecordId?: unknown;
   orderExternalRecordId?: unknown;
   orgIntegrationRecordId?: unknown;
+  invoiceRecordId?: unknown;
+  externalInvoiceId?: unknown;
   action?: unknown;
 };
 
@@ -53,16 +55,26 @@ function parseBody(body: unknown): OrderBillingRequest {
     typeof typed.orderExternalRecordId === "string" ? typed.orderExternalRecordId.trim() : "";
   const orgIntegrationRecordId =
     typeof typed.orgIntegrationRecordId === "string" ? typed.orgIntegrationRecordId.trim() : "";
+  const action = parseAction(typed.action);
+  const invoiceRecordId =
+    typeof typed.invoiceRecordId === "string" ? typed.invoiceRecordId.trim() : "";
+  const externalInvoiceId =
+    typeof typed.externalInvoiceId === "string" ? typed.externalInvoiceId.trim() : "";
 
   if (!orderRecordId) throw new SyncEndpointError("Missing orderRecordId.", 400);
   if (!orderExternalRecordId) throw new SyncEndpointError("Missing orderExternalRecordId.", 400);
   if (!orgIntegrationRecordId) throw new SyncEndpointError("Missing orgIntegrationRecordId.", 400);
+  if (action === "Invoice" && !invoiceRecordId) {
+    throw new SyncEndpointError("Missing invoiceRecordId for Invoice action.", 400);
+  }
 
   return {
     orderRecordId,
     orderExternalRecordId,
     orgIntegrationRecordId,
-    action: parseAction(typed.action),
+    invoiceRecordId: invoiceRecordId || undefined,
+    externalInvoiceId: externalInvoiceId || undefined,
+    action,
   };
 }
 
@@ -89,6 +101,8 @@ export async function POST(request: Request) {
       orderRecordId: parsed.orderRecordId,
       orderExternalRecordId: parsed.orderExternalRecordId,
       orgIntegrationRecordId: parsed.orgIntegrationRecordId,
+      invoiceRecordId: parsed.invoiceRecordId ?? null,
+      externalInvoiceId: parsed.externalInvoiceId ?? null,
       action: parsed.action,
     });
     const response = await runOrderBillingProcessor(parsed);
@@ -101,6 +115,7 @@ export async function POST(request: Request) {
       orderRecordId: parsed?.orderRecordId ?? null,
       orderExternalRecordId: parsed?.orderExternalRecordId ?? null,
       orgIntegrationRecordId: parsed?.orgIntegrationRecordId ?? null,
+      invoiceRecordId: parsed?.invoiceRecordId ?? null,
       action: parsed?.action ?? null,
       status,
       error: error instanceof Error ? error.message : "Unknown error",

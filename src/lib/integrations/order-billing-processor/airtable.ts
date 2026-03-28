@@ -2,6 +2,8 @@ import { BillingAction, SyncEndpointError } from "./response";
 
 const ORDER_EXTERNALS_TABLE = "Order Externals";
 const ORDERS_TABLE = "Orders";
+const INVOICES_TABLE = "Invoices";
+const INVOICE_EXTERNALS_TABLE = "Invoice Externals";
 const ORG_INTEGRATIONS_TABLE = "Organization Integrations";
 const ORDER_ITEMS_TABLE = "Order Items";
 const CLIENT_EXTERNALS_TABLE = "Client Externals";
@@ -28,6 +30,7 @@ export type OrderExternalRecord = {
   externalPaymentId: string | null;
   externalOrderId: string | null;
   externalInvoiceId: string | null;
+  externalInvoiceUrl: string | null;
 };
 
 export type OrderRecord = {
@@ -36,6 +39,17 @@ export type OrderRecord = {
   amountDue: number | null;
   currency: string | null;
   billingStatus: string | null;
+};
+
+export type InvoiceRecord = {
+  recordId: string;
+  orderId: string | null;
+  status: string | null;
+  amountDue: number | null;
+  amountPaid: number | null;
+  issuedAt: string | null;
+  dueAt: string | null;
+  paidAt: string | null;
 };
 
 export type OrgIntegrationRecord = {
@@ -57,6 +71,26 @@ export type CardExternalRecord = {
   recordId: string;
   externalCardId: string | null;
   modifiedAt: string | null;
+};
+
+export type InvoiceExternalRecord = {
+  recordId: string;
+  invoiceId: string | null;
+  orderId: string | null;
+  orgIntegrationId: string | null;
+  externalInvoiceId: string | null;
+  externalStatus: string | null;
+  amountDue: number | null;
+  amountPaid: number | null;
+  issuedAt: string | null;
+  dueAt: string | null;
+  paidAt: string | null;
+  hostedInvoiceUrl: string | null;
+  lastSyncedAt: string | null;
+  webhookReceivedAt: string | null;
+  rawPayload: string | null;
+  syncStatus: string | null;
+  syncError: string | null;
 };
 
 export type OrderItem = {
@@ -220,6 +254,7 @@ export async function getOrderExternalRecord(recordId: string): Promise<OrderExt
     externalPaymentId: readString(fields["External Payment ID"]),
     externalOrderId: readString(fields["External Order ID"]),
     externalInvoiceId: readString(fields["External Invoice ID"]),
+    externalInvoiceUrl: readString(fields["External Invoice URL"]),
   };
 }
 
@@ -233,6 +268,22 @@ export async function getOrderRecord(recordId: string): Promise<OrderRecord> {
     amountDue: readNumber(fields["Amount Due"]),
     currency: readString(fields.Currency),
     billingStatus: readString(fields["Billing Status"]),
+  };
+}
+
+export async function getInvoiceRecord(recordId: string): Promise<InvoiceRecord> {
+  const record = await getRecord(INVOICES_TABLE, recordId, "Invoice");
+  const fields = record.fields ?? {};
+
+  return {
+    recordId: record.id,
+    orderId: readFirstLinkedId(fields.Order),
+    status: readString(fields.Status),
+    amountDue: readNumber(fields["Amount Due"]),
+    amountPaid: readNumber(fields["Amount Paid"]),
+    issuedAt: readString(fields["Issued At"]),
+    dueAt: readString(fields["Due At"]),
+    paidAt: readString(fields["Paid At"]),
   };
 }
 
@@ -473,6 +524,175 @@ export async function listOrderItems(orderRecordId: string): Promise<OrderItem[]
   if (scannedRows.length > 0) return scannedRows;
 
   return [];
+}
+
+function toInvoiceExternalRecord(record: AirtableRecord): InvoiceExternalRecord {
+  const fields = record.fields ?? {};
+  return {
+    recordId: record.id,
+    invoiceId: readFirstLinkedId(fields.Invoice),
+    orderId: readFirstLinkedId(fields.Order),
+    orgIntegrationId: readFirstLinkedId(fields["Org Integration"]),
+    externalInvoiceId: readString(fields["External Invoice ID"]),
+    externalStatus: readString(fields["External Status"]),
+    amountDue: readNumber(fields["Amount Due"]),
+    amountPaid: readNumber(fields["Amount Paid"]),
+    issuedAt: readString(fields["Issued At"]),
+    dueAt: readString(fields["Due At"]),
+    paidAt: readString(fields["Paid At"]),
+    hostedInvoiceUrl: readString(fields["Hosted Invoice URL"]),
+    lastSyncedAt: readString(fields["Last Synced At"]),
+    webhookReceivedAt: readString(fields["Webhook Received At"]),
+    rawPayload: readString(fields["Raw Payload"]),
+    syncStatus: readString(fields["Sync Status"]),
+    syncError: readString(fields["Sync Error"]),
+  };
+}
+
+export async function findInvoiceExternalByInvoiceAndOrgIntegration(
+  invoiceRecordId: string,
+  orgIntegrationRecordId: string,
+): Promise<InvoiceExternalRecord | null> {
+  const escapedInvoiceId = escapeAirtableFormulaString(invoiceRecordId);
+  const escapedOrgIntegrationId = escapeAirtableFormulaString(orgIntegrationRecordId);
+  const formula = `AND(FIND('${escapedInvoiceId}', ARRAYJOIN({Invoice})), FIND('${escapedOrgIntegrationId}', ARRAYJOIN({Org Integration})))`;
+  const params = new URLSearchParams({
+    maxRecords: "2",
+    filterByFormula: formula,
+  });
+
+  const response = await airtableRequest(
+    `${encodeURIComponent(INVOICE_EXTERNALS_TABLE)}?${params.toString()}`,
+    { method: "GET" },
+  );
+
+  if (!response.ok) {
+    const message = await parseAirtableError(response);
+    throw new SyncEndpointError(`Failed to resolve Invoice External: ${message}`, 502);
+  }
+
+  const body = (await response.json()) as { records?: AirtableRecord[] };
+  const records = body.records ?? [];
+  if (records.length === 0) return null;
+  if (records.length > 1) {
+    throw new SyncEndpointError(
+      "Multiple Invoice External rows found for the same Invoice and Org Integration.",
+      409,
+    );
+  }
+
+  return toInvoiceExternalRecord(records[0]);
+}
+
+type InvoiceExternalWriteFields = {
+  Invoice?: string[];
+  Order?: string[];
+  "Org Integration"?: string[];
+  "External Invoice ID"?: string;
+  "External Status"?: string;
+  "Amount Due"?: number;
+  "Amount Paid"?: number;
+  "Issued At"?: string;
+  "Due At"?: string;
+  "Paid At"?: string;
+  "Hosted Invoice URL"?: string;
+  "Last Synced At"?: string;
+  "Webhook Received At"?: string;
+  "Raw Payload"?: string;
+  "Sync Status"?: "Synced" | "Failed";
+  "Sync Error"?: string;
+};
+
+function isUnknownOptionalFieldError(message: string, key: string): boolean {
+  return (
+    message.includes(`Unknown field name: "${key}"`) ||
+    message.includes(`Unknown field names: ${key}`)
+  );
+}
+
+export async function createInvoiceExternal(
+  fields: InvoiceExternalWriteFields,
+): Promise<InvoiceExternalRecord> {
+  const optionalFields = new Set(["Hosted Invoice URL", "Webhook Received At", "Raw Payload"]);
+  let fieldsToWrite: InvoiceExternalWriteFields = { ...fields };
+
+  while (true) {
+    const response = await airtableRequest(`${encodeURIComponent(INVOICE_EXTERNALS_TABLE)}`, {
+      method: "POST",
+      body: JSON.stringify({ fields: fieldsToWrite }),
+    });
+
+    if (response.ok) {
+      return toInvoiceExternalRecord((await response.json()) as AirtableRecord);
+    }
+
+    const message = await parseAirtableError(response);
+    const optionalFieldToDrop = [...optionalFields].find(
+      (key) => key in fieldsToWrite && isUnknownOptionalFieldError(message, key),
+    );
+
+    if (optionalFieldToDrop) {
+      const nextFields: InvoiceExternalWriteFields = {};
+      for (const [key, value] of Object.entries(fieldsToWrite)) {
+        if (key === optionalFieldToDrop) continue;
+        (nextFields as Record<string, unknown>)[key] = value;
+      }
+      fieldsToWrite = nextFields;
+      continue;
+    }
+
+    throw new SyncEndpointError(`Failed to create Invoice External: ${message}`, 502);
+  }
+}
+
+export async function updateInvoiceExternal(
+  invoiceExternalRecordId: string,
+  fields: InvoiceExternalWriteFields,
+): Promise<void> {
+  const optionalFields = new Set(["Hosted Invoice URL", "Webhook Received At", "Raw Payload"]);
+  let fieldsToWrite: InvoiceExternalWriteFields = { ...fields };
+
+  while (true) {
+    const response = await airtableRequest(
+      `${encodeURIComponent(INVOICE_EXTERNALS_TABLE)}/${encodeURIComponent(invoiceExternalRecordId)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ fields: fieldsToWrite }),
+      },
+    );
+
+    if (response.ok) return;
+
+    const message = await parseAirtableError(response);
+    const optionalFieldToDrop = [...optionalFields].find(
+      (key) => key in fieldsToWrite && isUnknownOptionalFieldError(message, key),
+    );
+
+    if (optionalFieldToDrop) {
+      const nextFields: InvoiceExternalWriteFields = {};
+      for (const [key, value] of Object.entries(fieldsToWrite)) {
+        if (key === optionalFieldToDrop) continue;
+        (nextFields as Record<string, unknown>)[key] = value;
+      }
+      fieldsToWrite = nextFields;
+      continue;
+    }
+
+    throw new SyncEndpointError(`Failed to update Invoice External: ${message}`, 502);
+  }
+}
+
+export async function writeInvoiceExternalFailure(
+  invoiceExternalRecordId: string,
+  errorMessage: string,
+  rawPayload?: string,
+): Promise<void> {
+  await updateInvoiceExternal(invoiceExternalRecordId, {
+    "Sync Status": "Failed",
+    "Sync Error": errorMessage,
+    "Last Synced At": new Date().toISOString(),
+    ...(rawPayload ? { "Raw Payload": rawPayload } : {}),
+  });
 }
 
 type OrderExternalWritebackFields = {

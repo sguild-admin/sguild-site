@@ -1,13 +1,16 @@
 import {
+  createInvoiceExternal,
   findActiveCardExternalsByClientExternal,
   findClientExternalByContext,
+  findInvoiceExternalByInvoiceAndOrgIntegration,
   getClientExternalById,
+  getInvoiceRecord,
   getOrderExternalRecord,
   getOrderRecord,
   getOrgIntegrationRecord,
-  listOrderItems,
   OrderRecord,
   updateOrderBillingStatus,
+  updateInvoiceExternal,
   updateOrderExternal,
   writeOrderExternalFailure,
 } from "./airtable";
@@ -18,7 +21,7 @@ import {
   SyncEndpointError,
 } from "./response";
 import { resolveProviderContext } from "./provider-context";
-import { chargeWithCardOnFile, createInvoiceFromOrderItems } from "./square";
+import { chargeWithCardOnFile, getInvoicePublicUrl } from "./square";
 
 const OPERATION = "process_order_billing";
 
@@ -35,8 +38,19 @@ export type OrderBillingRequest = {
   orderRecordId: string;
   orderExternalRecordId: string;
   orgIntegrationRecordId: string;
+  invoiceRecordId?: string;
+  externalInvoiceId?: string;
   action: BillingAction;
 };
+
+function firstNonEmptyString(...values: Array<string | null | undefined>): string | null {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+  return null;
+}
 
 function assertActionMatchesOrderExternal(
   requestAction: BillingAction,
@@ -111,6 +125,8 @@ export async function runOrderBillingProcessor(
     orderRecordId: request.orderRecordId,
     orderExternalRecordId: request.orderExternalRecordId,
     orgIntegrationRecordId: request.orgIntegrationRecordId,
+    invoiceRecordId: request.invoiceRecordId ?? null,
+    externalInvoiceId: request.externalInvoiceId ?? null,
   });
 
   const orderExternal = await getOrderExternalRecord(request.orderExternalRecordId);
@@ -142,18 +158,46 @@ export async function runOrderBillingProcessor(
       throw new SyncEndpointError("Authentication action is not supported.", 422);
     }
 
-    if (isAlreadyProcessedNoOp({
+    const alreadyProcessed = isAlreadyProcessedNoOp({
       action: request.action,
       syncStatus: orderExternal.syncStatus,
       externalPaymentId: orderExternal.externalPaymentId,
       externalInvoiceId: orderExternal.externalInvoiceId,
       externalOrderId: orderExternal.externalOrderId,
-    })) {
+    });
+
+    if (alreadyProcessed && request.action === "Charge") {
       return successResponse(request.action, "noop", {
         externalPaymentId: orderExternal.externalPaymentId,
         externalOrderId: orderExternal.externalOrderId,
         externalInvoiceId: orderExternal.externalInvoiceId,
       });
+    }
+
+    if (alreadyProcessed && request.action === "Invoice") {
+      if (
+        orderExternal.externalInvoiceId &&
+        !orderExternal.externalInvoiceUrl
+      ) {
+        try {
+          const orgIntegration = await getOrgIntegrationRecord(request.orgIntegrationRecordId);
+          const context = resolveProviderContext(orgIntegration, request.action);
+          const externalInvoiceUrl = await getInvoicePublicUrl({
+            context,
+            externalInvoiceId: orderExternal.externalInvoiceId,
+          });
+          if (externalInvoiceUrl) {
+            await updateOrderExternal(request.orderExternalRecordId, {
+              "External Invoice URL": externalInvoiceUrl,
+            });
+          }
+        } catch (error) {
+          debugLog("Invoice URL backfill skipped during noop", {
+            orderExternalRecordId: request.orderExternalRecordId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
     }
 
     assertOrderBillingReady(order, request.action);
@@ -264,42 +308,167 @@ export async function runOrderBillingProcessor(
     }
 
     if (request.action === "Invoice") {
-      const orderItems = await listOrderItems(request.orderRecordId);
-      debugLog("Loaded order items", {
-        loaded: orderItems.length > 0,
-        count: orderItems.length,
+      if (!request.invoiceRecordId) {
+        throw new SyncEndpointError("Missing invoiceRecordId for Invoice action.", 400);
+      }
+
+      const invoice = await getInvoiceRecord(request.invoiceRecordId);
+      if (!invoice.orderId) {
+        throw new SyncEndpointError("Invoice is not linked to an Order.", 422);
+      }
+      if (invoice.orderId !== request.orderRecordId) {
+        throw new SyncEndpointError("Invoice is linked to a different Order.", 422);
+      }
+
+      const providerContextKey = context.provider.toLowerCase();
+      const invoiceExternalIdempotencyKey =
+        `invoice-external:create:${providerContextKey}:${invoice.recordId}`;
+
+      debugLog("Invoice external idempotency context", {
+        invoiceRecordId: invoice.recordId,
         orderRecordId: request.orderRecordId,
+        orgIntegrationRecordId: request.orgIntegrationRecordId,
+        idempotencyKey: invoiceExternalIdempotencyKey,
       });
-      if (orderItems.length === 0) {
-        throw new SyncEndpointError("Missing Order Items.", 422);
+
+      const existingInvoiceExternal = await findInvoiceExternalByInvoiceAndOrgIntegration(
+        invoice.recordId,
+        request.orgIntegrationRecordId,
+      );
+
+      // Ordered decision logic for this path:
+      // 1) if Invoice External exists, return it
+      // 2) else if externalInvoiceId exists, create Invoice External
+      // 3) else fail hard
+      if (existingInvoiceExternal) {
+        const knownExternalInvoiceId = firstNonEmptyString(
+          existingInvoiceExternal.externalInvoiceId,
+          request.externalInvoiceId,
+          orderExternal.externalInvoiceId,
+        );
+
+        if (!knownExternalInvoiceId) {
+          throw new SyncEndpointError(
+            "Existing Invoice External is missing External Invoice ID.",
+            409,
+          );
+        }
+
+        const knownHostedInvoiceUrl = firstNonEmptyString(
+          existingInvoiceExternal.hostedInvoiceUrl,
+          orderExternal.externalInvoiceUrl,
+        );
+        const staleUpdate: Record<string, string> = {};
+
+        if (!existingInvoiceExternal.hostedInvoiceUrl && knownHostedInvoiceUrl) {
+          staleUpdate["Hosted Invoice URL"] = knownHostedInvoiceUrl;
+        }
+        if (existingInvoiceExternal.syncStatus?.toLowerCase() !== "synced") {
+          staleUpdate["Sync Status"] = "Synced";
+        }
+        if (existingInvoiceExternal.syncError) {
+          staleUpdate["Sync Error"] = "";
+        }
+        staleUpdate["Last Synced At"] = new Date().toISOString();
+
+        if (Object.keys(staleUpdate).length > 0) {
+          await updateInvoiceExternal(existingInvoiceExternal.recordId, staleUpdate);
+        }
+
+        await updateOrderExternal(request.orderExternalRecordId, {
+          "Sync Status": "Synced",
+          "Sync Error": "",
+          "Last Synced At": new Date().toISOString(),
+          "External Action": request.action,
+          "Customer ID Snapshot": clientExternal.externalCustomerId,
+          ...(order.amountDue != null ? { "Amount Snapshot": order.amountDue } : {}),
+          "External Invoice ID": knownExternalInvoiceId,
+          ...(knownHostedInvoiceUrl ? { "External Invoice URL": knownHostedInvoiceUrl } : {}),
+        });
+        await updateOrderBillingStatus(request.orderRecordId, "Payment Pending");
+
+        return successResponse(
+          request.action,
+          "noop",
+          {
+            externalOrderId: orderExternal.externalOrderId,
+            externalInvoiceId: knownExternalInvoiceId,
+          },
+          {
+            invoiceId: invoice.recordId,
+            orderId: request.orderRecordId,
+            invoiceExternalRecordId: existingInvoiceExternal.recordId,
+            externalStatus: existingInvoiceExternal.externalStatus ?? invoice.status,
+            amountDue: invoice.amountDue ?? order.amountDue,
+            amountPaid: invoice.amountPaid ?? 0,
+            issuedAt: invoice.issuedAt,
+            dueAt: invoice.dueAt,
+            hostedInvoiceUrl: knownHostedInvoiceUrl,
+            wasExistingMappingReused: true,
+            rawPayload: existingInvoiceExternal.rawPayload,
+          },
+        );
       }
 
-      const invalidItem = orderItems.find(
-        (item) => !item.description || item.netAmount == null || item.netAmount <= 0,
+      const knownExternalInvoiceId = firstNonEmptyString(
+        request.externalInvoiceId,
+        orderExternal.externalInvoiceId,
       );
-      if (invalidItem) {
-        throw new SyncEndpointError("Invalid Order Items for invoice creation.", 422);
+      if (!knownExternalInvoiceId) {
+        throw new SyncEndpointError(
+          "Missing externalInvoiceId. Invoice External write path will not create a provider invoice unless an explicit override flag is added.",
+          422,
+        );
       }
 
-      debugLog("Resolved provider invoice inputs", {
-        action: request.action,
-        customerId: clientExternal.externalCustomerId,
-        locationId: context.externalLocationId,
-        currency: order.currency,
-        itemCount: orderItems.length,
+      let hostedInvoiceUrl = firstNonEmptyString(orderExternal.externalInvoiceUrl);
+      if (!hostedInvoiceUrl) {
+        try {
+          hostedInvoiceUrl = await getInvoicePublicUrl({
+            context,
+            externalInvoiceId: knownExternalInvoiceId,
+          });
+        } catch (error) {
+          debugLog("Invoice URL lookup skipped for invoice external create", {
+            invoiceRecordId: invoice.recordId,
+            externalInvoiceId: knownExternalInvoiceId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+
+      const amountDue = invoice.amountDue ?? order.amountDue;
+      if (amountDue == null) {
+        throw new SyncEndpointError(
+          "Missing Amount Due on Invoice and Order for Invoice External write.",
+          422,
+        );
+      }
+
+      const amountPaid = invoice.amountPaid ?? 0;
+      const createRawPayload = JSON.stringify({
+        source: "order_external_upstream",
+        idempotencyKey: invoiceExternalIdempotencyKey,
+        externalInvoiceId: knownExternalInvoiceId,
       });
 
-      const invoiceResult = await createInvoiceFromOrderItems({
-        context,
-        orderExternalRecordId: request.orderExternalRecordId,
-        externalCustomerId: clientExternal.externalCustomerId,
-        orderItems,
-        currency: order.currency as string,
+      const createdInvoiceExternal = await createInvoiceExternal({
+        Invoice: [invoice.recordId],
+        Order: [request.orderRecordId],
+        "Org Integration": [request.orgIntegrationRecordId],
+        "External Invoice ID": knownExternalInvoiceId,
+        "External Status": invoice.status ?? "Pending",
+        "Amount Due": amountDue,
+        "Amount Paid": amountPaid,
+        ...(invoice.issuedAt ? { "Issued At": invoice.issuedAt } : {}),
+        ...(invoice.dueAt ? { "Due At": invoice.dueAt } : {}),
+        ...(invoice.paidAt ? { "Paid At": invoice.paidAt } : {}),
+        ...(hostedInvoiceUrl ? { "Hosted Invoice URL": hostedInvoiceUrl } : {}),
+        "Last Synced At": new Date().toISOString(),
+        "Raw Payload": createRawPayload,
+        "Sync Status": "Synced",
+        "Sync Error": "",
       });
-      const invoiceAmountSnapshot = orderItems.reduce(
-        (sum, item) => sum + (item.netAmount ?? 0),
-        0,
-      );
 
       await updateOrderExternal(request.orderExternalRecordId, {
         "Sync Status": "Synced",
@@ -307,13 +476,11 @@ export async function runOrderBillingProcessor(
         "Last Synced At": new Date().toISOString(),
         "External Action": request.action,
         "Customer ID Snapshot": clientExternal.externalCustomerId,
-        "Amount Snapshot": invoiceAmountSnapshot,
-        "External Order ID": invoiceResult.externalOrderId,
-        "External Invoice ID": invoiceResult.externalInvoiceId,
-        ...(invoiceResult.externalInvoiceUrl
-          ? { "External Invoice URL": invoiceResult.externalInvoiceUrl }
-          : {}),
-        "Raw Payload": invoiceResult.rawPayload,
+        "Amount Snapshot": amountDue,
+        ...(orderExternal.externalOrderId ? { "External Order ID": orderExternal.externalOrderId } : {}),
+        "External Invoice ID": knownExternalInvoiceId,
+        ...(hostedInvoiceUrl ? { "External Invoice URL": hostedInvoiceUrl } : {}),
+        "Raw Payload": createRawPayload,
       });
       await updateOrderBillingStatus(request.orderRecordId, "Payment Pending");
 
@@ -328,10 +495,27 @@ export async function runOrderBillingProcessor(
         outcome: "success",
       });
 
-      return successResponse(request.action, "processed", {
-        externalOrderId: invoiceResult.externalOrderId,
-        externalInvoiceId: invoiceResult.externalInvoiceId,
-      });
+      return successResponse(
+        request.action,
+        "processed",
+        {
+          externalOrderId: orderExternal.externalOrderId,
+          externalInvoiceId: knownExternalInvoiceId,
+        },
+        {
+          invoiceId: invoice.recordId,
+          orderId: request.orderRecordId,
+          invoiceExternalRecordId: createdInvoiceExternal.recordId,
+          externalStatus: createdInvoiceExternal.externalStatus ?? invoice.status ?? "Pending",
+          amountDue,
+          amountPaid,
+          issuedAt: invoice.issuedAt,
+          dueAt: invoice.dueAt,
+          hostedInvoiceUrl,
+          wasExistingMappingReused: false,
+          rawPayload: createRawPayload,
+        },
+      );
     }
 
     throw new SyncEndpointError("Unsupported action.", 422);

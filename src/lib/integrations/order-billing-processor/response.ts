@@ -5,9 +5,20 @@ export type BillingProcessSuccessResponse = {
   syncStatus: "Synced";
   action: BillingAction;
   result: "processed" | "noop";
+  invoiceId?: string;
+  orderId?: string;
+  invoiceExternalRecordId?: string;
   externalPaymentId?: string;
   externalOrderId?: string;
   externalInvoiceId?: string;
+  externalStatus?: string;
+  amountDue?: number;
+  amountPaid?: number;
+  issuedAt?: string;
+  dueAt?: string;
+  hostedInvoiceUrl?: string;
+  wasExistingMappingReused?: boolean;
+  rawPayload?: string;
 };
 
 export type BillingProcessErrorResponse = {
@@ -42,6 +53,19 @@ export function successResponse(
     externalOrderId?: string | null;
     externalInvoiceId?: string | null;
   },
+  metadata?: {
+    invoiceId?: string | null;
+    orderId?: string | null;
+    invoiceExternalRecordId?: string | null;
+    externalStatus?: string | null;
+    amountDue?: number | null;
+    amountPaid?: number | null;
+    issuedAt?: string | null;
+    dueAt?: string | null;
+    hostedInvoiceUrl?: string | null;
+    wasExistingMappingReused?: boolean;
+    rawPayload?: string | null;
+  },
 ): BillingProcessSuccessResponse {
   const body: BillingProcessSuccessResponse = {
     ok: true,
@@ -53,6 +77,22 @@ export function successResponse(
   if (externalIds?.externalPaymentId) body.externalPaymentId = externalIds.externalPaymentId;
   if (externalIds?.externalOrderId) body.externalOrderId = externalIds.externalOrderId;
   if (externalIds?.externalInvoiceId) body.externalInvoiceId = externalIds.externalInvoiceId;
+
+  if (metadata?.invoiceId) body.invoiceId = metadata.invoiceId;
+  if (metadata?.orderId) body.orderId = metadata.orderId;
+  if (metadata?.invoiceExternalRecordId) {
+    body.invoiceExternalRecordId = metadata.invoiceExternalRecordId;
+  }
+  if (metadata?.externalStatus) body.externalStatus = metadata.externalStatus;
+  if (metadata?.amountDue != null) body.amountDue = metadata.amountDue;
+  if (metadata?.amountPaid != null) body.amountPaid = metadata.amountPaid;
+  if (metadata?.issuedAt) body.issuedAt = metadata.issuedAt;
+  if (metadata?.dueAt) body.dueAt = metadata.dueAt;
+  if (metadata?.hostedInvoiceUrl) body.hostedInvoiceUrl = metadata.hostedInvoiceUrl;
+  if (typeof metadata?.wasExistingMappingReused === "boolean") {
+    body.wasExistingMappingReused = metadata.wasExistingMappingReused;
+  }
+  if (metadata?.rawPayload) body.rawPayload = metadata.rawPayload;
 
   return body;
 }

@@ -268,3 +268,18 @@ export async function createInvoiceFromOrderItems(input: {
     }),
   };
 }
+
+export async function getInvoicePublicUrl(input: {
+  context: ProviderContext;
+  externalInvoiceId: string;
+}): Promise<string | null> {
+  const retrieveResponse = (await squareGet(
+    `/v2/invoices/${encodeURIComponent(input.externalInvoiceId)}`,
+    input.context,
+  )) as {
+    invoice?: { public_url?: string };
+  };
+
+  const url = retrieveResponse.invoice?.public_url;
+  return typeof url === "string" && url.trim().length > 0 ? url.trim() : null;
+}
