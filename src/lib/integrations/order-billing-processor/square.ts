@@ -220,6 +220,7 @@ export async function createInvoiceFromOrderItems(input: {
     invoice: {
       location_id: input.context.externalLocationId,
       order_id: externalOrderId,
+      delivery_method: "SHARE_MANUALLY",
       primary_recipient: {
         customer_id: input.externalCustomerId,
       },
