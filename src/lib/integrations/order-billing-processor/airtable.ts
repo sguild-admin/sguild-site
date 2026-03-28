@@ -275,8 +275,11 @@ export async function getOrderRecord(recordId: string): Promise<OrderRecord> {
 
 export async function getInvoiceRecord(recordId: string): Promise<InvoiceRecord> {
   const record = await getRecord(INVOICES_TABLE, recordId, "Invoice");
-  const fields = record.fields ?? {};
+  return toInvoiceRecord(record);
+}
 
+function toInvoiceRecord(record: AirtableRecord): InvoiceRecord {
+  const fields = record.fields ?? {};
   return {
     recordId: record.id,
     orderId: readFirstLinkedId(fields.Order),
@@ -287,6 +290,80 @@ export async function getInvoiceRecord(recordId: string): Promise<InvoiceRecord>
     dueAt: readString(fields["Due At"]),
     paidAt: readString(fields["Paid At"]),
   };
+}
+
+export async function findSingleInvoiceByOrder(
+  orderRecordId: string,
+): Promise<InvoiceRecord | null> {
+  const escapedOrderId = escapeAirtableFormulaString(orderRecordId);
+
+  async function queryByLinkField(linkField: string): Promise<InvoiceRecord[] | null> {
+    const formula = `FIND('${escapedOrderId}', ARRAYJOIN({${linkField}}))`;
+    const params = new URLSearchParams({
+      pageSize: "5",
+      filterByFormula: formula,
+    });
+
+    const response = await airtableRequest(
+      `${encodeURIComponent(INVOICES_TABLE)}?${params.toString()}`,
+      { method: "GET" },
+    );
+    if (!response.ok) {
+      const message = await parseAirtableError(response);
+      if (/Unknown field name/i.test(message) || /Unknown field names/i.test(message)) {
+        return null;
+      }
+      throw new SyncEndpointError(`Failed to resolve Invoice by Order: ${message}`, 502);
+    }
+
+    const body = (await response.json()) as { records?: AirtableRecord[] };
+    return (body.records ?? []).map((record) => toInvoiceRecord(record));
+  }
+
+  for (const fieldName of ["Order", "Orders", "Parent Order"]) {
+    const matches = await queryByLinkField(fieldName);
+    if (!matches || matches.length === 0) continue;
+    if (matches.length > 1) {
+      throw new SyncEndpointError(
+        "Multiple Invoices are linked to this Order. Provide invoiceRecordId explicitly.",
+        409,
+      );
+    }
+    return matches[0];
+  }
+
+  // Final fallback for unusual link field names: scan and match any linked-record array.
+  const response = await airtableRequest(
+    `${encodeURIComponent(INVOICES_TABLE)}?${new URLSearchParams({ pageSize: "100" }).toString()}`,
+    { method: "GET" },
+  );
+  if (!response.ok) {
+    const message = await parseAirtableError(response);
+    throw new SyncEndpointError(`Failed to resolve Invoice by Order: ${message}`, 502);
+  }
+
+  const body = (await response.json()) as { records?: AirtableRecord[] };
+  const matches: InvoiceRecord[] = [];
+  for (const record of body.records ?? []) {
+    const fields = record.fields ?? {};
+    const linksToOrder = Object.values(fields).some(
+      (value) =>
+        Array.isArray(value) &&
+        value.some((item) => typeof item === "string" && item.trim() === orderRecordId),
+    );
+    if (!linksToOrder) continue;
+    matches.push(toInvoiceRecord(record));
+  }
+
+  if (matches.length === 0) return null;
+  if (matches.length > 1) {
+    throw new SyncEndpointError(
+      "Multiple Invoices are linked to this Order. Provide invoiceRecordId explicitly.",
+      409,
+    );
+  }
+
+  return matches[0];
 }
 
 export async function getOrgIntegrationRecord(recordId: string): Promise<OrgIntegrationRecord> {

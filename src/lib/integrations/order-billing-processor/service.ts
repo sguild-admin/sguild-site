@@ -3,6 +3,7 @@ import {
   findActiveCardExternalsByClientExternal,
   findClientExternalByContext,
   findInvoiceExternalByInvoiceAndOrgIntegration,
+  findSingleInvoiceByOrder,
   getClientExternalById,
   getInvoiceRecord,
   getOrderExternalRecord,
@@ -308,16 +309,31 @@ export async function runOrderBillingProcessor(
     }
 
     if (request.action === "Invoice") {
+      const fallbackInvoiceFromOrder = !request.invoiceRecordId && !orderExternal.invoiceId
+        ? await findSingleInvoiceByOrder(request.orderRecordId)
+        : null;
       const resolvedInvoiceRecordId = firstNonEmptyString(
         request.invoiceRecordId,
         orderExternal.invoiceId,
+        fallbackInvoiceFromOrder?.recordId,
       );
       if (!resolvedInvoiceRecordId) {
         throw new SyncEndpointError(
-          "Missing invoiceRecordId for Invoice action. Provide invoiceRecordId in the request or link Invoice on Order External.",
+          "Missing invoiceRecordId for Invoice action. Provide invoiceRecordId in request, link Invoice on Order External, or ensure exactly one Invoice is linked to the Order.",
           400,
         );
       }
+
+      debugLog("Resolved invoiceRecordId", {
+        resolvedInvoiceRecordId,
+        resolutionSource: request.invoiceRecordId
+          ? "request"
+          : orderExternal.invoiceId
+            ? "order_external_invoice_link"
+            : fallbackInvoiceFromOrder
+              ? "order_link_lookup"
+              : "none",
+      });
 
       const invoice = await getInvoiceRecord(resolvedInvoiceRecordId);
       if (!invoice.orderId) {
