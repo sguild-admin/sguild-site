@@ -960,6 +960,28 @@ type OrderExternalWritebackFields = {
   "Sync Error"?: string;
   "Last Synced At"?: string;
   "External Action"?: BillingAction;
+  "External Process Status"?: "Not Started" | "Pending" | "Succeeded" | "Failed";
+  "External Process At"?: string;
+  "External Process Error"?: string;
+  "External Process Action"?: string;
+  "External Action Idempotency Key"?: string;
+  "External Process Raw Payload"?: string;
+  "Writeback Status"?: "Not Started" | "Pending" | "Succeeded" | "Failed";
+  "Writeback At"?: string;
+  "Writeback Error"?: string;
+  "Writeback Retry Count"?: number;
+  "Writeback Last Attempt At"?: string;
+  "Reconciliation Status"?:
+    | "Not Started"
+    | "In Progress"
+    | "Complete"
+    | "External Failed"
+    | "Writeback Failed"
+    | "Writeback Failed After External Success"
+    | "Needs Review";
+  "Last Sync Activity At"?: string;
+  "Last API Response Code"?: number;
+  "Last API Message"?: string;
   "External Payment ID"?: string;
   "External Order ID"?: string;
   "External Invoice ID"?: string;
@@ -975,7 +997,25 @@ export async function updateOrderExternal(
   fields: OrderExternalWritebackFields,
 ): Promise<void> {
   const path = `${encodeURIComponent(ORDER_EXTERNALS_TABLE)}/${encodeURIComponent(orderExternalRecordId)}`;
-  const optionalFields = new Set(["Raw Payload", "External Invoice URL"]);
+  const optionalFields = new Set([
+    "Raw Payload",
+    "External Invoice URL",
+    "External Process Status",
+    "External Process At",
+    "External Process Error",
+    "External Process Action",
+    "External Action Idempotency Key",
+    "External Process Raw Payload",
+    "Writeback Status",
+    "Writeback At",
+    "Writeback Error",
+    "Writeback Retry Count",
+    "Writeback Last Attempt At",
+    "Reconciliation Status",
+    "Last Sync Activity At",
+    "Last API Response Code",
+    "Last API Message",
+  ]);
   let fieldsToWrite: OrderExternalWritebackFields = { ...fields };
 
   while (true) {

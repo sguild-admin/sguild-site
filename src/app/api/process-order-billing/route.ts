@@ -19,6 +19,8 @@ type ProcessOrderBillingBody = {
   orgIntegrationRecordId?: unknown;
   invoiceRecordId?: unknown;
   externalInvoiceId?: unknown;
+  externalAction?: unknown;
+  writebackAction?: unknown;
   action?: unknown;
 };
 
@@ -39,8 +41,27 @@ function methodNotAllowed(): NextResponse {
 }
 
 function parseAction(value: unknown): BillingAction {
-  if (value === "Charge" || value === "Invoice" || value === "Authentication") return value;
-  throw new SyncEndpointError("Invalid action. Must be Charge, Invoice, or Authentication.", 400);
+  if (
+    value === "Create Order" ||
+    value === "Create Invoice" ||
+    value === "Charge" ||
+    value === "Refund" ||
+    value === "Cancel" ||
+    value === "Invoice" ||
+    value === "Authentication"
+  ) {
+    return value;
+  }
+
+  throw new SyncEndpointError(
+    "Invalid action. Must be Create Order, Create Invoice, Charge, Refund, Cancel, Invoice, or Authentication.",
+    400,
+  );
+}
+
+function parseWritebackAction(value: unknown): "Write Result" | "Skip Writeback" {
+  if (value === "Skip Writeback") return "Skip Writeback";
+  return "Write Result";
 }
 
 function parseBody(body: unknown): OrderBillingRequest {
@@ -55,7 +76,9 @@ function parseBody(body: unknown): OrderBillingRequest {
     typeof typed.orderExternalRecordId === "string" ? typed.orderExternalRecordId.trim() : "";
   const orgIntegrationRecordId =
     typeof typed.orgIntegrationRecordId === "string" ? typed.orgIntegrationRecordId.trim() : "";
-  const action = parseAction(typed.action);
+  const actionSource = typed.externalAction ?? typed.action;
+  const action = parseAction(actionSource);
+  const writebackAction = parseWritebackAction(typed.writebackAction);
   const invoiceRecordId =
     typeof typed.invoiceRecordId === "string" ? typed.invoiceRecordId.trim() : "";
   const externalInvoiceId =
@@ -71,6 +94,7 @@ function parseBody(body: unknown): OrderBillingRequest {
     orgIntegrationRecordId,
     invoiceRecordId: invoiceRecordId || undefined,
     externalInvoiceId: externalInvoiceId || undefined,
+    writebackAction,
     action,
   };
 }
@@ -101,6 +125,7 @@ export async function POST(request: Request) {
       invoiceRecordId: parsed.invoiceRecordId ?? null,
       externalInvoiceId: parsed.externalInvoiceId ?? null,
       action: parsed.action,
+      writebackAction: parsed.writebackAction,
     });
     const response = await runOrderBillingProcessor(parsed);
     return NextResponse.json(response, { status: 200 });

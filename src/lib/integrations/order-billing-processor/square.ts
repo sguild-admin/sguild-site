@@ -269,6 +269,52 @@ export async function createInvoiceFromOrderItems(input: {
   };
 }
 
+export async function createOrderFromOrderItems(input: {
+  context: ProviderContext;
+  orderExternalRecordId: string;
+  externalCustomerId: string;
+  orderItems: OrderItem[];
+  currency: string;
+}): Promise<{
+  externalOrderId: string;
+  rawPayload: string;
+}> {
+  const currency = normalizeCurrency(input.currency);
+  const lineItems = input.orderItems.map((item) => ({
+    name: item.description,
+    quantity: "1",
+    base_price_money: {
+      amount: minorUnitsToNumber(amountToMinorUnits(item.netAmount ?? 0)),
+      currency,
+    },
+  }));
+
+  const orderPayload = {
+    idempotency_key: `${input.orderExternalRecordId}:CreateOrder`,
+    order: {
+      location_id: input.context.externalLocationId,
+      customer_id: input.externalCustomerId,
+      line_items: lineItems,
+    },
+  };
+
+  const orderResponse = (await squarePost("/v2/orders", orderPayload, input.context)) as {
+    order?: { id?: string };
+  };
+
+  const externalOrderId = orderResponse.order?.id;
+  if (!externalOrderId) {
+    throw new SyncEndpointError("Square order creation returned no order ID.", 502, {
+      rawPayload: safeStringify(orderResponse),
+    });
+  }
+
+  return {
+    externalOrderId,
+    rawPayload: safeStringify(orderResponse),
+  };
+}
+
 export async function getInvoicePublicUrl(input: {
   context: ProviderContext;
   externalInvoiceId: string;

@@ -1,9 +1,26 @@
-export type BillingAction = "Charge" | "Invoice" | "Authentication";
+export type BillingAction =
+  | "Create Order"
+  | "Create Invoice"
+  | "Charge"
+  | "Refund"
+  | "Cancel"
+  | "Invoice"
+  | "Authentication";
 
 export type BillingProcessSuccessResponse = {
   ok: true;
   syncStatus: "Synced";
   action: BillingAction;
+  externalAction?: BillingAction;
+  writebackStatus?: "Succeeded" | "Failed" | "Skipped";
+  reconciliationStatus?:
+    | "Not Started"
+    | "In Progress"
+    | "Complete"
+    | "External Failed"
+    | "Writeback Failed"
+    | "Writeback Failed After External Success"
+    | "Needs Review";
   result: "processed" | "noop";
   resolvedInvoiceRecordId?: string;
   invoiceId?: string;
@@ -57,6 +74,16 @@ export function successResponse(
     externalInvoiceId?: string | null;
   },
   metadata?: {
+    externalAction?: BillingAction;
+    writebackStatus?: "Succeeded" | "Failed" | "Skipped";
+    reconciliationStatus?:
+      | "Not Started"
+      | "In Progress"
+      | "Complete"
+      | "External Failed"
+      | "Writeback Failed"
+      | "Writeback Failed After External Success"
+      | "Needs Review";
     resolvedInvoiceRecordId?: string | null;
     invoiceId?: string | null;
     orderId?: string | null;
@@ -87,6 +114,9 @@ export function successResponse(
   if (metadata?.resolvedInvoiceRecordId) {
     body.resolvedInvoiceRecordId = metadata.resolvedInvoiceRecordId;
   }
+  if (metadata?.externalAction) body.externalAction = metadata.externalAction;
+  if (metadata?.writebackStatus) body.writebackStatus = metadata.writebackStatus;
+  if (metadata?.reconciliationStatus) body.reconciliationStatus = metadata.reconciliationStatus;
   if (metadata?.invoiceId) body.invoiceId = metadata.invoiceId;
   if (metadata?.orderId) body.orderId = metadata.orderId;
   if (metadata?.invoiceExternalRecordId) {
