@@ -97,10 +97,12 @@ function readNumber(value: unknown): number | null {
 }
 
 function isEnabled(value: unknown): boolean {
+  if (value == null) return true;
   if (typeof value === "boolean") return value;
   if (typeof value === "number") return value !== 0;
   if (typeof value === "string") {
     const normalized = value.trim().toLowerCase();
+    if (normalized === "") return true;
     return normalized === "true" || normalized === "yes" || normalized === "enabled";
   }
   return false;
