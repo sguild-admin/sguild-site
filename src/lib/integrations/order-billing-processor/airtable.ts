@@ -425,6 +425,10 @@ type OrderExternalWritebackFields = {
   "External Payment ID"?: string;
   "External Order ID"?: string;
   "External Invoice ID"?: string;
+  "External Invoice URL"?: string;
+  "Customer ID Snapshot"?: string;
+  "Card ID Snapshot"?: string;
+  "Amount Snapshot"?: number;
   "Raw Payload"?: string;
 };
 
@@ -433,31 +437,33 @@ export async function updateOrderExternal(
   fields: OrderExternalWritebackFields,
 ): Promise<void> {
   const path = `${encodeURIComponent(ORDER_EXTERNALS_TABLE)}/${encodeURIComponent(orderExternalRecordId)}`;
-  const response = await airtableRequest(path, {
-    method: "PATCH",
-    body: JSON.stringify({ fields }),
-  });
+  const optionalFields = new Set(["Raw Payload", "External Invoice URL"]);
+  let fieldsToWrite: OrderExternalWritebackFields = { ...fields };
 
-  if (response.ok) return;
-
-  const message = await parseAirtableError(response);
-  const missingRawPayloadField =
-    message.includes('Unknown field name: "Raw Payload"') && "Raw Payload" in fields;
-
-  // Backward-compatible behavior: if the base doesn't have Raw Payload yet, retry without it.
-  if (missingRawPayloadField) {
-    const { ["Raw Payload"]: _removed, ...withoutRawPayload } = fields;
-    const retryResponse = await airtableRequest(path, {
+  while (true) {
+    const response = await airtableRequest(path, {
       method: "PATCH",
-      body: JSON.stringify({ fields: withoutRawPayload }),
+      body: JSON.stringify({ fields: fieldsToWrite }),
     });
-    if (retryResponse.ok) return;
+    if (response.ok) return;
 
-    const retryMessage = await parseAirtableError(retryResponse);
-    throw new SyncEndpointError(`Failed to update Order External: ${retryMessage}`, 502);
+    const message = await parseAirtableError(response);
+    const missingFieldMatch = message.match(/Unknown field name: "([^"]+)"/);
+    const missingField = missingFieldMatch?.[1];
+
+    // Backward-compatible behavior: if optional fields aren't present in this base, retry without them.
+    if (missingField && optionalFields.has(missingField) && missingField in fieldsToWrite) {
+      const nextFields: OrderExternalWritebackFields = {};
+      for (const [key, value] of Object.entries(fieldsToWrite)) {
+        if (key === missingField) continue;
+        (nextFields as Record<string, unknown>)[key] = value;
+      }
+      fieldsToWrite = nextFields;
+      continue;
+    }
+
+    throw new SyncEndpointError(`Failed to update Order External: ${message}`, 502);
   }
-
-  throw new SyncEndpointError(`Failed to update Order External: ${message}`, 502);
 }
 
 export async function updateOrderBillingStatus(

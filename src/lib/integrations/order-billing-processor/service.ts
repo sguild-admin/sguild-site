@@ -237,6 +237,9 @@ export async function runOrderBillingProcessor(
         "Sync Error": "",
         "Last Synced At": new Date().toISOString(),
         "External Action": request.action,
+        "Customer ID Snapshot": clientExternal.externalCustomerId,
+        "Card ID Snapshot": externalCardId,
+        "Amount Snapshot": order.amountDue as number,
         "External Payment ID": chargeResult.externalPaymentId,
         ...(chargeResult.externalOrderId ? { "External Order ID": chargeResult.externalOrderId } : {}),
         "Raw Payload": chargeResult.rawPayload,
@@ -293,14 +296,23 @@ export async function runOrderBillingProcessor(
         orderItems,
         currency: order.currency as string,
       });
+      const invoiceAmountSnapshot = orderItems.reduce(
+        (sum, item) => sum + (item.netAmount ?? 0),
+        0,
+      );
 
       await updateOrderExternal(request.orderExternalRecordId, {
         "Sync Status": "Synced",
         "Sync Error": "",
         "Last Synced At": new Date().toISOString(),
         "External Action": request.action,
+        "Customer ID Snapshot": clientExternal.externalCustomerId,
+        "Amount Snapshot": invoiceAmountSnapshot,
         "External Order ID": invoiceResult.externalOrderId,
         "External Invoice ID": invoiceResult.externalInvoiceId,
+        ...(invoiceResult.externalInvoiceUrl
+          ? { "External Invoice URL": invoiceResult.externalInvoiceUrl }
+          : {}),
         "Raw Payload": invoiceResult.rawPayload,
       });
       await updateOrderBillingStatus(request.orderRecordId, "Payment Pending");

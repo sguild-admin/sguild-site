@@ -94,6 +94,37 @@ async function squarePost(
   return parsed;
 }
 
+async function squareGet(path: string, context: ProviderContext): Promise<unknown> {
+  let response: Response;
+  try {
+    response = await fetch(`${getSquareBaseUrl()}${path}`, {
+      method: "GET",
+      headers: squareHeaders(context.accessToken),
+      cache: "no-store",
+    });
+  } catch (error) {
+    throw new SyncEndpointError("Failed to reach provider API.", 502, {
+      rawPayload: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  let parsed: unknown = {};
+  try {
+    parsed = await response.json();
+  } catch {
+    // handled below if not ok
+  }
+
+  if (!response.ok) {
+    const parsedMessage = parseSquareErrorMessage(parsed);
+    throw new SyncEndpointError(`Square API error (${response.status}): ${parsedMessage}.`, 502, {
+      rawPayload: safeStringify(parsed),
+    });
+  }
+
+  return parsed;
+}
+
 export async function chargeWithCardOnFile(input: {
   context: ProviderContext;
   orderExternalRecordId: string;
@@ -151,6 +182,7 @@ export async function createInvoiceFromOrderItems(input: {
 }): Promise<{
   externalOrderId: string;
   externalInvoiceId: string;
+  externalInvoiceUrl: string | null;
   rawPayload: string;
 }> {
   const currency = normalizeCurrency(input.currency);
@@ -201,7 +233,7 @@ export async function createInvoiceFromOrderItems(input: {
   };
 
   const invoiceResponse = (await squarePost("/v2/invoices", invoicePayload, input.context)) as {
-    invoice?: { id?: string };
+    invoice?: { id?: string; public_url?: string };
   };
 
   const externalInvoiceId = invoiceResponse.invoice?.id;
@@ -211,12 +243,24 @@ export async function createInvoiceFromOrderItems(input: {
     });
   }
 
+  const retrieveResponse = (await squareGet(
+    `/v2/invoices/${encodeURIComponent(externalInvoiceId)}`,
+    input.context,
+  )) as {
+    invoice?: { public_url?: string };
+  };
+
+  const externalInvoiceUrl =
+    invoiceResponse.invoice?.public_url ?? retrieveResponse.invoice?.public_url ?? null;
+
   return {
     externalOrderId,
     externalInvoiceId,
+    externalInvoiceUrl,
     rawPayload: safeStringify({
       order: orderResponse,
       invoice: invoiceResponse,
+      invoice_retrieve: retrieveResponse,
     }),
   };
 }
