@@ -85,10 +85,18 @@ function assertOrderBillingReady(order: OrderRecord, action: BillingAction): voi
   }
 }
 
-function pickNewestUsableCard(cards: Array<{ externalCardId: string | null }>): string {
-  const usable = cards.find((card) => typeof card.externalCardId === "string" && card.externalCardId.length > 0);
+function pickNewestUsableCard(
+  cards: Array<{ externalCardId: string | null }>,
+  clientExternalRecordId: string,
+): string {
+  const usable = cards.find(
+    (card) => typeof card.externalCardId === "string" && card.externalCardId.length > 0,
+  );
   if (!usable?.externalCardId) {
-    throw new SyncEndpointError("Missing usable Card External with External Card ID.", 422);
+    throw new SyncEndpointError(
+      `Missing usable Card External with External Card ID. Resolved Client External=${clientExternalRecordId}, enabledCardsFound=${cards.length}, enabledCardsWithExternalCardId=${cards.filter((card) => Boolean(card.externalCardId)).length}.`,
+      422,
+    );
   }
   return usable.externalCardId;
 }
@@ -190,8 +198,9 @@ export async function runOrderBillingProcessor(
         loaded: cardExternals.length > 0,
         count: cardExternals.length,
         clientExternalRecordId: clientExternal.recordId,
+        withExternalCardId: cardExternals.filter((card) => Boolean(card.externalCardId)).length,
       });
-      const externalCardId = pickNewestUsableCard(cardExternals);
+      const externalCardId = pickNewestUsableCard(cardExternals, clientExternal.recordId);
       debugLog("Resolved provider charge inputs", {
         action: request.action,
         customerId: clientExternal.externalCustomerId,
