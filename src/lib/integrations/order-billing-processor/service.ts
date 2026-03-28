@@ -1,4 +1,5 @@
 import {
+  createInvoiceForOrder,
   createInvoiceExternal,
   findActiveCardExternalsByClientExternal,
   findClientExternalByContext,
@@ -9,6 +10,7 @@ import {
   getOrderExternalRecord,
   getOrderRecord,
   getOrgIntegrationRecord,
+  linkOrderExternalToInvoice,
   listOrderExternalsByInvoice,
   OrderRecord,
   updateOrderBillingStatus,
@@ -383,11 +385,45 @@ export async function runOrderBillingProcessor(
       const fallbackInvoiceFromOrder = !request.invoiceRecordId && !orderExternal.invoiceId
         ? await findSingleInvoiceByOrder(request.orderRecordId)
         : null;
-      const resolvedInvoiceRecordId = firstNonEmptyString(
+      let resolvedInvoiceRecordId = firstNonEmptyString(
         request.invoiceRecordId,
         orderExternal.invoiceId,
         fallbackInvoiceFromOrder?.recordId,
       );
+
+      const knownExternalInvoiceIdBeforeResolution = firstNonEmptyString(
+        request.externalInvoiceId,
+        orderExternal.externalInvoiceId,
+      );
+
+      if (!resolvedInvoiceRecordId) {
+        if (!knownExternalInvoiceIdBeforeResolution) {
+          throw new SyncEndpointError(
+            "Missing invoiceRecordId and no externalInvoiceId available to recover. Provide invoiceRecordId, link Invoice on Order External, or include externalInvoiceId.",
+            400,
+          );
+        }
+
+        const createdInvoice = await createInvoiceForOrder({
+          Order: [request.orderRecordId],
+          Status: "Pending",
+          ...(order.amountDue != null ? { "Amount Due": order.amountDue } : {}),
+          "Amount Paid": 0,
+          "Issued At": new Date().toISOString(),
+        });
+        resolvedInvoiceRecordId = createdInvoice.recordId;
+
+        try {
+          await linkOrderExternalToInvoice(request.orderExternalRecordId, createdInvoice.recordId);
+        } catch (error) {
+          debugLog("Order External to Invoice link backfill failed", {
+            orderExternalRecordId: request.orderExternalRecordId,
+            invoiceRecordId: createdInvoice.recordId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+
       if (!resolvedInvoiceRecordId) {
         throw new SyncEndpointError(
           "Missing invoiceRecordId for Invoice action. Provide invoiceRecordId in request, link Invoice on Order External, or ensure exactly one Invoice is linked to the Order.",
@@ -515,8 +551,7 @@ export async function runOrderBillingProcessor(
       }
 
       const knownExternalInvoiceId = firstNonEmptyString(
-        request.externalInvoiceId,
-        orderExternal.externalInvoiceId,
+        knownExternalInvoiceIdBeforeResolution,
       );
       if (!knownExternalInvoiceId) {
         throw new SyncEndpointError(

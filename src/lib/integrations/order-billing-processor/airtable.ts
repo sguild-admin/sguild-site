@@ -442,6 +442,68 @@ export async function listInvoicesByOrder(orderRecordId: string): Promise<Invoic
   return scannedRows;
 }
 
+type InvoiceCreateFields = {
+  Order?: string[];
+  Status?: string;
+  "Amount Due"?: number;
+  "Amount Paid"?: number;
+  "Issued At"?: string;
+  "Due At"?: string;
+};
+
+export async function createInvoiceForOrder(fields: InvoiceCreateFields): Promise<InvoiceRecord> {
+  const optionalFields = new Set(["Status", "Amount Due", "Amount Paid", "Issued At", "Due At"]);
+  let fieldsToWrite: InvoiceCreateFields = { ...fields };
+
+  while (true) {
+    const response = await airtableRequest(`${encodeURIComponent(INVOICES_TABLE)}`, {
+      method: "POST",
+      body: JSON.stringify({ fields: fieldsToWrite }),
+    });
+    if (response.ok) {
+      return toInvoiceRecord((await response.json()) as AirtableRecord);
+    }
+
+    const message = await parseAirtableError(response);
+    const missingFieldMatch = message.match(/Unknown field name: "([^"]+)"/);
+    const missingField = missingFieldMatch?.[1];
+
+    if (missingField && optionalFields.has(missingField) && missingField in fieldsToWrite) {
+      const nextFields: InvoiceCreateFields = {};
+      for (const [key, value] of Object.entries(fieldsToWrite)) {
+        if (key === missingField) continue;
+        (nextFields as Record<string, unknown>)[key] = value;
+      }
+      fieldsToWrite = nextFields;
+      continue;
+    }
+
+    throw new SyncEndpointError(`Failed to create Invoice: ${message}`, 502);
+  }
+}
+
+export async function linkOrderExternalToInvoice(
+  orderExternalRecordId: string,
+  invoiceRecordId: string,
+): Promise<void> {
+  const response = await airtableRequest(
+    `${encodeURIComponent(ORDER_EXTERNALS_TABLE)}/${encodeURIComponent(orderExternalRecordId)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({
+        fields: {
+          Invoice: [invoiceRecordId],
+        },
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    const message = await parseAirtableError(response);
+    throw new SyncEndpointError(`Failed to link Order External to Invoice: ${message}`, 502);
+  }
+}
+
 export async function getOrgIntegrationRecord(recordId: string): Promise<OrgIntegrationRecord> {
   const record = await getRecord(ORG_INTEGRATIONS_TABLE, recordId, "Org Integration");
   const fields = record.fields ?? {};
