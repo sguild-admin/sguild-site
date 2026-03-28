@@ -377,44 +377,56 @@ export async function findActiveCardExternalsByClientExternal(
 
 export async function listOrderItems(orderRecordId: string): Promise<OrderItem[]> {
   const escapedOrderId = escapeAirtableFormulaString(orderRecordId);
-  const formula = `FIND('${escapedOrderId}', ARRAYJOIN({Order}))`;
-  let offset: string | undefined;
-  const rows: OrderItem[] = [];
 
-  do {
-    const params = new URLSearchParams({
-      pageSize: "100",
-      filterByFormula: formula,
-    });
-    if (offset) params.set("offset", offset);
+  async function queryByLinkField(linkField: string): Promise<OrderItem[] | null> {
+    const formula = `FIND('${escapedOrderId}', ARRAYJOIN({${linkField}}))`;
+    let offset: string | undefined;
+    const rows: OrderItem[] = [];
 
-    const response = await airtableRequest(
-      `${encodeURIComponent(ORDER_ITEMS_TABLE)}?${params.toString()}`,
-      { method: "GET" },
-    );
-    if (!response.ok) {
-      const message = await parseAirtableError(response);
-      throw new SyncEndpointError(`Failed to load Order Items: ${message}`, 502);
-    }
-
-    const body = (await response.json()) as {
-      records?: AirtableRecord[];
-      offset?: string;
-    };
-
-    for (const record of body.records ?? []) {
-      const fields = record.fields ?? {};
-      rows.push({
-        recordId: record.id,
-        description: readString(fields["Offering Description"]),
-        netAmount: readNumber(fields["Net Amount"]),
+    do {
+      const params = new URLSearchParams({
+        pageSize: "100",
+        filterByFormula: formula,
       });
-    }
+      if (offset) params.set("offset", offset);
 
-    offset = body.offset;
-  } while (offset);
+      const response = await airtableRequest(
+        `${encodeURIComponent(ORDER_ITEMS_TABLE)}?${params.toString()}`,
+        { method: "GET" },
+      );
+      if (!response.ok) {
+        const message = await parseAirtableError(response);
+        if (message.includes(`Unknown field names: ${linkField}`)) return null;
+        if (message.includes(`Unknown field name: "${linkField}"`)) return null;
+        throw new SyncEndpointError(`Failed to load Order Items: ${message}`, 502);
+      }
 
-  return rows;
+      const body = (await response.json()) as {
+        records?: AirtableRecord[];
+        offset?: string;
+      };
+
+      for (const record of body.records ?? []) {
+        const fields = record.fields ?? {};
+        rows.push({
+          recordId: record.id,
+          description: readString(fields["Offering Description"]),
+          netAmount: readNumber(fields["Net Amount"]),
+        });
+      }
+
+      offset = body.offset;
+    } while (offset);
+
+    return rows;
+  }
+
+  for (const fieldName of ["Order", "Orders", "Parent Order"]) {
+    const rows = await queryByLinkField(fieldName);
+    if (rows && rows.length > 0) return rows;
+  }
+
+  return [];
 }
 
 type OrderExternalWritebackFields = {
