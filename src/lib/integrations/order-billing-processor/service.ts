@@ -1008,7 +1008,7 @@ export async function runOrderBillingProcessor(
 
       const cancellationResult = await cancelDuplicateSquareInvoicesForInvoice({
         invoiceRecordId: invoice.recordId,
-        canonicalExternalInvoiceId: knownExternalInvoiceId,
+        canonicalExternalInvoiceId: resolvedExternalInvoiceId as string,
         context,
       });
 
