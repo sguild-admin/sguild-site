@@ -223,13 +223,13 @@ export async function createInvoiceFromOrderItems(input: {
       primary_recipient: {
         customer_id: input.externalCustomerId,
       },
+      accepted_payment_methods: {
+        card: true,
+      },
       payment_requests: [
         {
           request_type: "BALANCE",
           due_date: buildInvoiceDueDateIso(7),
-          accepted_payment_methods: {
-            card: true,
-          },
         },
       ],
     },
