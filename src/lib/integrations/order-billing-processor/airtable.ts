@@ -427,6 +427,51 @@ export async function listOrderItems(orderRecordId: string): Promise<OrderItem[]
     if (rows && rows.length > 0) return rows;
   }
 
+  // Final fallback: scan rows and match any linked-record array containing this order record ID.
+  // This protects us from unusual link field names while keeping behavior deterministic.
+  let offset: string | undefined;
+  const scannedRows: OrderItem[] = [];
+  do {
+    const params = new URLSearchParams({
+      pageSize: "100",
+    });
+    if (offset) params.set("offset", offset);
+
+    const response = await airtableRequest(
+      `${encodeURIComponent(ORDER_ITEMS_TABLE)}?${params.toString()}`,
+      { method: "GET" },
+    );
+    if (!response.ok) {
+      const message = await parseAirtableError(response);
+      throw new SyncEndpointError(`Failed to load Order Items: ${message}`, 502);
+    }
+
+    const body = (await response.json()) as {
+      records?: AirtableRecord[];
+      offset?: string;
+    };
+
+    for (const record of body.records ?? []) {
+      const fields = record.fields ?? {};
+      const linksToOrder = Object.values(fields).some(
+        (value) =>
+          Array.isArray(value) &&
+          value.some((item) => typeof item === "string" && item.trim() === orderRecordId),
+      );
+      if (!linksToOrder) continue;
+
+      scannedRows.push({
+        recordId: record.id,
+        description: readString(fields["Offering Description"]),
+        netAmount: readNumber(fields["Net Amount"]),
+      });
+    }
+
+    offset = body.offset;
+  } while (offset);
+
+  if (scannedRows.length > 0) return scannedRows;
+
   return [];
 }
 
