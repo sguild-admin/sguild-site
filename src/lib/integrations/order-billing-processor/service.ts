@@ -168,6 +168,12 @@ export async function runOrderBillingProcessor(
       hasAccessToken: Boolean(orgIntegration.accessToken),
     });
     const context = resolveProviderContext(orgIntegration, request.action);
+    debugLog("Resolved provider context", {
+      provider: context.provider,
+      providerAccountId: context.providerAccountId,
+      accessTokenAlias: context.accessTokenAlias,
+      externalLocationId: context.externalLocationId,
+    });
 
     const clientExternal = orderExternal.clientExternalId
       ? await getClientExternalById(orderExternal.clientExternalId)

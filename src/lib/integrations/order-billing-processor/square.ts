@@ -81,7 +81,7 @@ async function squarePost(
     const parsedMessage = parseSquareErrorMessage(parsed);
     const authHint =
       response.status === 401 || parsedMessage.toLowerCase().includes("unauthorized")
-        ? " Check Access Token alias mapping, token environment (prod vs sandbox), and External Location ID ownership."
+        ? ` Check Access Token alias mapping and merchant/location ownership. alias=${context.accessTokenAlias}, locationId=${context.externalLocationId}.`
         : "";
 
     throw new SyncEndpointError(
