@@ -57,6 +57,14 @@ export type OrderBillingRequest = {
 };
 
 type CanonicalExternalAction = "Create Order" | "Create Invoice" | "Charge" | "Refund" | "Cancel";
+type OrderBillingStatus =
+  | "Not Started"
+  | "Processing"
+  | "Payment Pending"
+  | "Paid"
+  | "Failed"
+  | "Partially Refunded"
+  | "Refunded";
 
 function toCanonicalExternalAction(action: BillingAction): CanonicalExternalAction {
   if (action === "Invoice") return "Create Invoice";
@@ -70,6 +78,17 @@ function toCanonicalExternalAction(action: BillingAction): CanonicalExternalActi
 
 function buildExternalActionIdempotencyKey(action: CanonicalExternalAction, orderExternalRecordId: string): string {
   return `order-external:${action}:${orderExternalRecordId}`;
+}
+
+function deriveBillingStatusFromPayment(input: {
+  amountDue: number | null;
+  amountPaid: number | null;
+}): OrderBillingStatus {
+  const due = input.amountDue ?? 0;
+  const paid = input.amountPaid ?? 0;
+
+  if (due > 0 && paid >= due) return "Paid";
+  return "Payment Pending";
 }
 
 function firstNonEmptyString(...values: Array<string | null | undefined>): string | null {
@@ -245,6 +264,8 @@ export async function runOrderBillingProcessor(
     billingStatus: order.billingStatus,
   });
   const orderRecordIdForFailure: string | null = order.recordId;
+  let externalProcessSucceeded = false;
+  let authoritativeBillingStatusAfterExternal: OrderBillingStatus | null = null;
 
   try {
     if (orderExternal.orderId && orderExternal.orderId !== request.orderRecordId) {
@@ -319,6 +340,14 @@ export async function runOrderBillingProcessor(
     }
 
     assertOrderBillingReady(order, request.action);
+
+    if (
+      externalAction === "Create Order" ||
+      externalAction === "Create Invoice" ||
+      externalAction === "Charge"
+    ) {
+      await updateOrderBillingStatus(request.orderRecordId, "Processing");
+    }
 
     const orgIntegration = await getOrgIntegrationRecord(request.orgIntegrationRecordId);
     debugLog("Loaded org integration", {
@@ -427,7 +456,14 @@ export async function runOrderBillingProcessor(
       if (order.amountDue != null) {
         await updateOrderAmountPaid(request.orderRecordId, order.amountDue);
       }
-      await updateOrderBillingStatus(request.orderRecordId, "Paid");
+      const chargeAmountPaid = order.amountDue ?? 0;
+      const chargeBillingStatus = deriveBillingStatusFromPayment({
+        amountDue: order.amountDue,
+        amountPaid: chargeAmountPaid,
+      });
+      externalProcessSucceeded = true;
+      authoritativeBillingStatusAfterExternal = chargeBillingStatus;
+      await updateOrderBillingStatus(request.orderRecordId, chargeBillingStatus);
 
       console.info("Order billing processed", {
         operation: OPERATION,
@@ -499,6 +535,14 @@ export async function runOrderBillingProcessor(
         "Last API Response Code": 200,
         "Last API Message": "Create Order processed",
       });
+
+      const createOrderBillingStatus = deriveBillingStatusFromPayment({
+        amountDue: order.amountDue,
+        amountPaid: order.amountPaid ?? 0,
+      });
+      externalProcessSucceeded = true;
+      authoritativeBillingStatusAfterExternal = createOrderBillingStatus;
+      await updateOrderBillingStatus(request.orderRecordId, createOrderBillingStatus);
 
       return successResponse(
         request.action,
@@ -668,8 +712,14 @@ export async function runOrderBillingProcessor(
           "Last API Message": "Create Invoice reused existing mapping",
         });
         const paidAmount = invoice.amountPaid ?? 0;
+        const invoiceBillingStatus = deriveBillingStatusFromPayment({
+          amountDue: invoice.amountDue ?? order.amountDue,
+          amountPaid: paidAmount,
+        });
+        externalProcessSucceeded = true;
+        authoritativeBillingStatusAfterExternal = invoiceBillingStatus;
         await updateOrderAmountPaid(request.orderRecordId, paidAmount);
-        await updateOrderBillingStatus(request.orderRecordId, "Payment Pending");
+        await updateOrderBillingStatus(request.orderRecordId, invoiceBillingStatus);
 
         const cancellationResult = await cancelDuplicateSquareInvoicesForInvoice({
           invoiceRecordId: invoice.recordId,
@@ -798,7 +848,13 @@ export async function runOrderBillingProcessor(
         "Last API Message": "Create Invoice processed",
       });
       await updateOrderAmountPaid(request.orderRecordId, amountPaid);
-      await updateOrderBillingStatus(request.orderRecordId, "Payment Pending");
+      const createdInvoiceBillingStatus = deriveBillingStatusFromPayment({
+        amountDue,
+        amountPaid,
+      });
+      externalProcessSucceeded = true;
+      authoritativeBillingStatusAfterExternal = createdInvoiceBillingStatus;
+      await updateOrderBillingStatus(request.orderRecordId, createdInvoiceBillingStatus);
 
       const cancellationResult = await cancelDuplicateSquareInvoicesForInvoice({
         invoiceRecordId: invoice.recordId,
@@ -885,7 +941,12 @@ export async function runOrderBillingProcessor(
 
     if (orderRecordIdForFailure) {
       try {
-        await updateOrderBillingStatus(orderRecordIdForFailure, "Failed");
+        await updateOrderBillingStatus(
+          orderRecordIdForFailure,
+          externalProcessSucceeded && authoritativeBillingStatusAfterExternal
+            ? authoritativeBillingStatusAfterExternal
+            : "Failed",
+        );
       } catch (writebackError) {
         console.error("Failed writing Order billing failure state", {
           operation: OPERATION,

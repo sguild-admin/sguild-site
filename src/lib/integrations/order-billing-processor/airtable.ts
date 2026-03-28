@@ -38,6 +38,7 @@ export type OrderRecord = {
   recordId: string;
   clientId: string | null;
   amountDue: number | null;
+  amountPaid: number | null;
   currency: string | null;
   billingStatus: string | null;
 };
@@ -268,6 +269,7 @@ export async function getOrderRecord(recordId: string): Promise<OrderRecord> {
     recordId: record.id,
     clientId: readFirstLinkedId(fields.Client),
     amountDue: readNumber(fields["Amount Due"]),
+    amountPaid: readNumber(fields["Amount Paid"]),
     currency: readString(fields.Currency),
     billingStatus: readString(fields["Billing Status"]),
   };
@@ -1053,7 +1055,14 @@ export async function updateOrderExternal(
 
 export async function updateOrderBillingStatus(
   orderRecordId: string,
-  billingStatus: "Processing" | "Paid" | "Payment Pending" | "Failed",
+  billingStatus:
+    | "Not Started"
+    | "Processing"
+    | "Payment Pending"
+    | "Paid"
+    | "Failed"
+    | "Partially Refunded"
+    | "Refunded",
 ): Promise<void> {
   const response = await airtableRequest(
     `${encodeURIComponent(ORDERS_TABLE)}/${encodeURIComponent(orderRecordId)}`,
