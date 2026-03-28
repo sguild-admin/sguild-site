@@ -271,7 +271,7 @@ export async function findActiveCardExternalsByClientExternal(
   clientExternalRecordId: string,
 ): Promise<CardExternalRecord[]> {
   const escapedClientExternalId = escapeAirtableFormulaString(clientExternalRecordId);
-  const formula = `AND(FIND('${escapedClientExternalId}', ARRAYJOIN({Client External})), {Enabled}=TRUE())`;
+  const formula = `FIND('${escapedClientExternalId}', ARRAYJOIN({Client External}))`;
   let offset: string | undefined;
   const rows: CardExternalRecord[] = [];
 
