@@ -131,16 +131,23 @@ async function parseAirtableError(response: Response): Promise<string> {
 
 async function airtableRequest(path: string, init?: RequestInit): Promise<Response> {
   const { token, baseId } = getAirtableConfig();
-  const response = await fetch(`https://api.airtable.com/v0/${baseId}/${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
-    },
-    cache: "no-store",
-  });
-  return response;
+  try {
+    const response = await fetch(`https://api.airtable.com/v0/${baseId}/${path}`, {
+      ...init,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        ...(init?.headers ?? {}),
+      },
+      cache: "no-store",
+    });
+    return response;
+  } catch (error) {
+    throw new SyncEndpointError("Airtable request failed to reach upstream.", 502, {
+      exposeMessage: true,
+      rawPayload: error instanceof Error ? error.message : String(error),
+    });
+  }
 }
 
 function escapeAirtableFormulaString(value: string): string {
@@ -404,4 +411,3 @@ export async function writeOrderExternalFailure(
     ...(rawPayload ? { "Raw Payload": rawPayload } : {}),
   });
 }
-

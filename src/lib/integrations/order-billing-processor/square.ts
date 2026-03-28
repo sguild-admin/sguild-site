@@ -56,12 +56,19 @@ async function squarePost(
   body: unknown,
   context: ProviderContext,
 ): Promise<unknown> {
-  const response = await fetch(`${getSquareBaseUrl()}${path}`, {
-    method: "POST",
-    headers: squareHeaders(context.accessToken),
-    body: JSON.stringify(body),
-    cache: "no-store",
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${getSquareBaseUrl()}${path}`, {
+      method: "POST",
+      headers: squareHeaders(context.accessToken),
+      body: JSON.stringify(body),
+      cache: "no-store",
+    });
+  } catch (error) {
+    throw new SyncEndpointError("Failed to reach provider API.", 502, {
+      rawPayload: error instanceof Error ? error.message : String(error),
+    });
+  }
 
   let parsed: unknown = {};
   try {
@@ -207,4 +214,3 @@ export async function createInvoiceFromOrderItems(input: {
     }),
   };
 }
-
