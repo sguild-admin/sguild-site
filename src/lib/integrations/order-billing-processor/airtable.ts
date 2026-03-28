@@ -28,6 +28,7 @@ export type OrderExternalRecord = {
   clientExternalId: string | null;
   externalAction: string | null;
   syncStatus: string | null;
+  amountSnapshot: number | null;
   externalPaymentId: string | null;
   externalOrderId: string | null;
   externalInvoiceId: string | null;
@@ -254,11 +255,57 @@ export async function getOrderExternalRecord(recordId: string): Promise<OrderExt
     clientExternalId: readFirstLinkedId(fields["Client External"]),
     externalAction: readString(fields["External Action"]),
     syncStatus: readString(fields["Sync Status"]),
+    amountSnapshot: readNumber(fields["Amount Snapshot"]),
     externalPaymentId: readString(fields["External Payment ID"]),
     externalOrderId: readString(fields["External Order ID"]),
     externalInvoiceId: readString(fields["External Invoice ID"]),
     externalInvoiceUrl: readString(fields["External Invoice URL"]),
   };
+}
+
+export async function listOrderExternalsByOrder(
+  orderRecordId: string,
+): Promise<OrderExternalRecord[]> {
+  const escapedOrderId = escapeAirtableFormulaString(orderRecordId);
+  const formula = `FIND('${escapedOrderId}', ARRAYJOIN({Order}))`;
+
+  let offset: string | undefined;
+  const rows: OrderExternalRecord[] = [];
+  do {
+    const params = new URLSearchParams({ pageSize: "100", filterByFormula: formula });
+    if (offset) params.set("offset", offset);
+
+    const response = await airtableRequest(
+      `${encodeURIComponent(ORDER_EXTERNALS_TABLE)}?${params.toString()}`,
+      { method: "GET" },
+    );
+    if (!response.ok) {
+      const message = await parseAirtableError(response);
+      throw new SyncEndpointError(`Failed to list Order Externals by Order: ${message}`, 502);
+    }
+
+    const body = (await response.json()) as { records?: AirtableRecord[]; offset?: string };
+    for (const record of body.records ?? []) {
+      const fields = record.fields ?? {};
+      rows.push({
+        recordId: record.id,
+        orderId: readFirstLinkedId(fields.Order),
+        invoiceId: readFirstLinkedId(fields.Invoice),
+        clientExternalId: readFirstLinkedId(fields["Client External"]),
+        externalAction: readString(fields["External Action"]),
+        syncStatus: readString(fields["Sync Status"]),
+        amountSnapshot: readNumber(fields["Amount Snapshot"]),
+        externalPaymentId: readString(fields["External Payment ID"]),
+        externalOrderId: readString(fields["External Order ID"]),
+        externalInvoiceId: readString(fields["External Invoice ID"]),
+        externalInvoiceUrl: readString(fields["External Invoice URL"]),
+      });
+    }
+
+    offset = body.offset;
+  } while (offset);
+
+  return rows;
 }
 
 export async function getOrderRecord(recordId: string): Promise<OrderRecord> {
@@ -945,6 +992,7 @@ export async function listOrderExternalsByInvoice(
         clientExternalId: readFirstLinkedId(fields["Client External"]),
         externalAction: readString(fields["External Action"]),
         syncStatus: readString(fields["Sync Status"]),
+        amountSnapshot: readNumber(fields["Amount Snapshot"]),
         externalPaymentId: readString(fields["External Payment ID"]),
         externalOrderId: readString(fields["External Order ID"]),
         externalInvoiceId: readString(fields["External Invoice ID"]),

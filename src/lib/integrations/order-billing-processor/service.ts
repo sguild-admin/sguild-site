@@ -12,6 +12,7 @@ import {
   getOrgIntegrationRecord,
   linkOrderExternalToInvoice,
   listOrderItems,
+  listOrderExternalsByOrder,
   listOrderExternalsByInvoice,
   OrderRecord,
   updateOrderBillingStatus,
@@ -507,6 +508,124 @@ export async function runOrderBillingProcessor(
         currency: order.currency as string,
       });
 
+      const relatedOrderExternals = await listOrderExternalsByOrder(request.orderRecordId);
+      const relatedRows = relatedOrderExternals.filter(
+        (row) => row.recordId !== request.orderExternalRecordId,
+      );
+
+      const paymentRow = relatedRows.find(
+        (row) => typeof row.externalPaymentId === "string" && row.externalPaymentId.length > 0,
+      );
+      const invoiceRow = relatedRows.find(
+        (row) => typeof row.externalInvoiceId === "string" && row.externalInvoiceId.length > 0,
+      );
+
+      const recoveredExternalPaymentId = paymentRow?.externalPaymentId ?? null;
+      const recoveredExternalInvoiceId = invoiceRow?.externalInvoiceId ?? null;
+      const recoveredExternalInvoiceUrl = invoiceRow?.externalInvoiceUrl ?? null;
+
+      const recoveredAmountPaid =
+        paymentRow?.amountSnapshot ?? invoiceRow?.amountSnapshot ?? order.amountPaid ?? 0;
+
+      let reconciledInvoiceExternalRecordId: string | null = null;
+
+      if (recoveredExternalInvoiceId) {
+        let recoveredInvoiceRecordId = firstNonEmptyString(
+          request.invoiceRecordId,
+          orderExternal.invoiceId,
+          invoiceRow?.invoiceId,
+        );
+
+        if (!recoveredInvoiceRecordId) {
+          const existingInvoice = await findSingleInvoiceByOrder(request.orderRecordId);
+          if (existingInvoice) {
+            recoveredInvoiceRecordId = existingInvoice.recordId;
+          }
+        }
+
+        if (!recoveredInvoiceRecordId) {
+          const createdInvoice = await createInvoiceForOrder({
+            Order: [request.orderRecordId],
+            Status: deriveBillingStatusFromPayment({
+              amountDue: order.amountDue,
+              amountPaid: recoveredAmountPaid,
+            }) === "Paid"
+              ? "Paid"
+              : "Pending",
+            ...(order.amountDue != null ? { "Amount Due": order.amountDue } : {}),
+            "Amount Paid": recoveredAmountPaid,
+            "Issued At": new Date().toISOString(),
+          });
+          recoveredInvoiceRecordId = createdInvoice.recordId;
+        }
+
+        if (recoveredInvoiceRecordId) {
+          try {
+            await linkOrderExternalToInvoice(request.orderExternalRecordId, recoveredInvoiceRecordId);
+          } catch (error) {
+            debugLog("Order External invoice link backfill skipped in Create Order", {
+              orderExternalRecordId: request.orderExternalRecordId,
+              invoiceRecordId: recoveredInvoiceRecordId,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+
+          const existingInvoiceExternal = await findInvoiceExternalByInvoiceAndOrgIntegration(
+            recoveredInvoiceRecordId,
+            request.orgIntegrationRecordId,
+          );
+
+          if (existingInvoiceExternal) {
+            await updateInvoiceExternal(existingInvoiceExternal.recordId, {
+              "External Invoice ID": recoveredExternalInvoiceId,
+              ...(recoveredExternalInvoiceUrl
+                ? { "Hosted Invoice URL": recoveredExternalInvoiceUrl }
+                : {}),
+              "Amount Due": order.amountDue ?? 0,
+              "Amount Paid": recoveredAmountPaid,
+              "External Status": deriveBillingStatusFromPayment({
+                amountDue: order.amountDue,
+                amountPaid: recoveredAmountPaid,
+              }) === "Paid"
+                ? "PAID"
+                : "PENDING",
+              "Last Synced At": new Date().toISOString(),
+              "Sync Status": "Synced",
+              "Sync Error": "",
+            });
+            reconciledInvoiceExternalRecordId = existingInvoiceExternal.recordId;
+          } else {
+            const createdInvoiceExternal = await createInvoiceExternal({
+              Invoice: [recoveredInvoiceRecordId],
+              Order: [request.orderRecordId],
+              "Org Integration": [request.orgIntegrationRecordId],
+              "External Invoice ID": recoveredExternalInvoiceId,
+              ...(recoveredExternalInvoiceUrl
+                ? { "Hosted Invoice URL": recoveredExternalInvoiceUrl }
+                : {}),
+              "Amount Due": order.amountDue ?? 0,
+              "Amount Paid": recoveredAmountPaid,
+              "External Status": deriveBillingStatusFromPayment({
+                amountDue: order.amountDue,
+                amountPaid: recoveredAmountPaid,
+              }) === "Paid"
+                ? "PAID"
+                : "PENDING",
+              "Last Synced At": new Date().toISOString(),
+              "Sync Status": "Synced",
+              "Sync Error": "",
+            });
+            reconciledInvoiceExternalRecordId = createdInvoiceExternal.recordId;
+          }
+        }
+      }
+
+      const createOrderAmountPaid = recoveredAmountPaid;
+      const createOrderBillingStatus = deriveBillingStatusFromPayment({
+        amountDue: order.amountDue,
+        amountPaid: createOrderAmountPaid,
+      });
+
       await updateOrderExternal(request.orderExternalRecordId, {
         "Sync Status": "Synced",
         "Sync Error": "",
@@ -519,6 +638,9 @@ export async function runOrderBillingProcessor(
         "Customer ID Snapshot": clientExternal.externalCustomerId,
         ...(order.amountDue != null ? { "Amount Snapshot": order.amountDue } : {}),
         "External Order ID": createOrderResult.externalOrderId,
+        ...(recoveredExternalPaymentId ? { "External Payment ID": recoveredExternalPaymentId } : {}),
+        ...(recoveredExternalInvoiceId ? { "External Invoice ID": recoveredExternalInvoiceId } : {}),
+        ...(recoveredExternalInvoiceUrl ? { "External Invoice URL": recoveredExternalInvoiceUrl } : {}),
         "Raw Payload": createOrderResult.rawPayload,
         ...(writebackAction === "Skip Writeback"
           ? {
@@ -536,10 +658,7 @@ export async function runOrderBillingProcessor(
         "Last API Message": "Create Order processed",
       });
 
-      const createOrderBillingStatus = deriveBillingStatusFromPayment({
-        amountDue: order.amountDue,
-        amountPaid: order.amountPaid ?? 0,
-      });
+      await updateOrderAmountPaid(request.orderRecordId, createOrderAmountPaid);
       externalProcessSucceeded = true;
       authoritativeBillingStatusAfterExternal = createOrderBillingStatus;
       await updateOrderBillingStatus(request.orderRecordId, createOrderBillingStatus);
@@ -549,10 +668,15 @@ export async function runOrderBillingProcessor(
         "processed",
         {
           externalOrderId: createOrderResult.externalOrderId,
+          ...(recoveredExternalPaymentId ? { externalPaymentId: recoveredExternalPaymentId } : {}),
+          ...(recoveredExternalInvoiceId ? { externalInvoiceId: recoveredExternalInvoiceId } : {}),
         },
         {
           externalAction,
           orderId: request.orderRecordId,
+          invoiceExternalRecordId: reconciledInvoiceExternalRecordId,
+          amountDue: order.amountDue,
+          amountPaid: createOrderAmountPaid,
           writebackStatus: writebackAction === "Skip Writeback" ? "Skipped" : "Succeeded",
           reconciliationStatus: writebackAction === "Skip Writeback" ? "Needs Review" : "Complete",
           rawPayload: createOrderResult.rawPayload,
