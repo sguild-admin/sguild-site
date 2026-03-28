@@ -432,18 +432,32 @@ export async function updateOrderExternal(
   orderExternalRecordId: string,
   fields: OrderExternalWritebackFields,
 ): Promise<void> {
-  const response = await airtableRequest(
-    `${encodeURIComponent(ORDER_EXTERNALS_TABLE)}/${encodeURIComponent(orderExternalRecordId)}`,
-    {
-      method: "PATCH",
-      body: JSON.stringify({ fields }),
-    },
-  );
+  const path = `${encodeURIComponent(ORDER_EXTERNALS_TABLE)}/${encodeURIComponent(orderExternalRecordId)}`;
+  const response = await airtableRequest(path, {
+    method: "PATCH",
+    body: JSON.stringify({ fields }),
+  });
 
-  if (!response.ok) {
-    const message = await parseAirtableError(response);
-    throw new SyncEndpointError(`Failed to update Order External: ${message}`, 502);
+  if (response.ok) return;
+
+  const message = await parseAirtableError(response);
+  const missingRawPayloadField =
+    message.includes('Unknown field name: "Raw Payload"') && "Raw Payload" in fields;
+
+  // Backward-compatible behavior: if the base doesn't have Raw Payload yet, retry without it.
+  if (missingRawPayloadField) {
+    const { ["Raw Payload"]: _removed, ...withoutRawPayload } = fields;
+    const retryResponse = await airtableRequest(path, {
+      method: "PATCH",
+      body: JSON.stringify({ fields: withoutRawPayload }),
+    });
+    if (retryResponse.ok) return;
+
+    const retryMessage = await parseAirtableError(retryResponse);
+    throw new SyncEndpointError(`Failed to update Order External: ${retryMessage}`, 502);
   }
+
+  throw new SyncEndpointError(`Failed to update Order External: ${message}`, 502);
 }
 
 export async function updateOrderBillingStatus(
