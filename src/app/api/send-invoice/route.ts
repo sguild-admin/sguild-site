@@ -8,6 +8,7 @@ import {
   getOrderRecord,
   getOrgIntegrationRecord,
   listOrderExternalsByInvoice,
+  updateInvoicePaymentLink,
   updateInvoiceExternal,
 } from "@/lib/integrations/order-billing-processor/airtable";
 import { validateAirtableSecret } from "@/lib/integrations/order-billing-processor/auth";
@@ -33,7 +34,7 @@ type SendInvoiceBody = {
   forceResend?: unknown;
 };
 
-type DeliveryMethod = "Email" | "Sms" | "URL";
+type DeliveryMethod = "Email" | "Sms" | "Link";
 
 function methodNotAllowed(): NextResponse {
   return NextResponse.json(
@@ -43,8 +44,9 @@ function methodNotAllowed(): NextResponse {
 }
 
 function parseDeliveryMethod(value: unknown): DeliveryMethod {
-  if (value === "Email" || value === "Sms" || value === "URL") return value;
-  throw new SyncEndpointError("Invalid deliveryMethod. Must be Email, Sms, or URL.", 400);
+  if (value === "Email" || value === "Sms" || value === "Link") return value;
+  if (value === "URL") return "Link";
+  throw new SyncEndpointError("Invalid deliveryMethod. Must be Email, Sms, or Link.", 400);
 }
 
 function coerceDeliveryMethod(value: unknown): DeliveryMethod | null {
@@ -53,8 +55,13 @@ function coerceDeliveryMethod(value: unknown): DeliveryMethod | null {
   if (!normalized) return null;
   if (normalized === "email") return "Email";
   if (normalized === "sms" || normalized === "text") return "Sms";
-  if (normalized === "url" || normalized === "share_manually" || normalized === "share manually") {
-    return "URL";
+  if (
+    normalized === "link" ||
+    normalized === "url" ||
+    normalized === "share_manually" ||
+    normalized === "share manually"
+  ) {
+    return "Link";
   }
   return null;
 }
@@ -198,9 +205,9 @@ export async function POST(request: Request) {
 
     const deliveryMethod =
       parsed.deliveryMethod ??
-      coerceDeliveryMethod(invoice.deliveryMethod) ??
       coerceDeliveryMethod(invoiceExternal?.deliveryMethod) ??
-      "URL";
+      coerceDeliveryMethod(invoice.deliveryMethod) ??
+      "Link";
     const phoneSnapshot = parsed.phoneSnapshot ?? invoiceExternal?.phoneSnapshot ?? undefined;
 
     let externalInvoiceId = parsed.externalInvoiceId ?? invoiceExternal?.externalInvoiceId ?? null;
@@ -327,6 +334,10 @@ export async function POST(request: Request) {
         "Last API Message": "Send Invoice noop; already sent-like status",
       });
 
+      if (hostedInvoiceUrl) {
+        await updateInvoicePaymentLink(parsed.invoiceRecordId, hostedInvoiceUrl);
+      }
+
       return NextResponse.json(
         {
           ok: true,
@@ -385,6 +396,10 @@ export async function POST(request: Request) {
       "Last API Response Code": 200,
       "Last API Message": "Send Invoice processed",
     });
+
+    if (hostedInvoiceUrl) {
+      await updateInvoicePaymentLink(parsed.invoiceRecordId, hostedInvoiceUrl);
+    }
 
     return NextResponse.json(
       {

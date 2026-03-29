@@ -971,7 +971,7 @@ type InvoiceExternalWriteFields = {
   "Last Webhook Event Type"?: string;
   "Last Webhook Event ID"?: string;
   "Webhook Raw Payload"?: string;
-  "Delivery Method"?: "Email" | "Sms" | "URL";
+  "Delivery Method"?: "Email" | "Sms" | "Link" | "URL";
   "Phone Snapshot"?: string;
   "Sent At"?: string;
   "Last Send Error"?: string;
