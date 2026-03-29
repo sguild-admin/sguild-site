@@ -240,6 +240,7 @@ export async function createInvoiceFromOrderItems(input: {
   orderItems: OrderItem[];
   currency: string;
   deliveryMethod?: string | null;
+  saveCard?: boolean;
 }): Promise<{
   externalOrderId: string;
   externalInvoiceId: string;
@@ -282,6 +283,7 @@ export async function createInvoiceFromOrderItems(input: {
       location_id: input.context.externalLocationId,
       order_id: externalOrderId,
       delivery_method: toSquareDeliveryMethod(input.deliveryMethod),
+      ...(input.saveCard === true ? { store_payment_method_enabled: true } : {}),
       primary_recipient: {
         customer_id: input.externalCustomerId,
       },
@@ -292,6 +294,7 @@ export async function createInvoiceFromOrderItems(input: {
         {
           request_type: "BALANCE",
           due_date: buildInvoiceDueDateIso(7),
+          automatic_payment_source: "NONE",
         },
       ],
     },

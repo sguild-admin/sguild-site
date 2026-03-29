@@ -29,6 +29,7 @@ type SendInvoiceBody = {
   invoiceExternalRecordId?: unknown;
   externalInvoiceId?: unknown;
   deliveryMethod?: unknown;
+  saveCard?: unknown;
   phoneSnapshot?: unknown;
   idempotencyKey?: unknown;
   forceResend?: unknown;
@@ -72,6 +73,18 @@ function asTrimmedString(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function asOptionalBoolean(value: unknown): boolean | null {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value !== 0;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (!normalized) return null;
+    if (normalized === "true" || normalized === "yes" || normalized === "1") return true;
+    if (normalized === "false" || normalized === "no" || normalized === "0") return false;
+  }
+  return null;
+}
+
 function parseBody(body: unknown): {
   invoiceRecordId: string;
   orderRecordId?: string;
@@ -79,6 +92,7 @@ function parseBody(body: unknown): {
   invoiceExternalRecordId?: string;
   externalInvoiceId?: string;
   deliveryMethod?: DeliveryMethod;
+  saveCard?: boolean;
   phoneSnapshot?: string;
   idempotencyKey?: string;
   forceResend: boolean;
@@ -95,6 +109,7 @@ function parseBody(body: unknown): {
   const externalInvoiceId = asTrimmedString(typed.externalInvoiceId) ?? undefined;
   const idempotencyKey = asTrimmedString(typed.idempotencyKey) ?? undefined;
   const phoneSnapshot = asTrimmedString(typed.phoneSnapshot) ?? undefined;
+  const saveCard = asOptionalBoolean(typed.saveCard) ?? undefined;
   const requestedDeliveryMethodRaw = asTrimmedString(typed.deliveryMethod);
   const requestedDeliveryMethod = requestedDeliveryMethodRaw
     ? parseDeliveryMethod(requestedDeliveryMethodRaw)
@@ -110,6 +125,7 @@ function parseBody(body: unknown): {
     invoiceExternalRecordId,
     externalInvoiceId,
     ...(requestedDeliveryMethod ? { deliveryMethod: requestedDeliveryMethod } : {}),
+    ...(saveCard != null ? { saveCard } : {}),
     phoneSnapshot,
     idempotencyKey,
     forceResend: typed.forceResend === true,
@@ -151,6 +167,7 @@ export async function POST(request: Request) {
         invoiceExternalRecordId?: string;
         externalInvoiceId?: string;
         deliveryMethod?: DeliveryMethod;
+        saveCard?: boolean;
         phoneSnapshot?: string;
         idempotencyKey?: string;
         forceResend: boolean;
@@ -208,6 +225,7 @@ export async function POST(request: Request) {
       coerceDeliveryMethod(invoiceExternal?.deliveryMethod) ??
       coerceDeliveryMethod(invoice.deliveryMethod) ??
       "Link";
+    const saveCard = parsed.saveCard ?? invoiceExternal?.saveCard ?? invoice.saveCard ?? false;
     const phoneSnapshot = parsed.phoneSnapshot ?? invoiceExternal?.phoneSnapshot ?? undefined;
 
     let externalInvoiceId = parsed.externalInvoiceId ?? invoiceExternal?.externalInvoiceId ?? null;
@@ -281,6 +299,7 @@ export async function POST(request: Request) {
 
     await updateInvoiceExternal(invoiceExternal.recordId, {
       "Delivery Method": deliveryMethod,
+      "Save Card": saveCard,
       ...(phoneSnapshot ? { "Phone Snapshot": phoneSnapshot } : {}),
       "Send Attempt Count": (invoiceExternal.sendAttemptCount ?? 0) + 1,
       "External Process Action": "Send Invoice",
@@ -349,6 +368,7 @@ export async function POST(request: Request) {
           externalInvoiceId,
           externalStatus: externalStatusNow,
           deliveryMethod,
+          saveCard,
           hostedInvoiceUrl,
         },
         { status: 200 },
@@ -412,6 +432,7 @@ export async function POST(request: Request) {
         externalInvoiceId,
         externalStatus: mappedStatus,
         deliveryMethod,
+        saveCard,
         hostedInvoiceUrl,
         sentAt: new Date().toISOString(),
       },

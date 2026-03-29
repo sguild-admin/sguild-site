@@ -49,6 +49,7 @@ export type InvoiceRecord = {
   orderId: string | null;
   status: string | null;
   deliveryMethod: string | null;
+  saveCard: boolean | null;
   paymentLink: string | null;
   amountDue: number | null;
   amountPaid: number | null;
@@ -102,6 +103,7 @@ export type InvoiceExternalRecord = {
   externalProcessRawPayload: string | null;
   webhookRawPayload: string | null;
   deliveryMethod: string | null;
+  saveCard: boolean | null;
   phoneSnapshot: string | null;
   sentAt: string | null;
   lastSendError: string | null;
@@ -172,6 +174,24 @@ function readNumber(value: unknown): number | null {
   if (Array.isArray(value)) {
     for (const item of value) {
       const parsed = readNumber(item);
+      if (parsed != null) return parsed;
+    }
+  }
+  return null;
+}
+
+function readBoolean(value: unknown): boolean | null {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value !== 0;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (!normalized) return null;
+    if (normalized === "true" || normalized === "yes" || normalized === "1") return true;
+    if (normalized === "false" || normalized === "no" || normalized === "0") return false;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const parsed = readBoolean(item);
       if (parsed != null) return parsed;
     }
   }
@@ -373,6 +393,7 @@ function toInvoiceRecord(record: AirtableRecord): InvoiceRecord {
     orderId: readFirstLinkedId(fields.Order),
     status: readString(fields.Status),
     deliveryMethod: readString(fields["Delivery Method"]),
+    saveCard: readBoolean(fields["Save Card"]),
     paymentLink: readString(fields["Payment Link"]),
     amountDue: readNumber(fields["Amount Due"]),
     amountPaid: readNumber(fields["Amount Paid"]),
@@ -861,6 +882,7 @@ function toInvoiceExternalRecord(record: AirtableRecord): InvoiceExternalRecord 
     externalProcessRawPayload,
     webhookRawPayload,
     deliveryMethod: readString(fields["Delivery Method"]),
+    saveCard: readBoolean(fields["Save Card"]),
     phoneSnapshot: readString(fields["Phone Snapshot"]),
     sentAt: readString(fields["Sent At"]),
     lastSendError: readString(fields["Last Send Error"]),
@@ -972,6 +994,7 @@ type InvoiceExternalWriteFields = {
   "Last Webhook Event ID"?: string;
   "Webhook Raw Payload"?: string;
   "Delivery Method"?: "Email" | "Sms" | "Link" | "URL";
+  "Save Card"?: boolean;
   "Phone Snapshot"?: string;
   "Sent At"?: string;
   "Last Send Error"?: string;
@@ -1002,6 +1025,7 @@ export async function createInvoiceExternal(
     "Last Webhook Event ID",
     "Webhook Raw Payload",
     "Delivery Method",
+    "Save Card",
     "Phone Snapshot",
     "Sent At",
     "Last Send Error",
@@ -1054,6 +1078,7 @@ export async function updateInvoiceExternal(
     "Last Webhook Event ID",
     "Webhook Raw Payload",
     "Delivery Method",
+    "Save Card",
     "Phone Snapshot",
     "Sent At",
     "Last Send Error",
