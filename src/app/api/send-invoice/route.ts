@@ -226,7 +226,7 @@ export async function POST(request: Request) {
       coerceDeliveryMethod(invoiceExternal?.deliveryMethod) ??
       coerceDeliveryMethod(invoice.deliveryMethod) ??
       "Link";
-    const saveCard = parsed.saveCard ?? invoiceExternal?.saveCard ?? invoice.saveCard ?? false;
+    const saveCard = parsed.saveCard ?? invoiceExternal?.saveCard ?? invoice.saveCard ?? true;
     const phoneSnapshot = parsed.phoneSnapshot ?? invoiceExternal?.phoneSnapshot ?? undefined;
 
     let externalInvoiceId = parsed.externalInvoiceId ?? invoiceExternal?.externalInvoiceId ?? null;
