@@ -7,6 +7,7 @@ import {
   getInvoiceRecord,
   getOrderRecord,
   getOrgIntegrationRecord,
+  listOrderExternalsByInvoice,
   updateInvoiceExternal,
 } from "@/lib/integrations/order-billing-processor/airtable";
 import { validateAirtableSecret } from "@/lib/integrations/order-billing-processor/auth";
@@ -202,11 +203,29 @@ export async function POST(request: Request) {
       "URL";
     const phoneSnapshot = parsed.phoneSnapshot ?? invoiceExternal?.phoneSnapshot ?? undefined;
 
-    const externalInvoiceId =
-      parsed.externalInvoiceId ?? invoiceExternal?.externalInvoiceId ?? null;
+    let externalInvoiceId = parsed.externalInvoiceId ?? invoiceExternal?.externalInvoiceId ?? null;
+
+    if (!externalInvoiceId) {
+      const orderExternals = await listOrderExternalsByInvoice(parsed.invoiceRecordId);
+      const derivedExternalInvoiceIds = [...new Set(
+        orderExternals
+          .map((row) => row.externalInvoiceId)
+          .filter((value): value is string => typeof value === "string" && value.trim().length > 0),
+      )];
+
+      if (derivedExternalInvoiceIds.length > 1) {
+        throw new SyncEndpointError(
+          "Multiple external invoice IDs found across linked Order Externals.",
+          409,
+        );
+      }
+
+      externalInvoiceId = derivedExternalInvoiceIds[0] ?? null;
+    }
+
     if (!externalInvoiceId) {
       throw new SyncEndpointError(
-        "Missing externalInvoiceId and no matching Invoice External row found.",
+        "Missing externalInvoiceId and unable to derive one from Invoice External or linked Order Externals.",
         422,
       );
     }
@@ -234,6 +253,16 @@ export async function POST(request: Request) {
     }
 
     invoiceExternalRecordIdForFailure = invoiceExternal.recordId;
+
+    if (!invoiceExternal.externalInvoiceId) {
+      await updateInvoiceExternal(invoiceExternal.recordId, {
+        "External Invoice ID": externalInvoiceId,
+      });
+      invoiceExternal = {
+        ...invoiceExternal,
+        externalInvoiceId,
+      };
+    }
 
     const idempotencyKey =
       parsed.idempotencyKey ??
