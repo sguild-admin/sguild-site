@@ -46,6 +46,18 @@ function parseDeliveryMethod(value: unknown): DeliveryMethod {
   throw new SyncEndpointError("Invalid deliveryMethod. Must be Email, Sms, or URL.", 400);
 }
 
+function coerceDeliveryMethod(value: unknown): DeliveryMethod | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return null;
+  if (normalized === "email") return "Email";
+  if (normalized === "sms" || normalized === "text") return "Sms";
+  if (normalized === "url" || normalized === "share_manually" || normalized === "share manually") {
+    return "URL";
+  }
+  return null;
+}
+
 function asTrimmedString(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -54,11 +66,11 @@ function asTrimmedString(value: unknown): string | null {
 
 function parseBody(body: unknown): {
   invoiceRecordId: string;
-  orderRecordId: string;
+  orderRecordId?: string;
   orgIntegrationRecordId: string;
   invoiceExternalRecordId?: string;
   externalInvoiceId?: string;
-  deliveryMethod: DeliveryMethod;
+  deliveryMethod?: DeliveryMethod;
   phoneSnapshot?: string;
   idempotencyKey?: string;
   forceResend: boolean;
@@ -75,18 +87,21 @@ function parseBody(body: unknown): {
   const externalInvoiceId = asTrimmedString(typed.externalInvoiceId) ?? undefined;
   const idempotencyKey = asTrimmedString(typed.idempotencyKey) ?? undefined;
   const phoneSnapshot = asTrimmedString(typed.phoneSnapshot) ?? undefined;
+  const requestedDeliveryMethodRaw = asTrimmedString(typed.deliveryMethod);
+  const requestedDeliveryMethod = requestedDeliveryMethodRaw
+    ? parseDeliveryMethod(requestedDeliveryMethodRaw)
+    : undefined;
 
   if (!invoiceRecordId) throw new SyncEndpointError("Missing invoiceRecordId.", 400);
-  if (!orderRecordId) throw new SyncEndpointError("Missing orderRecordId.", 400);
   if (!orgIntegrationRecordId) throw new SyncEndpointError("Missing orgIntegrationRecordId.", 400);
 
   return {
     invoiceRecordId,
-    orderRecordId,
+    ...(orderRecordId ? { orderRecordId } : {}),
     orgIntegrationRecordId,
     invoiceExternalRecordId,
     externalInvoiceId,
-    deliveryMethod: parseDeliveryMethod(typed.deliveryMethod),
+    ...(requestedDeliveryMethod ? { deliveryMethod: requestedDeliveryMethod } : {}),
     phoneSnapshot,
     idempotencyKey,
     forceResend: typed.forceResend === true,
@@ -123,11 +138,11 @@ export async function POST(request: Request) {
   let parsed:
     | {
         invoiceRecordId: string;
-        orderRecordId: string;
+        orderRecordId?: string;
         orgIntegrationRecordId: string;
         invoiceExternalRecordId?: string;
         externalInvoiceId?: string;
-        deliveryMethod: DeliveryMethod;
+        deliveryMethod?: DeliveryMethod;
         phoneSnapshot?: string;
         idempotencyKey?: string;
         forceResend: boolean;
@@ -151,15 +166,21 @@ export async function POST(request: Request) {
 
     parsed = parseBody(body);
 
-    const [invoice, order, orgIntegration] = await Promise.all([
+    const [invoice, orgIntegration] = await Promise.all([
       getInvoiceRecord(parsed.invoiceRecordId),
-      getOrderRecord(parsed.orderRecordId),
       getOrgIntegrationRecord(parsed.orgIntegrationRecordId),
     ]);
 
-    if (!invoice.orderId || invoice.orderId !== parsed.orderRecordId) {
+    const resolvedOrderRecordId = parsed.orderRecordId ?? invoice.orderId ?? null;
+    if (!resolvedOrderRecordId) {
+      throw new SyncEndpointError("Missing orderRecordId and Invoice is not linked to an Order.", 422);
+    }
+
+    if (parsed.orderRecordId && invoice.orderId && invoice.orderId !== parsed.orderRecordId) {
       throw new SyncEndpointError("Invoice is not linked to the provided Order.", 422);
     }
+
+    const order = await getOrderRecord(resolvedOrderRecordId);
 
     if (!order.recordId) {
       throw new SyncEndpointError("Order not found.", 404);
@@ -174,6 +195,13 @@ export async function POST(request: Request) {
           parsed.orgIntegrationRecordId,
         );
 
+    const deliveryMethod =
+      parsed.deliveryMethod ??
+      coerceDeliveryMethod(invoice.deliveryMethod) ??
+      coerceDeliveryMethod(invoiceExternal?.deliveryMethod) ??
+      "URL";
+    const phoneSnapshot = parsed.phoneSnapshot ?? invoiceExternal?.phoneSnapshot ?? undefined;
+
     const externalInvoiceId =
       parsed.externalInvoiceId ?? invoiceExternal?.externalInvoiceId ?? null;
     if (!externalInvoiceId) {
@@ -186,7 +214,7 @@ export async function POST(request: Request) {
     if (!invoiceExternal) {
       invoiceExternal = await createInvoiceExternal({
         Invoice: [parsed.invoiceRecordId],
-        Order: [parsed.orderRecordId],
+        Order: [resolvedOrderRecordId],
         "Org Integration": [parsed.orgIntegrationRecordId],
         "External Invoice ID": externalInvoiceId,
         "External Status": "Draft",
@@ -212,12 +240,12 @@ export async function POST(request: Request) {
       defaultSendIdempotencyKey({
         provider: context.provider,
         invoiceRecordId: parsed.invoiceRecordId,
-        deliveryMethod: parsed.deliveryMethod,
+        deliveryMethod,
       });
 
     await updateInvoiceExternal(invoiceExternal.recordId, {
-      "Delivery Method": parsed.deliveryMethod,
-      ...(parsed.phoneSnapshot ? { "Phone Snapshot": parsed.phoneSnapshot } : {}),
+      "Delivery Method": deliveryMethod,
+      ...(phoneSnapshot ? { "Phone Snapshot": phoneSnapshot } : {}),
       "Send Attempt Count": (invoiceExternal.sendAttemptCount ?? 0) + 1,
       "External Process Action": "Send Invoice",
       "External Process Status": "Pending",
@@ -276,11 +304,11 @@ export async function POST(request: Request) {
           action: "Send Invoice",
           result: "noop",
           invoiceId: parsed.invoiceRecordId,
-          orderId: parsed.orderRecordId,
+          orderId: resolvedOrderRecordId,
           invoiceExternalRecordId: invoiceExternal.recordId,
           externalInvoiceId,
           externalStatus: externalStatusNow,
-          deliveryMethod: parsed.deliveryMethod,
+          deliveryMethod,
           hostedInvoiceUrl,
         },
         { status: 200 },
@@ -335,11 +363,11 @@ export async function POST(request: Request) {
         action: "Send Invoice",
         result: "processed",
         invoiceId: parsed.invoiceRecordId,
-        orderId: parsed.orderRecordId,
+        orderId: resolvedOrderRecordId,
         invoiceExternalRecordId: invoiceExternal.recordId,
         externalInvoiceId,
         externalStatus: mappedStatus,
-        deliveryMethod: parsed.deliveryMethod,
+        deliveryMethod,
         hostedInvoiceUrl,
         sentAt: new Date().toISOString(),
       },
