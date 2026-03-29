@@ -100,6 +100,42 @@ async function squarePost(
   return parsed;
 }
 
+async function squarePut(
+  path: string,
+  body: unknown,
+  context: ProviderContext,
+): Promise<unknown> {
+  let response: Response;
+  try {
+    response = await fetch(`${getSquareBaseUrl()}${path}`, {
+      method: "PUT",
+      headers: squareHeaders(context.accessToken),
+      body: JSON.stringify(body),
+      cache: "no-store",
+    });
+  } catch (error) {
+    throw new SyncEndpointError("Failed to reach provider API.", 502, {
+      rawPayload: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  let parsed: unknown = {};
+  try {
+    parsed = await response.json();
+  } catch {
+    // handled below if not ok
+  }
+
+  if (!response.ok) {
+    const parsedMessage = parseSquareErrorMessage(parsed);
+    throw new SyncEndpointError(`Square API error (${response.status}): ${parsedMessage}.`, 502, {
+      rawPayload: safeStringify(parsed),
+    });
+  }
+
+  return parsed;
+}
+
 async function squareGet(path: string, context: ProviderContext): Promise<unknown> {
   let response: Response;
   try {
@@ -283,7 +319,7 @@ export async function createInvoiceFromOrderItems(input: {
       location_id: input.context.externalLocationId,
       order_id: externalOrderId,
       delivery_method: toSquareDeliveryMethod(input.deliveryMethod),
-      ...(input.saveCard === true ? { store_payment_method_enabled: true } : {}),
+      store_payment_method_enabled: true,
       primary_recipient: {
         customer_id: input.externalCustomerId,
       },
@@ -465,6 +501,54 @@ export async function publishInvoice(input: {
     {
       version: input.version,
       idempotency_key: input.idempotencyKey,
+    },
+    input.context,
+  )) as {
+    invoice?: {
+      status?: string;
+      public_url?: string;
+      version?: number;
+    };
+  };
+
+  return {
+    externalStatus: response.invoice?.status ?? null,
+    hostedInvoiceUrl: response.invoice?.public_url ?? null,
+    version: typeof response.invoice?.version === "number" ? response.invoice.version : null,
+    rawPayload: safeStringify(response),
+  };
+}
+
+export async function updateInvoiceSettings(input: {
+  context: ProviderContext;
+  externalInvoiceId: string;
+  version: number;
+  deliveryMethod?: string | null;
+  saveCard: boolean;
+}): Promise<{
+  externalStatus: string | null;
+  hostedInvoiceUrl: string | null;
+  version: number | null;
+  rawPayload: string;
+}> {
+  const response = (await squarePut(
+    `/v2/invoices/${encodeURIComponent(input.externalInvoiceId)}`,
+    {
+      invoice: {
+        version: input.version,
+        delivery_method: toSquareDeliveryMethod(input.deliveryMethod),
+        store_payment_method_enabled: input.saveCard,
+        accepted_payment_methods: {
+          card: true,
+        },
+        payment_requests: [
+          {
+            request_type: "BALANCE",
+            due_date: buildInvoiceDueDateIso(7),
+            automatic_payment_source: "NONE",
+          },
+        ],
+      },
     },
     input.context,
   )) as {

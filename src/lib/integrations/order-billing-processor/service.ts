@@ -962,7 +962,7 @@ export async function runOrderBillingProcessor(
           orderItems,
           currency: order.currency as string,
           deliveryMethod: invoice.deliveryMethod,
-          saveCard: invoice.saveCard === true,
+          saveCard: true,
         });
 
         externalOrderIdForInvoice = createdProviderInvoice.externalOrderId;

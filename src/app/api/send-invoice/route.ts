@@ -18,6 +18,7 @@ import {
   getInvoiceDetails,
   getInvoicePublicUrl,
   publishInvoice,
+  updateInvoiceSettings,
 } from "@/lib/integrations/order-billing-processor/square";
 
 export const runtime = "nodejs";
@@ -321,7 +322,27 @@ export async function POST(request: Request) {
       externalInvoiceId,
     });
 
-    const externalStatusNow = mapSquareInvoiceStatusToExternal(details.status);
+    let effectiveStatus = details.status;
+    let effectiveVersion = details.version;
+    let effectivePublicUrl = details.publicUrl;
+    let settingsRawPayload: string | null = null;
+
+    if (effectiveVersion != null) {
+      const settingsUpdate = await updateInvoiceSettings({
+        context,
+        externalInvoiceId,
+        version: effectiveVersion,
+        deliveryMethod,
+        saveCard,
+      });
+
+      settingsRawPayload = settingsUpdate.rawPayload;
+      effectiveStatus = settingsUpdate.externalStatus ?? effectiveStatus;
+      effectivePublicUrl = settingsUpdate.hostedInvoiceUrl ?? effectivePublicUrl;
+      effectiveVersion = settingsUpdate.version ?? effectiveVersion;
+    }
+
+    const externalStatusNow = mapSquareInvoiceStatusToExternal(effectiveStatus);
     const alreadySentLike =
       externalStatusNow === "Sent" ||
       externalStatusNow === "Partially Paid" ||
@@ -329,7 +350,7 @@ export async function POST(request: Request) {
 
     if (alreadySentLike && !parsed.forceResend) {
       const hostedInvoiceUrl =
-        details.publicUrl ??
+        effectivePublicUrl ??
         (await getInvoicePublicUrl({
           context,
           externalInvoiceId,
@@ -342,7 +363,7 @@ export async function POST(request: Request) {
         "Last Send Error": "",
         "External Process Status": "Succeeded",
         "External Process At": new Date().toISOString(),
-        "External Process Raw Payload": details.rawPayload,
+        "External Process Raw Payload": settingsRawPayload ?? details.rawPayload,
         "Writeback Status": "Succeeded",
         "Writeback At": new Date().toISOString(),
         "Writeback Error": "",
@@ -375,20 +396,20 @@ export async function POST(request: Request) {
       );
     }
 
-    if (details.version == null) {
+    if (effectiveVersion == null) {
       throw new SyncEndpointError("Unable to send invoice: provider invoice version is missing.", 409);
     }
 
     const publishResult = await publishInvoice({
       context,
       externalInvoiceId,
-      version: details.version,
+      version: effectiveVersion,
       idempotencyKey,
     });
 
     const hostedInvoiceUrl =
       publishResult.hostedInvoiceUrl ??
-      details.publicUrl ??
+      effectivePublicUrl ??
       (await getInvoicePublicUrl({
         context,
         externalInvoiceId,
@@ -406,7 +427,9 @@ export async function POST(request: Request) {
       "External Process Status": "Succeeded",
       "External Process At": new Date().toISOString(),
       "External Process Error": "",
-      "External Process Raw Payload": publishResult.rawPayload,
+      "External Process Raw Payload": settingsRawPayload
+        ? JSON.stringify({ settings: settingsRawPayload, publish: publishResult.rawPayload })
+        : publishResult.rawPayload,
       "Writeback Status": "Succeeded",
       "Writeback At": new Date().toISOString(),
       "Writeback Error": "",

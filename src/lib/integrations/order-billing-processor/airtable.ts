@@ -393,7 +393,7 @@ function toInvoiceRecord(record: AirtableRecord): InvoiceRecord {
     orderId: readFirstLinkedId(fields.Order),
     status: readString(fields.Status),
     deliveryMethod: readString(fields["Delivery Method"]),
-    saveCard: readBoolean(fields["Save Card"]),
+    saveCard: readBoolean(fields["Save Card"]) ?? readBoolean(fields["Save Card on File"]),
     paymentLink: readString(fields["Payment Link"]),
     amountDue: readNumber(fields["Amount Due"]),
     amountPaid: readNumber(fields["Amount Paid"]),
@@ -882,7 +882,7 @@ function toInvoiceExternalRecord(record: AirtableRecord): InvoiceExternalRecord 
     externalProcessRawPayload,
     webhookRawPayload,
     deliveryMethod: readString(fields["Delivery Method"]),
-    saveCard: readBoolean(fields["Save Card"]),
+    saveCard: readBoolean(fields["Save Card"]) ?? readBoolean(fields["Save Card on File"]),
     phoneSnapshot: readString(fields["Phone Snapshot"]),
     sentAt: readString(fields["Sent At"]),
     lastSendError: readString(fields["Last Send Error"]),
@@ -995,6 +995,7 @@ type InvoiceExternalWriteFields = {
   "Webhook Raw Payload"?: string;
   "Delivery Method"?: "Email" | "Sms" | "Link" | "URL";
   "Save Card"?: boolean;
+  "Save Card on File"?: boolean;
   "Phone Snapshot"?: string;
   "Sent At"?: string;
   "Last Send Error"?: string;
@@ -1026,6 +1027,7 @@ export async function createInvoiceExternal(
     "Webhook Raw Payload",
     "Delivery Method",
     "Save Card",
+    "Save Card on File",
     "Phone Snapshot",
     "Sent At",
     "Last Send Error",
@@ -1079,6 +1081,7 @@ export async function updateInvoiceExternal(
     "Webhook Raw Payload",
     "Delivery Method",
     "Save Card",
+    "Save Card on File",
     "Phone Snapshot",
     "Sent At",
     "Last Send Error",
