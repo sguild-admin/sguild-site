@@ -541,13 +541,6 @@ export async function updateInvoiceSettings(input: {
         accepted_payment_methods: {
           card: true,
         },
-        payment_requests: [
-          {
-            request_type: "BALANCE",
-            due_date: buildInvoiceDueDateIso(7),
-            automatic_payment_source: "NONE",
-          },
-        ],
       },
     },
     input.context,
