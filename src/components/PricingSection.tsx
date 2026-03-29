@@ -13,7 +13,7 @@ type Props = {
 export default function PricingSection({
   city,
   title = 'Pricing',
-  subtitle = 'All lessons are private, one-on-one, 30-minute sessions at your pool.',
+  subtitle = '30-minute private or shared lessons at your location, add students at no extra charge.',
   badgeText = 'No fees - Simple packages',
   sectionId = 'pricing',
 }: Props) {

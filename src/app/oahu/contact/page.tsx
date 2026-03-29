@@ -30,7 +30,7 @@ export default function OahuContactPage() {
             <div className="mt-6 flex flex-wrap gap-3">
               <Button href={telHref} variant="primary">Call Now</Button>
               <Button href={smsHref} variant="secondary">Text Us</Button>
-              <Button href={requestHref} variant="secondary">Request Lesson</Button>
+              <Button href={requestHref} variant="secondary">Check Availability</Button>
             </div>
             <div className="mt-6 rounded-2xl bg-white/80 p-4 ring-1 ring-slate-200">
               <h2 className="text-base font-semibold text-slate-900">Helpful details to include</h2>

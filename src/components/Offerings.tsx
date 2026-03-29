@@ -149,7 +149,7 @@ export default function Offerings({
       <h2 className="text-2xl font-bold md:text-3xl">
         {title}
       </h2>
-      <p className="mt-2 max-w-3xl text-sm text-slate-600">{description}</p>
+      <p className="mt-2 text-sm text-slate-600">{description}</p>
 
       <div className="mt-9 grid gap-8 md:grid-cols-12 md:items-start lg:gap-12">
         <div className="md:col-span-7">

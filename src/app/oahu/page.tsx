@@ -65,11 +65,11 @@ export default function OahuPage() {
 
       <Hero
         title={"Mobile Swim Lessons on Oʻahu"}
-        subtitle={"Personalized swim instruction for kids and adults, focused on confidence, safety, and technique."}
+        subtitle={"Personalized swim instruction for kids and adults, designed to build confidence and technique at your ocean spot or pool on Oʻahu."}
         ctas={[
-          { label: 'Get Started Today', href: '/lesson-request', variant: 'primary' },
+          { label: 'Check Availability', href: '/lesson-request', variant: 'primary' },
           { label: PHONE_DISPLAY, href: telHref, variant: 'secondary' },
-          { label: 'View Pricing', href: '#pricing', variant: 'secondary' },
+          { label: 'See Pricing', href: '#pricing', variant: 'secondary' },
         ]}
         imageSrc={'/assets/oahuHero.png'}
         imageAlt={'Oʻahu swim lessons with Sguild Swim Instruction'}
@@ -79,7 +79,7 @@ export default function OahuPage() {
       <Offerings
         title="Swim Lessons for Every Level"
         titleSubline="Personalized instruction at your home pool"
-        description="From first-time swimmers to advanced training, lessons are tailored to your goals and comfort level."
+        description="From beginners to advanced swimmers, each lesson is tailored to your goals and comfort and can be shared with others at no extra cost."
         youthLabel="For Keiki"
       />
 

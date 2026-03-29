@@ -86,6 +86,21 @@ export default async function SwimFundamentalsPage() {
             <p className="mt-2 text-slate-600">Check back soon for the first Swim Fundamentals lesson.</p>
           </section>
         )}
+
+        <section className="mt-10 rounded-2xl border border-slate-200 bg-slate-50 p-6">
+          <h2 className="text-xl font-semibold text-slate-900">Ready for coached progress?</h2>
+          <p className="mt-2 text-slate-700">
+            Pair this series with personalized lessons to improve faster and build confidence in real swim conditions.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Link href="/pricing" className="rounded-full bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700">
+              See Pricing
+            </Link>
+            <Link href="/lesson-request" className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+              Check Availability
+            </Link>
+          </div>
+        </section>
       </main>
     </PageContainer>
   );

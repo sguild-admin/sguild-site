@@ -45,7 +45,10 @@ export default function PricingClient() {
                 Pricing
               </h1>
               <p className="mt-4 text-lg leading-relaxed text-slate-700">
-                Private, 30-minute lessons. No fees.
+                Private or small-group, 30-minute lessons at your pool.
+              </p>
+              <p className="mt-2 inline-flex rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sm font-semibold text-sky-800">
+                No fees - Simple packages
               </p>
             </div>
             
@@ -68,7 +71,7 @@ export default function PricingClient() {
         <div>
           <h2 className="text-2xl font-bold text-slate-900 md:text-3xl">Lessons and Packages</h2>
           <p className="mt-1 text-sm text-slate-600">
-            All lessons are private, one-on-one, 30-minute sessions at your pool.
+            30-minute private or shared lessons at your location, add students at no extra charge.
           </p>
         </div>
       </div>
@@ -78,6 +81,20 @@ export default function PricingClient() {
       </div>
 
       <PaymentsPanel />
+
+      <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-slate-700">
+            Ready to get started in {cityLabel}? Check availability and we will match you to the best lesson option.
+          </p>
+          <a
+            href="/lesson-request"
+            className="inline-flex items-center justify-center rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700"
+          >
+            Check Availability
+          </a>
+        </div>
+      </div>
     </div>
 
     {/* Reassurance (avoid widget overlap) */}

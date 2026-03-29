@@ -28,8 +28,8 @@ export default function FAQs({ city, phoneDisplay, telHref, smsHref, requestHref
           We offer lessons for ages <span className="font-medium">2 through adult</span>, from water-shy beginners to advanced swimmers.
         </FAQItem>
 
-        <FAQItem question={`How long is a lesson?`}>
-          Each session is <span className="font-medium">30 minutes</span>. Lessons are focused and efficient so swimmers stay engaged while building real skills and confidence.
+        <FAQItem question={`Can siblings or friends share a lesson?`}>
+          Yes. Lessons are priced per session, not per swimmer, so siblings and friends are welcome to join at no extra charge. It is a great fit for kids at similar levels or adults learning together.
         </FAQItem>
 
         <FAQItem question={`How do I book?`}>
@@ -37,11 +37,9 @@ export default function FAQs({ city, phoneDisplay, telHref, smsHref, requestHref
           <div className="mt-3 flex flex-wrap gap-2 text-sm">
             <a href={telHref} className="rounded-full bg-sky-600 px-3 py-1.5 text-white">{phoneDisplay}</a>
             <a href={smsHref} className="rounded-full border border-slate-300 px-3 py-1.5">Text</a>
-            <a href={requestHref} className="rounded-full border border-slate-300 px-3 py-1.5">Request Lesson</a>
+            <a href={requestHref} className="rounded-full border border-slate-300 px-3 py-1.5">Check Availability</a>
           </div>
         </FAQItem>
-
-        {/* Pricing moved to dedicated Pricing sections/pages */}
       </div>
     </section>
   )

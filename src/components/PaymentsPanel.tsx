@@ -5,7 +5,7 @@ export default function PaymentsPanel() {
   return (
     <section className="mt-4">
       <div className="mx-auto mb-3 h-px w-full max-w-4xl bg-slate-200" />
-      <p className="mt-2 text-center text-sm text-slate-600">No fees or charges for additional students - Packages valid for 12 months</p>
+      <p className="mt-2 text-center text-xs text-slate-500">Packages are valid for 12 months.</p>
 
       <div className="mt-4 flex items-center justify-center">
         <Image
