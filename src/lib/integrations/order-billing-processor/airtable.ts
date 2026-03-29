@@ -82,15 +82,42 @@ export type InvoiceExternalRecord = {
   orderId: string | null;
   orgIntegrationId: string | null;
   externalInvoiceId: string | null;
+  externalOrderId: string | null;
   externalStatus: string | null;
   amountDue: number | null;
   amountPaid: number | null;
+  amountRefunded: number | null;
   issuedAt: string | null;
   dueAt: string | null;
   paidAt: string | null;
+  voidedAt: string | null;
   hostedInvoiceUrl: string | null;
   lastSyncedAt: string | null;
+  lastSyncActivityAt: string | null;
   webhookReceivedAt: string | null;
+  lastWebhookEventType: string | null;
+  lastWebhookEventId: string | null;
+  externalProcessRawPayload: string | null;
+  webhookRawPayload: string | null;
+  deliveryMethod: string | null;
+  phoneSnapshot: string | null;
+  sentAt: string | null;
+  lastSendError: string | null;
+  sendAttemptCount: number | null;
+  externalProcessStatus: string | null;
+  externalProcessAction: string | null;
+  externalProcessAt: string | null;
+  externalProcessError: string | null;
+  externalActionIdempotencyKey: string | null;
+  writebackStatus: string | null;
+  writebackAt: string | null;
+  writebackError: string | null;
+  writebackRetryCount: number | null;
+  writebackLastAttemptAt: string | null;
+  reconciliationStatus: string | null;
+  lastApiResponseCode: number | null;
+  lastApiMessage: string | null;
+  internalNotes: string | null;
   rawPayload: string | null;
   syncStatus: string | null;
   syncError: string | null;
@@ -147,6 +174,16 @@ function readNumber(value: unknown): number | null {
     }
   }
   return null;
+}
+
+function readOrderItemDescription(fields: Record<string, unknown>): string | null {
+  return (
+    readString(fields["Offering Description"]) ??
+    readString(fields["Offering Name"]) ??
+    readString(fields.Description) ??
+    readString(fields.Name) ??
+    readString(fields.Title)
+  );
 }
 
 function isEnabled(value: unknown): boolean {
@@ -728,7 +765,7 @@ export async function listOrderItems(orderRecordId: string): Promise<OrderItem[]
         const fields = record.fields ?? {};
         rows.push({
           recordId: record.id,
-          description: readString(fields["Offering Description"]),
+          description: readOrderItemDescription(fields),
           netAmount: readNumber(fields["Net Amount"]),
         });
       }
@@ -779,7 +816,7 @@ export async function listOrderItems(orderRecordId: string): Promise<OrderItem[]
 
       scannedRows.push({
         recordId: record.id,
-        description: readString(fields["Offering Description"]),
+        description: readOrderItemDescription(fields),
         netAmount: readNumber(fields["Net Amount"]),
       });
     }
@@ -794,22 +831,51 @@ export async function listOrderItems(orderRecordId: string): Promise<OrderItem[]
 
 function toInvoiceExternalRecord(record: AirtableRecord): InvoiceExternalRecord {
   const fields = record.fields ?? {};
+  const externalProcessRawPayload = readString(fields["External Process Raw Payload"]);
+  const webhookRawPayload = readString(fields["Webhook Raw Payload"]);
   return {
     recordId: record.id,
     invoiceId: readFirstLinkedId(fields.Invoice),
     orderId: readFirstLinkedId(fields.Order),
     orgIntegrationId: readFirstLinkedId(fields["Org Integration"]),
     externalInvoiceId: readString(fields["External Invoice ID"]),
+    externalOrderId: readString(fields["External Order ID"]),
     externalStatus: readString(fields["External Status"]),
     amountDue: readNumber(fields["Amount Due"]),
     amountPaid: readNumber(fields["Amount Paid"]),
+    amountRefunded: readNumber(fields["Amount Refunded"]),
     issuedAt: readString(fields["Issued At"]),
     dueAt: readString(fields["Due At"]),
     paidAt: readString(fields["Paid At"]),
+    voidedAt: readString(fields["Voided At"]),
     hostedInvoiceUrl: readString(fields["Hosted Invoice URL"]),
     lastSyncedAt: readString(fields["Last Synced At"]),
+    lastSyncActivityAt: readString(fields["Last Sync Activity At"]),
     webhookReceivedAt: readString(fields["Webhook Received At"]),
-    rawPayload: readString(fields["Raw Payload"]),
+    lastWebhookEventType: readString(fields["Last Webhook Event Type"]),
+    lastWebhookEventId: readString(fields["Last Webhook Event ID"]),
+    externalProcessRawPayload,
+    webhookRawPayload,
+    deliveryMethod: readString(fields["Delivery Method"]),
+    phoneSnapshot: readString(fields["Phone Snapshot"]),
+    sentAt: readString(fields["Sent At"]),
+    lastSendError: readString(fields["Last Send Error"]),
+    sendAttemptCount: readNumber(fields["Send Attempt Count"]),
+    externalProcessStatus: readString(fields["External Process Status"]),
+    externalProcessAction: readString(fields["External Process Action"]),
+    externalProcessAt: readString(fields["External Process At"]),
+    externalProcessError: readString(fields["External Process Error"]),
+    externalActionIdempotencyKey: readString(fields["External Action Idempotency Key"]),
+    writebackStatus: readString(fields["Writeback Status"]),
+    writebackAt: readString(fields["Writeback At"]),
+    writebackError: readString(fields["Writeback Error"]),
+    writebackRetryCount: readNumber(fields["Writeback Retry Count"]),
+    writebackLastAttemptAt: readString(fields["Writeback Last Attempt At"]),
+    reconciliationStatus: readString(fields["Reconciliation Status"]),
+    lastApiResponseCode: readNumber(fields["Last API Response Code"]),
+    lastApiMessage: readString(fields["Last API Message"]),
+    internalNotes: readString(fields["Internal Notes"]),
+    rawPayload: externalProcessRawPayload ?? webhookRawPayload ?? readString(fields["Raw Payload"]),
     syncStatus: readString(fields["Sync Status"]),
     syncError: readString(fields["Sync Error"]),
   };
@@ -850,20 +916,65 @@ export async function findInvoiceExternalByInvoiceAndOrgIntegration(
   return toInvoiceExternalRecord(records[0]);
 }
 
+export async function getInvoiceExternalById(
+  invoiceExternalRecordId: string,
+): Promise<InvoiceExternalRecord> {
+  const record = await getRecord(
+    INVOICE_EXTERNALS_TABLE,
+    invoiceExternalRecordId,
+    "Invoice External",
+  );
+  return toInvoiceExternalRecord(record);
+}
+
 type InvoiceExternalWriteFields = {
   Invoice?: string[];
   Order?: string[];
   "Org Integration"?: string[];
   "External Invoice ID"?: string;
+  "External Order ID"?: string;
   "External Status"?: string;
   "Amount Due"?: number;
   "Amount Paid"?: number;
+  "Amount Refunded"?: number;
   "Issued At"?: string;
   "Due At"?: string;
   "Paid At"?: string;
+  "Voided At"?: string;
   "Hosted Invoice URL"?: string;
+  "External Process Action"?: "Create Invoice" | "Send Invoice" | "Cancel Invoice" | "Mark Paid" | "Sync";
+  "External Process Status"?: "Not Started" | "Pending" | "Succeeded" | "Failed";
+  "External Process At"?: string;
+  "External Process Error"?: string;
+  "External Action Idempotency Key"?: string;
+  "External Process Raw Payload"?: string;
+  "Writeback Status"?: "Not Started" | "Pending" | "Succeeded" | "Failed";
+  "Writeback At"?: string;
+  "Writeback Error"?: string;
+  "Writeback Retry Count"?: number;
+  "Writeback Last Attempt At"?: string;
+  "Reconciliation Status"?:
+    | "Not Started"
+    | "In Progress"
+    | "Complete"
+    | "External Failed"
+    | "Writeback Failed"
+    | "Writeback Failed After External Success"
+    | "Needs Review";
   "Last Synced At"?: string;
+  "Last Sync Activity At"?: string;
   "Webhook Received At"?: string;
+  "Last Webhook Event Type"?: string;
+  "Last Webhook Event ID"?: string;
+  "Webhook Raw Payload"?: string;
+  "Delivery Method"?: "Email" | "Sms" | "URL";
+  "Phone Snapshot"?: string;
+  "Sent At"?: string;
+  "Last Send Error"?: string;
+  "Send Attempt Count"?: number;
+  "Last API Response Code"?: number;
+  "Last API Message"?: string;
+  "Internal Notes"?: string;
   "Raw Payload"?: string;
   "Sync Status"?: "Synced" | "Failed";
   "Sync Error"?: string;
@@ -879,7 +990,23 @@ function isUnknownOptionalFieldError(message: string, key: string): boolean {
 export async function createInvoiceExternal(
   fields: InvoiceExternalWriteFields,
 ): Promise<InvoiceExternalRecord> {
-  const optionalFields = new Set(["Hosted Invoice URL", "Webhook Received At", "Raw Payload"]);
+  const optionalFields = new Set([
+    "Hosted Invoice URL",
+    "Voided At",
+    "Webhook Received At",
+    "Last Webhook Event Type",
+    "Last Webhook Event ID",
+    "Webhook Raw Payload",
+    "Delivery Method",
+    "Phone Snapshot",
+    "Sent At",
+    "Last Send Error",
+    "Send Attempt Count",
+    "Internal Notes",
+    "Raw Payload",
+    "Sync Status",
+    "Sync Error",
+  ]);
   let fieldsToWrite: InvoiceExternalWriteFields = { ...fields };
 
   while (true) {
@@ -915,7 +1042,23 @@ export async function updateInvoiceExternal(
   invoiceExternalRecordId: string,
   fields: InvoiceExternalWriteFields,
 ): Promise<void> {
-  const optionalFields = new Set(["Hosted Invoice URL", "Webhook Received At", "Raw Payload"]);
+  const optionalFields = new Set([
+    "Hosted Invoice URL",
+    "Voided At",
+    "Webhook Received At",
+    "Last Webhook Event Type",
+    "Last Webhook Event ID",
+    "Webhook Raw Payload",
+    "Delivery Method",
+    "Phone Snapshot",
+    "Sent At",
+    "Last Send Error",
+    "Send Attempt Count",
+    "Internal Notes",
+    "Raw Payload",
+    "Sync Status",
+    "Sync Error",
+  ]);
   let fieldsToWrite: InvoiceExternalWriteFields = { ...fields };
 
   while (true) {
@@ -954,9 +1097,18 @@ export async function writeInvoiceExternalFailure(
   rawPayload?: string,
 ): Promise<void> {
   await updateInvoiceExternal(invoiceExternalRecordId, {
-    "Sync Status": "Failed",
-    "Sync Error": errorMessage,
+    "External Process Status": "Failed",
+    "External Process At": new Date().toISOString(),
+    "External Process Error": errorMessage,
+    "Writeback Status": "Failed",
+    "Writeback At": new Date().toISOString(),
+    "Writeback Error": errorMessage,
+    "Writeback Last Attempt At": new Date().toISOString(),
+    "Reconciliation Status": "Needs Review",
     "Last Synced At": new Date().toISOString(),
+    "Last Sync Activity At": new Date().toISOString(),
+    "Last API Message": errorMessage,
+    ...(rawPayload ? { "External Process Raw Payload": rawPayload } : {}),
     ...(rawPayload ? { "Raw Payload": rawPayload } : {}),
   });
 }

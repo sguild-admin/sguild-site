@@ -584,15 +584,32 @@ export async function runOrderBillingProcessor(
                 : {}),
               "Amount Due": order.amountDue ?? 0,
               "Amount Paid": recoveredAmountPaid,
+              "Amount Refunded": 0,
               "External Status": deriveBillingStatusFromPayment({
                 amountDue: order.amountDue,
                 amountPaid: recoveredAmountPaid,
               }) === "Paid"
                 ? "Paid"
                 : "Draft",
+              "External Process Action": "Sync",
+              "External Process Status": "Succeeded",
+              "External Process At": new Date().toISOString(),
+              "External Process Error": "",
+              "External Action Idempotency Key": `invoice-external:sync:${context.provider.toLowerCase()}:${recoveredInvoiceRecordId}`,
+              "External Process Raw Payload": JSON.stringify({
+                action: "Sync",
+                source: "create-order-recovery",
+                externalInvoiceId: recoveredExternalInvoiceId,
+              }),
+              "Writeback Status": "Succeeded",
+              "Writeback At": new Date().toISOString(),
+              "Writeback Error": "",
+              "Writeback Last Attempt At": new Date().toISOString(),
+              "Reconciliation Status": "Complete",
               "Last Synced At": new Date().toISOString(),
-              "Sync Status": "Synced",
-              "Sync Error": "",
+              "Last Sync Activity At": new Date().toISOString(),
+              "Last API Response Code": 200,
+              "Last API Message": "Invoice External synced from Create Order recovery",
             });
             reconciledInvoiceExternalRecordId = existingInvoiceExternal.recordId;
           } else {
@@ -601,20 +618,40 @@ export async function runOrderBillingProcessor(
               Order: [request.orderRecordId],
               "Org Integration": [request.orgIntegrationRecordId],
               "External Invoice ID": recoveredExternalInvoiceId,
+              ...(createOrderResult.externalOrderId
+                ? { "External Order ID": createOrderResult.externalOrderId }
+                : {}),
               ...(recoveredExternalInvoiceUrl
                 ? { "Hosted Invoice URL": recoveredExternalInvoiceUrl }
                 : {}),
               "Amount Due": order.amountDue ?? 0,
               "Amount Paid": recoveredAmountPaid,
+              "Amount Refunded": 0,
               "External Status": deriveBillingStatusFromPayment({
                 amountDue: order.amountDue,
                 amountPaid: recoveredAmountPaid,
               }) === "Paid"
                 ? "Paid"
                 : "Draft",
+              "External Process Action": "Sync",
+              "External Process Status": "Succeeded",
+              "External Process At": new Date().toISOString(),
+              "External Process Error": "",
+              "External Action Idempotency Key": `invoice-external:sync:${context.provider.toLowerCase()}:${recoveredInvoiceRecordId}`,
+              "External Process Raw Payload": JSON.stringify({
+                action: "Sync",
+                source: "create-order-recovery",
+                externalInvoiceId: recoveredExternalInvoiceId,
+              }),
+              "Writeback Status": "Succeeded",
+              "Writeback At": new Date().toISOString(),
+              "Writeback Error": "",
+              "Writeback Last Attempt At": new Date().toISOString(),
+              "Reconciliation Status": "Complete",
               "Last Synced At": new Date().toISOString(),
-              "Sync Status": "Synced",
-              "Sync Error": "",
+              "Last Sync Activity At": new Date().toISOString(),
+              "Last API Response Code": 200,
+              "Last API Message": "Invoice External created from Create Order recovery",
             });
             reconciledInvoiceExternalRecordId = createdInvoiceExternal.recordId;
           }
@@ -791,12 +828,22 @@ export async function runOrderBillingProcessor(
           staleUpdate["Hosted Invoice URL"] = knownHostedInvoiceUrl;
         }
         if (existingInvoiceExternal.syncStatus?.toLowerCase() !== "synced") {
-          staleUpdate["Sync Status"] = "Synced";
+          staleUpdate["Writeback Status"] = "Succeeded";
         }
         if (existingInvoiceExternal.syncError) {
-          staleUpdate["Sync Error"] = "";
+          staleUpdate["Writeback Error"] = "";
         }
         staleUpdate["Last Synced At"] = new Date().toISOString();
+        staleUpdate["Last Sync Activity At"] = new Date().toISOString();
+        staleUpdate["External Process Action"] = "Create Invoice";
+        staleUpdate["External Process Status"] = "Succeeded";
+        staleUpdate["External Process At"] = new Date().toISOString();
+        staleUpdate["External Process Error"] = "";
+        staleUpdate["External Action Idempotency Key"] = invoiceExternalIdempotencyKey;
+        staleUpdate["Writeback Last Attempt At"] = new Date().toISOString();
+        staleUpdate["Reconciliation Status"] = "Complete";
+        staleUpdate["Last API Response Code"] = "200";
+        staleUpdate["Last API Message"] = "Create Invoice reused existing mapping";
 
         if (Object.keys(staleUpdate).length > 0) {
           await updateInvoiceExternal(existingInvoiceExternal.recordId, staleUpdate);
@@ -954,17 +1001,31 @@ export async function runOrderBillingProcessor(
         Order: [request.orderRecordId],
         "Org Integration": [request.orgIntegrationRecordId],
         "External Invoice ID": resolvedExternalInvoiceId as string,
+        ...(externalOrderIdForInvoice ? { "External Order ID": externalOrderIdForInvoice } : {}),
         "External Status": invoice.status ?? "Draft",
         "Amount Due": amountDue,
         "Amount Paid": amountPaid,
+        "Amount Refunded": 0,
         ...(invoice.issuedAt ? { "Issued At": invoice.issuedAt } : {}),
         ...(invoice.dueAt ? { "Due At": invoice.dueAt } : {}),
         ...(invoice.paidAt ? { "Paid At": invoice.paidAt } : {}),
         ...(hostedInvoiceUrl ? { "Hosted Invoice URL": hostedInvoiceUrl } : {}),
+        "External Process Action": "Create Invoice",
+        "External Process Status": "Succeeded",
+        "External Process At": new Date().toISOString(),
+        "External Process Error": "",
+        "External Action Idempotency Key": invoiceExternalIdempotencyKey,
+        "External Process Raw Payload": createRawPayload,
+        "Writeback Status": "Succeeded",
+        "Writeback At": new Date().toISOString(),
+        "Writeback Error": "",
+        "Writeback Last Attempt At": new Date().toISOString(),
+        "Reconciliation Status": "Complete",
         "Last Synced At": new Date().toISOString(),
+        "Last Sync Activity At": new Date().toISOString(),
+        "Last API Response Code": 200,
+        "Last API Message": "Create Invoice processed",
         "Raw Payload": createRawPayload,
-        "Sync Status": "Synced",
-        "Sync Error": "",
       });
 
       await updateOrderExternal(request.orderExternalRecordId, {

@@ -51,6 +51,12 @@ function safeStringify(value: unknown): string {
   }
 }
 
+function toSquareLineItemName(description: string | null, index: number): string {
+  const trimmed = typeof description === "string" ? description.trim() : "";
+  if (trimmed.length > 0) return trimmed;
+  return `Order Item ${index + 1}`;
+}
+
 async function squarePost(
   path: string,
   body: unknown,
@@ -186,8 +192,8 @@ export async function createInvoiceFromOrderItems(input: {
   rawPayload: string;
 }> {
   const currency = normalizeCurrency(input.currency);
-  const lineItems = input.orderItems.map((item) => ({
-    name: item.description,
+  const lineItems = input.orderItems.map((item, index) => ({
+    name: toSquareLineItemName(item.description, index),
     quantity: "1",
     base_price_money: {
       amount: minorUnitsToNumber(amountToMinorUnits(item.netAmount ?? 0)),
@@ -280,8 +286,8 @@ export async function createOrderFromOrderItems(input: {
   rawPayload: string;
 }> {
   const currency = normalizeCurrency(input.currency);
-  const lineItems = input.orderItems.map((item) => ({
-    name: item.description,
+  const lineItems = input.orderItems.map((item, index) => ({
+    name: toSquareLineItemName(item.description, index),
     quantity: "1",
     base_price_money: {
       amount: minorUnitsToNumber(amountToMinorUnits(item.netAmount ?? 0)),
@@ -381,6 +387,40 @@ export async function cancelInvoice(input: {
   );
 
   return {
+    rawPayload: safeStringify(response),
+  };
+}
+
+export async function publishInvoice(input: {
+  context: ProviderContext;
+  externalInvoiceId: string;
+  version: number;
+  idempotencyKey: string;
+}): Promise<{
+  externalStatus: string | null;
+  hostedInvoiceUrl: string | null;
+  version: number | null;
+  rawPayload: string;
+}> {
+  const response = (await squarePost(
+    `/v2/invoices/${encodeURIComponent(input.externalInvoiceId)}/publish`,
+    {
+      version: input.version,
+      idempotency_key: input.idempotencyKey,
+    },
+    input.context,
+  )) as {
+    invoice?: {
+      status?: string;
+      public_url?: string;
+      version?: number;
+    };
+  };
+
+  return {
+    externalStatus: response.invoice?.status ?? null,
+    hostedInvoiceUrl: response.invoice?.public_url ?? null,
+    version: typeof response.invoice?.version === "number" ? response.invoice.version : null,
     rawPayload: safeStringify(response),
   };
 }
