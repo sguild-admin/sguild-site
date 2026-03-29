@@ -138,38 +138,84 @@ export async function chargeWithCardOnFile(input: {
   externalCardId: string;
   amountDue: number;
   currency: string;
+  orderItems?: OrderItem[];
 }): Promise<{
   externalPaymentId: string;
   externalOrderId: string | null;
   rawPayload: string;
 }> {
+  const currency = normalizeCurrency(input.currency);
+  let createdOrderId: string | null = null;
+  let orderResponse: { order?: { id?: string } } | null = null;
+
+  const usableItems = (input.orderItems ?? []).filter(
+    (item) => (item.netAmount ?? 0) > 0,
+  );
+
+  if (usableItems.length > 0) {
+    const lineItems = usableItems.map((item, index) => ({
+      name: toSquareLineItemName(item.description, index),
+      quantity: "1",
+      base_price_money: {
+        amount: minorUnitsToNumber(amountToMinorUnits(item.netAmount ?? 0)),
+        currency,
+      },
+    }));
+
+    const orderPayload = {
+      idempotency_key: `${input.orderExternalRecordId}:Charge:Order`,
+      order: {
+        location_id: input.context.externalLocationId,
+        customer_id: input.externalCustomerId,
+        line_items: lineItems,
+      },
+    };
+
+    orderResponse = (await squarePost("/v2/orders", orderPayload, input.context)) as {
+      order?: { id?: string };
+    };
+    createdOrderId = orderResponse.order?.id ?? null;
+    if (!createdOrderId) {
+      throw new SyncEndpointError("Square charge order creation returned no order ID.", 502, {
+        rawPayload: safeStringify(orderResponse),
+      });
+    }
+  }
+
   const payload = {
-    idempotency_key: `${input.orderExternalRecordId}:Charge`,
+    idempotency_key: `${input.orderExternalRecordId}:Charge:Payment`,
     source_id: input.externalCardId,
     customer_id: input.externalCustomerId,
     location_id: input.context.externalLocationId,
-    amount_money: {
-      amount: minorUnitsToNumber(amountToMinorUnits(input.amountDue)),
-      currency: normalizeCurrency(input.currency),
-    },
+    ...(createdOrderId
+      ? { order_id: createdOrderId }
+      : {
+          amount_money: {
+            amount: minorUnitsToNumber(amountToMinorUnits(input.amountDue)),
+            currency,
+          },
+        }),
     autocomplete: true,
   };
 
-  const response = (await squarePost("/v2/payments", payload, input.context)) as {
+  const paymentResponse = (await squarePost("/v2/payments", payload, input.context)) as {
     payment?: { id?: string; order_id?: string };
   };
 
-  const externalPaymentId = response.payment?.id;
+  const externalPaymentId = paymentResponse.payment?.id;
   if (!externalPaymentId) {
     throw new SyncEndpointError("Square charge succeeded without payment ID.", 502, {
-      rawPayload: safeStringify(response),
+      rawPayload: safeStringify(paymentResponse),
     });
   }
 
   return {
     externalPaymentId,
-    externalOrderId: response.payment?.order_id ?? null,
-    rawPayload: safeStringify(response),
+    externalOrderId: paymentResponse.payment?.order_id ?? createdOrderId,
+    rawPayload: safeStringify({
+      order: orderResponse,
+      payment: paymentResponse,
+    }),
   };
 }
 
@@ -179,12 +225,21 @@ function buildInvoiceDueDateIso(daysFromToday: number): string {
   return now.toISOString().slice(0, 10);
 }
 
+function toSquareDeliveryMethod(value: string | null | undefined): "EMAIL" | "SMS" | "SHARE_MANUALLY" {
+  const normalized = (value ?? "").trim().toLowerCase();
+  if (normalized === "email") return "EMAIL";
+  if (normalized === "sms") return "SMS";
+  if (normalized === "url") return "SHARE_MANUALLY";
+  return "SHARE_MANUALLY";
+}
+
 export async function createInvoiceFromOrderItems(input: {
   context: ProviderContext;
   orderExternalRecordId: string;
   externalCustomerId: string;
   orderItems: OrderItem[];
   currency: string;
+  deliveryMethod?: string | null;
 }): Promise<{
   externalOrderId: string;
   externalInvoiceId: string;
@@ -226,7 +281,7 @@ export async function createInvoiceFromOrderItems(input: {
     invoice: {
       location_id: input.context.externalLocationId,
       order_id: externalOrderId,
-      delivery_method: "SHARE_MANUALLY",
+      delivery_method: toSquareDeliveryMethod(input.deliveryMethod),
       primary_recipient: {
         customer_id: input.externalCustomerId,
       },

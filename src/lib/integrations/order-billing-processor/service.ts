@@ -18,6 +18,7 @@ import {
   updateOrderBillingStatus,
   updateOrderAmountPaid,
   updateInvoiceExternal,
+  updateInvoicePaymentLink,
   updateOrderExternal,
   writeOrderExternalFailure,
 } from "./airtable";
@@ -416,6 +417,11 @@ export async function runOrderBillingProcessor(
         currency: order.currency,
       });
 
+      const chargeOrderItems = await listOrderItems(request.orderRecordId);
+      const validChargeOrderItems = chargeOrderItems.filter(
+        (item) => !!item.description && item.netAmount != null && item.netAmount > 0,
+      );
+
       const chargeResult = await chargeWithCardOnFile({
         context,
         orderExternalRecordId: request.orderExternalRecordId,
@@ -423,6 +429,7 @@ export async function runOrderBillingProcessor(
         externalCardId,
         amountDue: order.amountDue as number,
         currency: order.currency as string,
+        orderItems: validChargeOrderItems,
       });
 
       await updateOrderExternal(request.orderExternalRecordId, {
@@ -876,6 +883,9 @@ export async function runOrderBillingProcessor(
           "Last API Response Code": 200,
           "Last API Message": "Create Invoice reused existing mapping",
         });
+        if (knownHostedInvoiceUrl) {
+          await updateInvoicePaymentLink(invoice.recordId, knownHostedInvoiceUrl);
+        }
         const paidAmount = invoice.amountPaid ?? 0;
         const invoiceBillingStatus = deriveBillingStatusFromPayment({
           amountDue: invoice.amountDue ?? order.amountDue,
@@ -951,6 +961,7 @@ export async function runOrderBillingProcessor(
           externalCustomerId: clientExternal.externalCustomerId,
           orderItems,
           currency: order.currency as string,
+          deliveryMethod: invoice.deliveryMethod,
         });
 
         externalOrderIdForInvoice = createdProviderInvoice.externalOrderId;
@@ -1058,6 +1069,9 @@ export async function runOrderBillingProcessor(
         "Last API Response Code": 200,
         "Last API Message": "Create Invoice processed",
       });
+      if (hostedInvoiceUrl) {
+        await updateInvoicePaymentLink(invoice.recordId, hostedInvoiceUrl);
+      }
       await updateOrderAmountPaid(request.orderRecordId, amountPaid);
       const createdInvoiceBillingStatus = deriveBillingStatusFromPayment({
         amountDue,

@@ -48,6 +48,8 @@ export type InvoiceRecord = {
   recordId: string;
   orderId: string | null;
   status: string | null;
+  deliveryMethod: string | null;
+  paymentLink: string | null;
   amountDue: number | null;
   amountPaid: number | null;
   issuedAt: string | null;
@@ -370,6 +372,8 @@ function toInvoiceRecord(record: AirtableRecord): InvoiceRecord {
     recordId: record.id,
     orderId: readFirstLinkedId(fields.Order),
     status: readString(fields.Status),
+    deliveryMethod: readString(fields["Delivery Method"]),
+    paymentLink: readString(fields["Payment Link"]),
     amountDue: readNumber(fields["Amount Due"]),
     amountPaid: readNumber(fields["Amount Paid"]),
     issuedAt: readString(fields["Issued At"]),
@@ -1301,6 +1305,31 @@ export async function updateOrderAmountPaid(
   if (!response.ok) {
     const message = await parseAirtableError(response);
     throw new SyncEndpointError(`Failed to update Order Amount Paid: ${message}`, 502);
+  }
+}
+
+export async function updateInvoicePaymentLink(
+  invoiceRecordId: string,
+  paymentLink: string,
+): Promise<void> {
+  const path = `${encodeURIComponent(INVOICES_TABLE)}/${encodeURIComponent(invoiceRecordId)}`;
+  const fieldsToWrite: Record<string, unknown> = { "Payment Link": paymentLink };
+
+  while (true) {
+    const response = await airtableRequest(path, {
+      method: "PATCH",
+      body: JSON.stringify({ fields: fieldsToWrite }),
+    });
+    if (response.ok) return;
+
+    const message = await parseAirtableError(response);
+    const missingFieldMatch = message.match(/Unknown field name: "([^"]+)"/);
+    const missingField = missingFieldMatch?.[1];
+    if (missingField === "Payment Link" && missingField in fieldsToWrite) {
+      return;
+    }
+
+    throw new SyncEndpointError(`Failed to update Invoice Payment Link: ${message}`, 502);
   }
 }
 
