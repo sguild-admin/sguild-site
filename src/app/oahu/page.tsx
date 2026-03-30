@@ -65,7 +65,7 @@ export default function OahuPage() {
 
       <Hero
         title={"Mobile Swim Lessons on Oʻahu"}
-        subtitle={"Personalized swim instruction for kids and adults to build confidence and ocean-ready skills at your pool or ocean spot on Oʻahu."}
+        subtitle={"Personalized swim instruction for kids and adults, focused on confidence and real-world water skills at your pool or ocean spot."}
         ctas={[
           { label: 'Check Availability', href: '/lesson-request', variant: 'primary' },
           { label: 'See Pricing', href: '#pricing', variant: 'secondary' },
