@@ -14,6 +14,7 @@ export default function Hero({
   imageAlt,
   blockquote,
   trustCityLabel,
+  imageTagline,
 }: {
   title: React.ReactNode;
   subtitle?: React.ReactNode;
@@ -23,6 +24,7 @@ export default function Hero({
   imageAlt?: string;
   blockquote?: React.ReactNode;
   trustCityLabel?: string;
+  imageTagline?: React.ReactNode;
 }) {
   return (
     <section className="relative overflow-hidden">
@@ -77,7 +79,7 @@ export default function Hero({
               <NextImage src={imageSrc} alt={imageAlt || "Hero image"} fill className="object-cover" />
             </div>
             <div className="absolute -bottom-5 -right-5 max-w-[90%] bg-white/80 backdrop-blur rounded-2xl px-4 py-3 shadow ring-1 ring-slate-200 sm:max-w-none">
-              <p className="text-xs font-medium sm:text-sm">We come to you • Flexible scheduling • Kids & adults</p>
+              <p className="text-xs font-medium sm:text-sm">{imageTagline ?? "We come to you • Flexible scheduling • Kids & adults"}</p>
             </div>
           </div>
         )}

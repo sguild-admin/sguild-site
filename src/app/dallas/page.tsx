@@ -65,7 +65,7 @@ export default function DallasPage() {
 
       <Hero
         title={'Mobile Swim Lessons in Dallas'}
-        subtitle={'Personalized swim instruction for kids and adults, focused on confidence, safety, and technique. One price per 30-minute lesson for private or small-group sessions.'}
+        subtitle={'Private swim instruction for kids and adults, focused on confidence and technique at your home or community pool in Dallas.'}
         ctas={[
           { label: 'Book Your First Lesson', href: '/lesson-request', variant: 'primary' },
           { label: 'See Pricing', href: '#pricing', variant: 'secondary' },
@@ -87,10 +87,6 @@ export default function DallasPage() {
         description="From beginners to advanced swimmers, each lesson is tailored to your goals and comfort and can be shared with others at no extra cost."
         youthLabel="For Kids"
       />
-
-      <div className="mx-auto mb-2 max-w-6xl px-4">
-        <div className="border-b-2 border-slate-200/60" />
-      </div>
 
       <PricingSection city="dallas" />
 

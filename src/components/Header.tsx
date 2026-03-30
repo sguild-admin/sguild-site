@@ -55,9 +55,6 @@ export default function Header() {
         </Link>
 
         <div className="hidden md:flex items-center gap-6 ml-auto">
-          <Link href={swimTipsHref} className="hover:text-sky-600">
-            Swim Tips
-          </Link>
           <Link href={pricingHref} className="hover:text-sky-600">
             Pricing
           </Link>

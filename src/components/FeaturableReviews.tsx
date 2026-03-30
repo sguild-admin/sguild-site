@@ -10,7 +10,11 @@ declare global {
 
 const FEATURABLE_ID = 'featurable-a6f4f535-5df6-4b9b-b6a4-6865a4acf5e1'
 
-export default function FeaturableReviews() {
+type FeaturableReviewsProps = {
+  className?: string
+}
+
+export default function FeaturableReviews({ className = '' }: FeaturableReviewsProps) {
   useEffect(() => {
     const SRC = 'https://featurable.com/assets/bundle.js'
     let cancelled = false
@@ -62,7 +66,7 @@ setTimeout(() => {
   }, [])
 
   return (
-    <section className="mx-auto max-w-6xl px-4 py-12">
+    <section className={`mx-auto max-w-6xl px-4 py-12 ${className}`.trim()}>
       <h2 className="text-2xl md:text-3xl font-bold">Reviews</h2>
       <div id={FEATURABLE_ID} data-featurable-async />
     </section>

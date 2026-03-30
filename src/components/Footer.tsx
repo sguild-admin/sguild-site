@@ -17,7 +17,6 @@ export default function Footer() {
   // if on /pricing prefer the query param value
   if (pathname.startsWith('/pricing') && (qCity === 'oahu' || qCity === 'dallas')) city = qCity
 
-  const pricingHref = city ? `/pricing?city=${city}` : '/pricing'
   const contactHref = city ? `/${city}/contact` : '/oahu/contact'
   const socials = [
     { label: 'Facebook', href: 'https://www.facebook.com/profile.php?id=61585015406844', icon: Facebook },
@@ -30,7 +29,7 @@ export default function Footer() {
         <p>© {new Date().getFullYear()} Sguild Swim LLC</p>
         <nav className="flex flex-wrap items-center justify-center gap-6">
           {NAV.filter((n) => n.group !== "locations").map((n) => {
-            if (n.label === 'Pricing') return <Link key="pricing" href={pricingHref} className="hover:text-slate-700">Pricing</Link>
+            if (n.label === 'Pricing' || n.label === 'Locations') return null
             if (n.label === 'Contact') return <Link key="contact" href={contactHref} className="hover:text-slate-700">Contact</Link>
             return (
               <Link key={n.href} href={n.href} className="hover:text-slate-700">
