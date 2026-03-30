@@ -160,7 +160,6 @@ export async function POST(request: Request) {
       await createWebhookDelivery({
         eventRecordId,
         signatureValid: true,
-        responseCode: 200,
       });
     } catch (deliveryError) {
       // Ingest is already successful; do not fail the webhook ack on delivery-log issues.
