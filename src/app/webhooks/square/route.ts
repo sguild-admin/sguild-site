@@ -155,11 +155,16 @@ export async function POST(request: Request) {
       });
     }
 
-    await createWebhookDelivery({
-      eventRecordId,
-      signatureValid: true,
-      responseCode: 200,
-    });
+    try {
+      await createWebhookDelivery({
+        eventRecordId,
+        signatureValid: true,
+        responseCode: 200,
+      });
+    } catch (deliveryError) {
+      // Ingest is already successful; do not fail the webhook ack on delivery-log issues.
+      console.error("Failed to write webhook delivery success row", deliveryError);
+    }
 
     return new NextResponse(null, { status: 200 });
   } catch (error) {

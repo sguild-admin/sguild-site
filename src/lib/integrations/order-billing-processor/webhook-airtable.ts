@@ -108,6 +108,13 @@ function escapeAirtableFormulaString(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 }
 
+function isUnknownOptionalFieldError(message: string, key: string): boolean {
+  return (
+    message.includes(`Unknown field name: "${key}"`) ||
+    message.includes(`Unknown field names: ${key}`)
+  );
+}
+
 function toWebhookEventRecord(record: AirtableRecord): WebhookEventRecord {
   const fields = record.fields ?? {};
   return {
@@ -166,7 +173,7 @@ export async function findWebhookEventByEventKey(
 export async function createWebhookEvent(
   input: CreateWebhookEventInput,
 ): Promise<WebhookEventRecord> {
-  const fields: Record<string, unknown> = {
+  let fields: Record<string, unknown> = {
     "Event Key": input.eventKey,
     Provider: input.provider,
     "Provider Event ID": input.providerEventId,
@@ -178,24 +185,42 @@ export async function createWebhookEvent(
   if (input.merchantId) fields["Merchant ID"] = input.merchantId;
   if (input.occurredAt) fields["Occurred At"] = input.occurredAt;
 
-  const response = await airtableRequest(`${encodeURIComponent(WEBHOOK_EVENTS_TABLE)}`, {
-    method: "POST",
-    body: JSON.stringify({ fields }),
-  });
+  const optionalFields = new Set(["Payload JSON", "Status", "Merchant ID", "Occurred At"]);
 
-  if (!response.ok) {
+  while (true) {
+    const response = await airtableRequest(`${encodeURIComponent(WEBHOOK_EVENTS_TABLE)}`, {
+      method: "POST",
+      body: JSON.stringify({ fields }),
+    });
+
+    if (response.ok) {
+      return toWebhookEventRecord((await response.json()) as AirtableRecord);
+    }
+
     const message = await parseAirtableError(response);
+    const optionalFieldToDrop = [...optionalFields].find(
+      (key) => key in fields && isUnknownOptionalFieldError(message, key),
+    );
+
+    if (optionalFieldToDrop) {
+      const nextFields: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(fields)) {
+        if (key === optionalFieldToDrop) continue;
+        nextFields[key] = value;
+      }
+      fields = nextFields;
+      continue;
+    }
+
     throw new Error(`Failed to create Webhook Event: ${message}`);
   }
-
-  return toWebhookEventRecord((await response.json()) as AirtableRecord);
 }
 
 export async function updateWebhookEvent(
   eventRecordId: string,
   input: UpdateWebhookEventInput,
 ): Promise<void> {
-  const fields: Record<string, unknown> = {};
+  let fields: Record<string, unknown> = {};
 
   if (input.status) fields.Status = input.status;
   if (input.processedAt !== undefined) fields["Processed At"] = input.processedAt;
@@ -203,35 +228,73 @@ export async function updateWebhookEvent(
 
   if (Object.keys(fields).length === 0) return;
 
-  const response = await airtableRequest(
-    `${encodeURIComponent(WEBHOOK_EVENTS_TABLE)}/${encodeURIComponent(eventRecordId)}`,
-    {
-      method: "PATCH",
-      body: JSON.stringify({ fields }),
-    },
-  );
+  const optionalFields = new Set(["Status", "Processed At", "Last Error"]);
 
-  if (!response.ok) {
+  while (true) {
+    const response = await airtableRequest(
+      `${encodeURIComponent(WEBHOOK_EVENTS_TABLE)}/${encodeURIComponent(eventRecordId)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ fields }),
+      },
+    );
+
+    if (response.ok) return;
+
     const message = await parseAirtableError(response);
+    const optionalFieldToDrop = [...optionalFields].find(
+      (key) => key in fields && isUnknownOptionalFieldError(message, key),
+    );
+
+    if (optionalFieldToDrop) {
+      const nextFields: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(fields)) {
+        if (key === optionalFieldToDrop) continue;
+        nextFields[key] = value;
+      }
+      fields = nextFields;
+
+      if (Object.keys(fields).length === 0) return;
+      continue;
+    }
+
     throw new Error(`Failed to update Webhook Event: ${message}`);
   }
 }
 
 export async function createWebhookDelivery(input: CreateWebhookDeliveryInput): Promise<void> {
-  const fields: Record<string, unknown> = {};
+  let fields: Record<string, unknown> = {};
 
   if (input.eventRecordId) fields.Event = [input.eventRecordId];
   if (input.signatureValid != null) fields["Signature Valid"] = input.signatureValid;
   if (input.responseCode != null) fields["Response Code"] = input.responseCode;
   if (input.errorMessage) fields["Error Message"] = input.errorMessage;
 
-  const response = await airtableRequest(`${encodeURIComponent(WEBHOOK_DELIVERIES_TABLE)}`, {
-    method: "POST",
-    body: JSON.stringify({ fields }),
-  });
+  const optionalFields = new Set(["Event", "Signature Valid", "Response Code", "Error Message"]);
 
-  if (!response.ok) {
+  while (true) {
+    const response = await airtableRequest(`${encodeURIComponent(WEBHOOK_DELIVERIES_TABLE)}`, {
+      method: "POST",
+      body: JSON.stringify({ fields }),
+    });
+
+    if (response.ok) return;
+
     const message = await parseAirtableError(response);
+    const optionalFieldToDrop = [...optionalFields].find(
+      (key) => key in fields && isUnknownOptionalFieldError(message, key),
+    );
+
+    if (optionalFieldToDrop) {
+      const nextFields: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(fields)) {
+        if (key === optionalFieldToDrop) continue;
+        nextFields[key] = value;
+      }
+      fields = nextFields;
+      continue;
+    }
+
     throw new Error(`Failed to create Webhook Delivery: ${message}`);
   }
 }
