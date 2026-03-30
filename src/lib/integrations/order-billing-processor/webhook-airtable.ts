@@ -68,6 +68,13 @@ function readStatus(value: unknown): WebhookEventStatus | null {
   return null;
 }
 
+function toAirtableStatus(value: WebhookEventStatus): "Received" | "Processing" | "Processed" | "Failed" {
+  if (value === "received") return "Received";
+  if (value === "processing") return "Processing";
+  if (value === "processed") return "Processed";
+  return "Failed";
+}
+
 function getAirtableConfig(): { token: string; baseId: string } {
   const token = readString(process.env.AIRTABLE_OPERATIONS_TOKEN);
   const baseId = readString(process.env.AIRTABLE_OPERATIONS_BASE_ID);
@@ -125,6 +132,18 @@ function isUnknownOptionalFieldError(message: string, key: string): boolean {
     message.includes(`Unknown field names: ${key}`) ||
     message.includes(`Unknown field names: ${JSON.stringify(key)}`)
   );
+}
+
+function isRejectedOptionalFieldValueError(message: string, key: string): boolean {
+  if (message.includes(`Field "${key}" cannot accept the provided value`)) return true;
+
+  // Airtable single-select often throws this when the option does not exist and
+  // the API token lacks permission to create new select options.
+  if (key === "Status" && message.includes("Insufficient permissions to create new select option")) {
+    return true;
+  }
+
+  return false;
 }
 
 function isUnknownFieldError(message: string): boolean {
@@ -199,7 +218,7 @@ export async function createWebhookEvent(
     "Provider Event ID": input.providerEventId,
     "Event Type": input.eventType,
     "Payload JSON": input.payloadJson,
-    Status: input.status ?? "received",
+    Status: toAirtableStatus(input.status ?? "received"),
   };
 
   if (input.merchantId) fields["Merchant ID"] = input.merchantId;
@@ -228,7 +247,10 @@ export async function createWebhookEvent(
 
     const message = await parseAirtableError(response);
     const optionalFieldToDrop = [...optionalFields].find(
-      (key) => key in fields && isUnknownOptionalFieldError(message, key),
+      (key) =>
+        key in fields &&
+        (isUnknownOptionalFieldError(message, key) ||
+          isRejectedOptionalFieldValueError(message, key)),
     );
 
     if (optionalFieldToDrop) {
@@ -263,7 +285,7 @@ export async function updateWebhookEvent(
   const webhookEventsTable = getWebhookEventsTableName();
   let fields: Record<string, unknown> = {};
 
-  if (input.status) fields.Status = input.status;
+  if (input.status) fields.Status = toAirtableStatus(input.status);
   if (input.processedAt !== undefined) fields["Processed At"] = input.processedAt;
   if (input.lastError !== undefined) fields["Last Error"] = input.lastError;
 
@@ -284,7 +306,10 @@ export async function updateWebhookEvent(
 
     const message = await parseAirtableError(response);
     const optionalFieldToDrop = [...optionalFields].find(
-      (key) => key in fields && isUnknownOptionalFieldError(message, key),
+      (key) =>
+        key in fields &&
+        (isUnknownOptionalFieldError(message, key) ||
+          isRejectedOptionalFieldValueError(message, key)),
     );
 
     if (optionalFieldToDrop) {
@@ -324,7 +349,10 @@ export async function createWebhookDelivery(input: CreateWebhookDeliveryInput): 
 
     const message = await parseAirtableError(response);
     const optionalFieldToDrop = [...optionalFields].find(
-      (key) => key in fields && isUnknownOptionalFieldError(message, key),
+      (key) =>
+        key in fields &&
+        (isUnknownOptionalFieldError(message, key) ||
+          isRejectedOptionalFieldValueError(message, key)),
     );
 
     if (optionalFieldToDrop) {
