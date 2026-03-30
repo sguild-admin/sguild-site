@@ -6,7 +6,8 @@
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "backfill:square:24h": "node --env-file=.env.local scripts/backfill-square-events.mjs --hours=24"
   },
   "dependencies": {
     "framer-motion": "^12.23.22",

@@ -110,7 +110,7 @@ export default function Offerings({
         subtext:
           "Being 42, I learned the skills to make swimming a lifetime sport. I'm very thankful for the instruction and highly recommend it.",
         author: "Will K",
-        ctaLabel: "Start Your First Lesson",
+        ctaLabel: "Book Your First Lesson",
       },
       {
         key: "youth",
