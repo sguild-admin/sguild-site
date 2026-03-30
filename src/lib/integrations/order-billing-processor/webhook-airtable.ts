@@ -1,7 +1,7 @@
 import crypto from "crypto";
 
-const WEBHOOK_EVENTS_TABLE = "Webhook Events";
-const WEBHOOK_DELIVERIES_TABLE = "Webhook Deliveries";
+const DEFAULT_WEBHOOK_EVENTS_TABLE = "Webhook Events";
+const DEFAULT_WEBHOOK_DELIVERIES_TABLE = "Webhook Deliveries";
 
 type AirtableRecord = {
   id: string;
@@ -81,6 +81,17 @@ function getAirtableConfig(): { token: string; baseId: string } {
   return { token, baseId };
 }
 
+function getWebhookEventsTableName(): string {
+  return readString(process.env.AIRTABLE_OPERATIONS_WEBHOOK_EVENTS_TABLE) ?? DEFAULT_WEBHOOK_EVENTS_TABLE;
+}
+
+function getWebhookDeliveriesTableName(): string {
+  return (
+    readString(process.env.AIRTABLE_OPERATIONS_WEBHOOK_DELIVERIES_TABLE) ??
+    DEFAULT_WEBHOOK_DELIVERIES_TABLE
+  );
+}
+
 async function parseAirtableError(response: Response): Promise<string> {
   try {
     const body = (await response.json()) as AirtableError;
@@ -151,6 +162,7 @@ export function validateSquareSignature(input: {
 export async function findWebhookEventByEventKey(
   eventKey: string,
 ): Promise<WebhookEventRecord | null> {
+  const webhookEventsTable = getWebhookEventsTableName();
   const escaped = escapeAirtableFormulaString(eventKey);
   const formula = `{Event Key}='${escaped}'`;
 
@@ -160,7 +172,7 @@ export async function findWebhookEventByEventKey(
   });
 
   const response = await airtableRequest(
-    `${encodeURIComponent(WEBHOOK_EVENTS_TABLE)}?${params.toString()}`,
+    `${encodeURIComponent(webhookEventsTable)}?${params.toString()}`,
     { method: "GET" },
   );
 
@@ -180,6 +192,7 @@ export async function findWebhookEventByEventKey(
 export async function createWebhookEvent(
   input: CreateWebhookEventInput,
 ): Promise<WebhookEventRecord> {
+  const webhookEventsTable = getWebhookEventsTableName();
   let fields: Record<string, unknown> = {
     "Event Key": input.eventKey,
     Provider: input.provider,
@@ -204,7 +217,7 @@ export async function createWebhookEvent(
   ]);
 
   while (true) {
-    const response = await airtableRequest(`${encodeURIComponent(WEBHOOK_EVENTS_TABLE)}`, {
+    const response = await airtableRequest(`${encodeURIComponent(webhookEventsTable)}`, {
       method: "POST",
       body: JSON.stringify({ fields }),
     });
@@ -230,7 +243,7 @@ export async function createWebhookEvent(
 
     // Last-resort compatibility: allow record creation with no writable custom fields.
     if (isUnknownFieldError(message) && Object.keys(fields).length === 0) {
-      const fallback = await airtableRequest(`${encodeURIComponent(WEBHOOK_EVENTS_TABLE)}`, {
+      const fallback = await airtableRequest(`${encodeURIComponent(webhookEventsTable)}`, {
         method: "POST",
         body: JSON.stringify({ fields: {} }),
       });
@@ -247,6 +260,7 @@ export async function updateWebhookEvent(
   eventRecordId: string,
   input: UpdateWebhookEventInput,
 ): Promise<void> {
+  const webhookEventsTable = getWebhookEventsTableName();
   let fields: Record<string, unknown> = {};
 
   if (input.status) fields.Status = input.status;
@@ -259,7 +273,7 @@ export async function updateWebhookEvent(
 
   while (true) {
     const response = await airtableRequest(
-      `${encodeURIComponent(WEBHOOK_EVENTS_TABLE)}/${encodeURIComponent(eventRecordId)}`,
+      `${encodeURIComponent(webhookEventsTable)}/${encodeURIComponent(eventRecordId)}`,
       {
         method: "PATCH",
         body: JSON.stringify({ fields }),
@@ -290,6 +304,7 @@ export async function updateWebhookEvent(
 }
 
 export async function createWebhookDelivery(input: CreateWebhookDeliveryInput): Promise<void> {
+  const webhookDeliveriesTable = getWebhookDeliveriesTableName();
   let fields: Record<string, unknown> = {};
 
   if (input.eventRecordId) fields.Event = [input.eventRecordId];
@@ -300,7 +315,7 @@ export async function createWebhookDelivery(input: CreateWebhookDeliveryInput): 
   const optionalFields = new Set(["Event", "Signature Valid", "Response Code", "Error Message"]);
 
   while (true) {
-    const response = await airtableRequest(`${encodeURIComponent(WEBHOOK_DELIVERIES_TABLE)}`, {
+    const response = await airtableRequest(`${encodeURIComponent(webhookDeliveriesTable)}`, {
       method: "POST",
       body: JSON.stringify({ fields }),
     });

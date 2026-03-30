@@ -61,6 +61,7 @@ export async function POST(request: Request) {
 
   const rawBody = await request.text();
   const signatureHeader = request.headers.get("x-square-hmacsha256-signature") ?? "";
+  const subscriptionIdHeader = request.headers.get("square-subscription-id") ?? "";
 
   const isSignatureValid = validateSquareSignature({
     signatureKey,
@@ -170,6 +171,14 @@ export async function POST(request: Request) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown webhook ingest error.";
 
+    console.error("Square webhook ingest failure", {
+      message,
+      eventType,
+      providerEventId,
+      merchantId,
+      subscriptionIdHeader,
+    });
+
     if (eventRecordId) {
       try {
         await updateWebhookEvent(eventRecordId, {
@@ -192,12 +201,15 @@ export async function POST(request: Request) {
       console.error("Failed to write webhook delivery failure state", deliveryError);
     }
 
+    // Fail-open acknowledgment to prevent provider retry storms while we diagnose.
     return NextResponse.json(
       {
+        ok: false,
+        acknowledged: true,
         error: "Webhook ingest failed.",
         detail: message,
       },
-      { status: 500 },
+      { status: 200 },
     );
   }
 }
