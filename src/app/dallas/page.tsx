@@ -67,7 +67,7 @@ export default function DallasPage() {
         title={'Mobile Swim Lessons in Dallas'}
         subtitle={'Private swim instruction for kids and adults, tailored to your goals and schedule at your home or community pool in Dallas.'}
         ctas={[
-          { label: 'Book Your First Lesson', href: '/lesson-request', variant: 'primary' },
+          { label: 'Check Availability', href: '/lesson-request', variant: 'primary' },
           { label: 'See Pricing', href: '#pricing', variant: 'secondary' },
         ]}
         contactLine={
@@ -78,14 +78,14 @@ export default function DallasPage() {
         }
         imageSrc={'/assets/dallasHero.png'}
         imageAlt={'Backyard swim lessons in Dallas'}
-        imageTagline="Water Safety • Confidence • Technique"
+        imageTagline="Water Safety • Stroke Development • Efficiency"
         trustCityLabel="Dallas families"
       />
 
       <Offerings
         title="Swim Lessons for Every Level"
         titleSubline="Personalized instruction at your home pool"
-        description="From beginners to advanced swimmers, each lesson is tailored to your goals and comfort and can be shared with others at no extra cost."
+        description="From beginners to advanced swimmers, lessons are tailored to your goals and can be shared at no extra cost."
         youthLabel="For Kids"
       />
 

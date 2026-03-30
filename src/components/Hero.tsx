@@ -62,9 +62,9 @@ export default function Hero({
             </div>
           )}
 
-          <div className="mt-4 flex flex-col items-center space-y-4 md:items-start">
+          <div className="mt-5 flex flex-col items-center space-y-4 md:items-start">
             {contactLine && (
-              <p className="text-base leading-relaxed text-slate-700 md:pl-1">{contactLine}</p>
+              <p className="text-[0.97rem] leading-relaxed text-slate-700 md:pl-1">{contactLine}</p>
             )}
 
             <TrustBar
