@@ -1,8 +1,10 @@
 import { SyncEndpointError } from "@/lib/errors";
+import { airtableSchema } from "@/config/airtable-schema";
+import { ensureAirtableSchemaValidated } from "@/lib/airtable/schema-guard";
 
-const CLIENT_EXTERNALS_TABLE = "Client Externals";
-const DEFAULT_PROVIDER_ACCOUNTS_TABLE = "Provider Accounts";
-const DEFAULT_CLIENTS_TABLE = "Clients";
+const CLIENT_EXTERNALS_TABLE = airtableSchema.operations.tables.clientExternals;
+const PROVIDER_ACCOUNTS_TABLE = airtableSchema.operations.tables.providerAccounts;
+const CLIENTS_TABLE = airtableSchema.operations.tables.clients;
 
 type AirtableRecord = {
   id: string;
@@ -82,20 +84,28 @@ async function parseAirtableError(response: Response): Promise<string> {
   return response.statusText || "Unknown Airtable error";
 }
 
-async function getAirtableRecord(
-  tableName: string,
-  recordId: string,
-  resourceLabel: string,
-): Promise<AirtableRecord> {
+function getAirtableConfig(): { token: string; baseId: string } {
   const token =
     readString(process.env.AIRTABLE_OPERATIONS_TOKEN) ?? readString(process.env.AIRTABLE_TOKEN);
-  const baseId = readString(process.env.AIRTABLE_OPERATIONS_BASE_ID) ?? readString(process.env.AIRTABLE_BASE_ID);
+  const baseId =
+    readString(process.env.AIRTABLE_OPERATIONS_BASE_ID) ?? readString(process.env.AIRTABLE_BASE_ID);
 
   if (!token || !baseId) {
     throw new SyncEndpointError("Airtable configuration is missing.", 500, {
       exposeMessage: false,
     });
   }
+
+  return { token, baseId };
+}
+
+async function getAirtableRecord(
+  tableName: string,
+  recordId: string,
+  resourceLabel: string,
+): Promise<AirtableRecord> {
+  const { token, baseId } = getAirtableConfig();
+  await ensureAirtableSchemaValidated({ token, baseId, scope: "operations" });
 
   const url = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}/${encodeURIComponent(recordId)}`;
   const response = await fetch(url, {
@@ -128,10 +138,6 @@ function readFirstStringFromFields(fields: Record<string, unknown>, keys: string
 }
 
 export async function getClientExternalRecord(recordId: string): Promise<ClientExternalRecord> {
-  const providerAccountsTable =
-    readString(process.env.AIRTABLE_PROVIDER_ACCOUNTS_TABLE) ?? DEFAULT_PROVIDER_ACCOUNTS_TABLE;
-  const clientsTable = readString(process.env.AIRTABLE_CLIENTS_TABLE) ?? DEFAULT_CLIENTS_TABLE;
-
   const clientExternal = await getAirtableRecord(
     CLIENT_EXTERNALS_TABLE,
     recordId,
@@ -142,11 +148,11 @@ export async function getClientExternalRecord(recordId: string): Promise<ClientE
   const providerAccountId = readFirstLinkedId(fields["Provider Account"]);
   const providerAccount =
     providerAccountId != null
-      ? await getAirtableRecord(providerAccountsTable, providerAccountId, "Provider account")
+      ? await getAirtableRecord(PROVIDER_ACCOUNTS_TABLE, providerAccountId, "Provider account")
       : null;
   const clientId = readFirstLinkedId(fields.Client);
   const clientRecord =
-    clientId != null ? await getAirtableRecord(clientsTable, clientId, "Client") : null;
+    clientId != null ? await getAirtableRecord(CLIENTS_TABLE, clientId, "Client") : null;
 
   const providerFields = providerAccount?.fields ?? {};
   const clientFields = clientRecord?.fields ?? {};
@@ -187,15 +193,8 @@ export async function updateClientExternalSnapshots(
   recordId: string,
   fields: Partial<Record<"Name Snapshot" | "Phone Snapshot", string>>,
 ): Promise<void> {
-  const token =
-    readString(process.env.AIRTABLE_OPERATIONS_TOKEN) ?? readString(process.env.AIRTABLE_TOKEN);
-  const baseId = readString(process.env.AIRTABLE_OPERATIONS_BASE_ID) ?? readString(process.env.AIRTABLE_BASE_ID);
-
-  if (!token || !baseId) {
-    throw new SyncEndpointError("Airtable configuration is missing.", 500, {
-      exposeMessage: false,
-    });
-  }
+  const { token, baseId } = getAirtableConfig();
+  await ensureAirtableSchemaValidated({ token, baseId, scope: "operations" });
 
   const sanitizedFields = Object.fromEntries(
     Object.entries(fields).filter(([, value]) => typeof value === "string" && value.trim().length > 0),

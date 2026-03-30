@@ -1,8 +1,10 @@
 import { SyncEndpointError } from "@/lib/errors";
+import { airtableSchema } from "@/config/airtable-schema";
+import { ensureAirtableSchemaValidated } from "@/lib/airtable/schema-guard";
 
-const CLIENT_EXTERNALS_TABLE = "Client Externals";
-const CARD_EXTERNALS_TABLE = "Card Externals";
-const DEFAULT_PROVIDER_ACCOUNTS_TABLE = "Provider Accounts";
+const CLIENT_EXTERNALS_TABLE = airtableSchema.operations.tables.clientExternals;
+const CARD_EXTERNALS_TABLE = airtableSchema.operations.tables.cardExternals;
+const PROVIDER_ACCOUNTS_TABLE = airtableSchema.operations.tables.providerAccounts;
 
 type AirtableError = {
   error?: {
@@ -132,6 +134,7 @@ async function parseAirtableError(response: Response): Promise<string> {
 
 async function airtableRequest(path: string, init?: RequestInit): Promise<Response> {
   const { token, baseId } = getAirtableConfig();
+  await ensureAirtableSchemaValidated({ token, baseId, scope: "operations" });
   const response = await fetch(`https://api.airtable.com/v0/${baseId}/${path}`, {
     ...init,
     headers: {
@@ -167,16 +170,13 @@ async function getRecord(
 }
 
 export async function getClientExternalRecord(recordId: string): Promise<ClientExternalRecord> {
-  const providerAccountsTable =
-    readString(process.env.AIRTABLE_PROVIDER_ACCOUNTS_TABLE) ?? DEFAULT_PROVIDER_ACCOUNTS_TABLE;
-
   const clientExternal = await getRecord(CLIENT_EXTERNALS_TABLE, recordId, "Client External");
   const fields = clientExternal.fields ?? {};
 
   const providerAccountId = readFirstLinkedId(fields["Provider Account"]);
   const providerAccount =
     providerAccountId != null
-      ? await getRecord(providerAccountsTable, providerAccountId, "Provider account")
+      ? await getRecord(PROVIDER_ACCOUNTS_TABLE, providerAccountId, "Provider account")
       : null;
   const providerFields = providerAccount?.fields ?? {};
 

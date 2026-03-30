@@ -1,6 +1,9 @@
-const LEADS_TABLE = "Lead Intakes";
-const SOURCES_TABLE = "Lead Attributions";
-const CAMPAIGNS_TABLE = "Campaigns";
+import { airtableSchema } from "@/config/airtable-schema";
+import { ensureAirtableSchemaValidated } from "@/lib/airtable/schema-guard";
+
+const LEADS_TABLE = airtableSchema.core.tables.leadIntakes;
+const SOURCES_TABLE = airtableSchema.core.tables.leadAttributions;
+const CAMPAIGNS_TABLE = airtableSchema.core.tables.campaigns;
 
 function escapeAirtableFormulaString(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
@@ -21,6 +24,7 @@ async function createAirtableRecord(
   token: string,
   fields: Record<string, unknown>,
 ) {
+  await ensureAirtableSchemaValidated({ token, baseId, scope: "core" });
   const url = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}`;
   const response = await fetch(url, {
     method: "POST",
@@ -45,6 +49,7 @@ async function findCampaignRecordId(
   token: string,
   campaignCode: string,
 ): Promise<string | null> {
+  await ensureAirtableSchemaValidated({ token, baseId, scope: "core" });
   const escapedCode = escapeAirtableFormulaString(campaignCode);
   const params = new URLSearchParams({
     maxRecords: "1",

@@ -1,14 +1,16 @@
 import { SyncEndpointError } from "@/lib/errors";
 import type { BillingAction } from "@/lib/types/billing";
+import { airtableSchema } from "@/config/airtable-schema";
+import { ensureAirtableSchemaValidated } from "@/lib/airtable/schema-guard";
 
-const ORDER_EXTERNALS_TABLE = "Order Externals";
-const ORDERS_TABLE = "Orders";
-const INVOICES_TABLE = "Invoices";
-const INVOICE_EXTERNALS_TABLE = "Invoice Externals";
-const ORG_INTEGRATIONS_TABLE = "Organization Integrations";
-const ORDER_ITEMS_TABLE = "Order Items";
-const CLIENT_EXTERNALS_TABLE = "Client Externals";
-const CARD_EXTERNALS_TABLE = "Card Externals";
+const ORDER_EXTERNALS_TABLE = airtableSchema.operations.tables.orderExternals;
+const ORDERS_TABLE = airtableSchema.operations.tables.orders;
+const INVOICES_TABLE = airtableSchema.operations.tables.invoices;
+const INVOICE_EXTERNALS_TABLE = airtableSchema.operations.tables.invoiceExternals;
+const ORG_INTEGRATIONS_TABLE = airtableSchema.operations.tables.organizationIntegrations;
+const ORDER_ITEMS_TABLE = airtableSchema.operations.tables.orderItems;
+const CLIENT_EXTERNALS_TABLE = airtableSchema.operations.tables.clientExternals;
+const CARD_EXTERNALS_TABLE = airtableSchema.operations.tables.cardExternals;
 
 type AirtableRecord = {
   id: string;
@@ -259,6 +261,7 @@ async function parseAirtableError(response: Response): Promise<string> {
 
 async function airtableRequest(path: string, init?: RequestInit): Promise<Response> {
   const { token, baseId } = getAirtableConfig();
+  await ensureAirtableSchemaValidated({ token, baseId, scope: "operations" });
   try {
     const response = await fetch(`https://api.airtable.com/v0/${baseId}/${path}`, {
       ...init,

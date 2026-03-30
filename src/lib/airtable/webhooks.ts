@@ -1,7 +1,9 @@
 import crypto from "crypto";
+import { airtableSchema } from "@/config/airtable-schema";
+import { ensureAirtableSchemaValidated } from "@/lib/airtable/schema-guard";
 
-const DEFAULT_WEBHOOK_EVENTS_TABLE = "Webhook Events";
-const DEFAULT_WEBHOOK_DELIVERIES_TABLE = "Webhook Deliveries";
+const WEBHOOK_EVENTS_TABLE = airtableSchema.operations.tables.webhookEvents;
+const WEBHOOK_DELIVERIES_TABLE = airtableSchema.operations.tables.webhookDeliveries;
 
 type AirtableRecord = {
   id: string;
@@ -89,14 +91,11 @@ function getAirtableConfig(): { token: string; baseId: string } {
 }
 
 function getWebhookEventsTableName(): string {
-  return readString(process.env.AIRTABLE_OPERATIONS_WEBHOOK_EVENTS_TABLE) ?? DEFAULT_WEBHOOK_EVENTS_TABLE;
+  return WEBHOOK_EVENTS_TABLE;
 }
 
 function getWebhookDeliveriesTableName(): string {
-  return (
-    readString(process.env.AIRTABLE_OPERATIONS_WEBHOOK_DELIVERIES_TABLE) ??
-    DEFAULT_WEBHOOK_DELIVERIES_TABLE
-  );
+  return WEBHOOK_DELIVERIES_TABLE;
 }
 
 async function parseAirtableError(response: Response): Promise<string> {
@@ -111,6 +110,7 @@ async function parseAirtableError(response: Response): Promise<string> {
 
 async function airtableRequest(path: string, init?: RequestInit): Promise<Response> {
   const { token, baseId } = getAirtableConfig();
+  await ensureAirtableSchemaValidated({ token, baseId, scope: "operations" });
   return await fetch(`https://api.airtable.com/v0/${baseId}/${path}`, {
     ...init,
     headers: {
