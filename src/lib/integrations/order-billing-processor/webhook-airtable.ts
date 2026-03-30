@@ -111,8 +111,13 @@ function escapeAirtableFormulaString(value: string): string {
 function isUnknownOptionalFieldError(message: string, key: string): boolean {
   return (
     message.includes(`Unknown field name: "${key}"`) ||
-    message.includes(`Unknown field names: ${key}`)
+    message.includes(`Unknown field names: ${key}`) ||
+    message.includes(`Unknown field names: ${JSON.stringify(key)}`)
   );
+}
+
+function isUnknownFieldError(message: string): boolean {
+  return message.includes("Unknown field name:") || message.includes("Unknown field names:");
 }
 
 function toWebhookEventRecord(record: AirtableRecord): WebhookEventRecord {
@@ -161,6 +166,8 @@ export async function findWebhookEventByEventKey(
 
   if (!response.ok) {
     const message = await parseAirtableError(response);
+    // If Event Key column is not created yet, treat as no match and continue ingest.
+    if (isUnknownFieldError(message)) return null;
     throw new Error(`Failed to find Webhook Event by Event Key: ${message}`);
   }
 
@@ -185,7 +192,16 @@ export async function createWebhookEvent(
   if (input.merchantId) fields["Merchant ID"] = input.merchantId;
   if (input.occurredAt) fields["Occurred At"] = input.occurredAt;
 
-  const optionalFields = new Set(["Payload JSON", "Status", "Merchant ID", "Occurred At"]);
+  const optionalFields = new Set([
+    "Event Key",
+    "Provider",
+    "Provider Event ID",
+    "Event Type",
+    "Payload JSON",
+    "Status",
+    "Merchant ID",
+    "Occurred At",
+  ]);
 
   while (true) {
     const response = await airtableRequest(`${encodeURIComponent(WEBHOOK_EVENTS_TABLE)}`, {
@@ -210,6 +226,17 @@ export async function createWebhookEvent(
       }
       fields = nextFields;
       continue;
+    }
+
+    // Last-resort compatibility: allow record creation with no writable custom fields.
+    if (isUnknownFieldError(message) && Object.keys(fields).length === 0) {
+      const fallback = await airtableRequest(`${encodeURIComponent(WEBHOOK_EVENTS_TABLE)}`, {
+        method: "POST",
+        body: JSON.stringify({ fields: {} }),
+      });
+      if (fallback.ok) {
+        return toWebhookEventRecord((await fallback.json()) as AirtableRecord);
+      }
     }
 
     throw new Error(`Failed to create Webhook Event: ${message}`);
