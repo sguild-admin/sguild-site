@@ -17,7 +17,7 @@ export default function PricingToggle({ value, onChange }: Props) {
         onClick={() => onChange('dallas')}
         aria-pressed={value === 'dallas'}
         className={[
-          'rounded-md px-3 py-1.5 text-sm font-semibold transition',
+          'rounded-md px-3.5 py-2 text-[0.95rem] font-semibold transition',
           value === 'dallas' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-800',
         ].join(' ')}
       >
@@ -28,7 +28,7 @@ export default function PricingToggle({ value, onChange }: Props) {
         onClick={() => onChange('oahu')}
         aria-pressed={value === 'oahu'}
         className={[
-          'rounded-md px-3 py-1.5 text-sm font-semibold transition',
+          'rounded-md px-3.5 py-2 text-[0.95rem] font-semibold transition',
           value === 'oahu' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-800',
         ].join(' ')}
       >

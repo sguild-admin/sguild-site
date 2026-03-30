@@ -63,7 +63,7 @@ export default function Header() {
           </Link>
 
           <div
-            className="relative"
+            className="relative -mr-2"
             onMouseEnter={() => setLocOpen(true)}
             onMouseLeave={() => setLocOpen(false)}
           >
@@ -101,7 +101,7 @@ export default function Header() {
 
           <Link
             href={lessonRequestHref}
-            className="inline-flex items-center rounded-full bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-700"
+            className="inline-flex items-center rounded-xl bg-linear-to-b from-[#1b80d0] to-[#1562bc] px-4 py-2 font-sf-pro text-[1rem] font-medium text-white shadow-[0_2px_8px_rgba(27,128,208,0.18)] transition hover:brightness-95"
           >
             Book Lessons
           </Link>
@@ -158,7 +158,7 @@ export default function Header() {
           <Link
             href={lessonRequestHref}
             onClick={() => setOpen(false)}
-            className="mt-1 inline-flex w-full items-center justify-center rounded-full bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-700"
+            className="mt-1 inline-flex w-full items-center justify-center rounded-xl bg-linear-to-b from-[#1b80d0] to-[#1562bc] px-4 py-2 font-sf-pro text-[1rem] font-medium text-white shadow-[0_2px_8px_rgba(27,128,208,0.18)] transition hover:brightness-95"
           >
             Book Lessons
           </Link>

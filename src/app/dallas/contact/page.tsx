@@ -23,8 +23,8 @@ export default function DallasContactPage() {
 
         <div className="mx-auto max-w-6xl px-4 py-16 md:py-24 grid md:grid-cols-2 items-center gap-10">
           <div>
-            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">Contact - Dallas</h1>
-            <p className="mt-4 text-lg leading-relaxed text-slate-700">
+            <h1 className="font-['Inter'] text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">Contact - Dallas</h1>
+            <p className="mt-4 font-sf-pro text-lg leading-relaxed text-slate-700">
               Ready to book at-home swim lessons in Dallas or Collin County? Reach out and we will get you scheduled.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
@@ -33,8 +33,8 @@ export default function DallasContactPage() {
               <Button href={requestHref} variant="secondary">Check Availability</Button>
             </div>
             <div className="mt-6 rounded-2xl bg-white/80 p-4 ring-1 ring-slate-200">
-              <h2 className="text-base font-semibold text-slate-900">Helpful details to include</h2>
-              <ul className="mt-2 list-disc pl-5 text-sm text-slate-700">
+              <h2 className="font-sf-pro text-[1.05rem] font-semibold text-slate-900">Helpful details to include</h2>
+              <ul className="mt-2 list-disc pl-5 font-sf-pro text-base text-slate-700">
                 <li>Pool type (home or community/public pool)</li>
                 <li>Who the lessons are for (adult or child)</li>
                 <li>When you would like to start</li>
@@ -48,14 +48,14 @@ export default function DallasContactPage() {
               <NextImage src="/assets/contact.JPG" alt="Dallas backyard swim lesson" fill className="object-cover" sizes="(max-width: 768px) 100vw, 50vw" />
             </div>
             <div className="absolute -bottom-4 -right-4 bg-white/80 backdrop-blur rounded-2xl px-4 py-3 shadow ring-1 ring-slate-200">
-              <p className="text-sm font-medium">Flexible scheduling - Home pools - Water safety</p>
+              <p className="font-sf-pro text-[0.95rem] font-medium">Flexible scheduling - Home pools - Water safety</p>
             </div>
           </div>
         </div>
       </section>
 
       <section className="mx-auto max-w-6xl px-4 py-12 md:py-16">
-        <h2 className="text-2xl md:text-3xl font-bold">Ways to reach us</h2>
+        <h2 className="font-['Inter'] text-2xl md:text-3xl font-bold">Ways to reach us</h2>
         <div className="mt-6 grid gap-6 md:grid-cols-3">
           <ContactCard
             title="Call"

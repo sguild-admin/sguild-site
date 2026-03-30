@@ -41,10 +41,10 @@ export default function PricingClient() {
         <section className="mx-auto max-w-6xl px-4 pt-10 pb-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-baseline sm:justify-between">
             <div>
-              <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 md:text-5xl">
+              <h1 className="font-['Inter'] text-4xl font-extrabold tracking-tight text-slate-900 md:text-5xl">
                 Pricing
               </h1>
-              <p className="mt-4 text-lg leading-relaxed text-slate-700">
+              <p className="mt-4 font-sf-pro text-lg leading-relaxed text-slate-700">
                 Private or small-group, 30-minute lessons at your pool.
               </p>
               <p className="mt-2 inline-flex rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sm font-semibold text-sky-800">
@@ -54,7 +54,7 @@ export default function PricingClient() {
             
 
             <div className="flex items-center gap-3">
-              <span className="hidden sm:inline text-sm text-slate-500">Location</span>
+              <span className="hidden sm:inline text-[0.95rem] text-slate-500">Location</span>
               <PricingToggle
                 value={city}
                 onChange={(v: City) => {
@@ -70,7 +70,7 @@ export default function PricingClient() {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold text-slate-900 md:text-3xl">Lessons and Packages</h2>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 font-sf-pro text-base text-slate-600">
             30-minute private or shared lessons at your location, add students at no extra charge.
           </p>
         </div>
@@ -84,14 +84,14 @@ export default function PricingClient() {
 
       <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-slate-700">
-            Ready to get started in {cityLabel}? Check availability and we will match you to the best lesson option.
+          <p className="text-[0.95rem] text-slate-700 md:text-base">
+            Book Your First Lesson in {cityLabel}. We will match you to the best lesson option.
           </p>
           <a
             href="/lesson-request"
-            className="inline-flex items-center justify-center rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700"
+            className="inline-flex items-center justify-center rounded-xl bg-linear-to-b from-[#1b80d0] to-[#1562bc] px-4 py-2 font-sf-pro text-[1rem] font-medium text-white shadow-[0_2px_8px_rgba(27,128,208,0.18)] transition hover:brightness-95"
           >
-            Check Availability
+            Book Your First Lesson
           </a>
         </div>
       </div>
@@ -101,7 +101,7 @@ export default function PricingClient() {
     <div className="mt-8 pb-16">
   <div className="relative z-10 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-  <p className="text-sm text-slate-700">
+  <p className="text-[0.95rem] text-slate-700 md:text-base">
     Questions before you start? Text us and we’ll recommend the best option based on your swimmer’s age and goals.
   </p>
 

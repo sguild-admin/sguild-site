@@ -95,7 +95,7 @@ const infantOfferings: OfferingItem[] = [
 export default function Offerings({
   title = "What we offer",
   titleSubline: _titleSubline,
-  description = "All lessons are 30 minutes and take place at your home, condo, or an arranged location. Choose the option that best fits your swimmer's goals.",
+  description = "From beginners to advanced swimmers, each lesson is tailored to your goals and comfort and can be shared with others at no extra cost.",
   youthLabel = "For Kids",
 }: OfferingsProps) {
   const groups = useMemo<OfferingGroupData[]>(
@@ -110,7 +110,7 @@ export default function Offerings({
         subtext:
           "Being 42, I learned the skills to make swimming a lifetime sport. I'm very thankful for the instruction and highly recommend it.",
         author: "Will K",
-        ctaLabel: "Check Availability",
+        ctaLabel: "Start Your First Lesson",
       },
       {
         key: "youth",
@@ -121,7 +121,7 @@ export default function Offerings({
         subtext:
           "We also appreciated the focus on form and technique, which helped him continue progressing.",
         author: "Blanca M",
-        ctaLabel: "Check Availability",
+        ctaLabel: "Book Your Child's First Lesson",
       },
       {
         key: "infants",
@@ -133,7 +133,7 @@ export default function Offerings({
         subtext:
           "He kept engaging her, even singing to keep her involved. Over about 10 lessons, we saw real progress.",
         author: "Sarah N",
-        ctaLabel: "Check Availability",
+        ctaLabel: "Book Your Child's First Lesson",
       },
     ],
     [youthLabel],
@@ -149,7 +149,7 @@ export default function Offerings({
       <h2 className="text-2xl font-bold md:text-3xl">
         {title}
       </h2>
-      <p className="mt-2 text-sm text-slate-600">{description}</p>
+      <p className="mt-2 font-sf-pro text-base text-slate-600 md:text-lg">{description}</p>
 
       <div className="mt-9 grid gap-8 md:grid-cols-12 md:items-start lg:gap-12">
         <div className="md:col-span-7">
@@ -184,7 +184,7 @@ export default function Offerings({
                         {group.heading}
                       </span>
                       {!isOpen && (
-                        <span className="mt-1 block text-sm font-medium text-slate-400">
+                        <span className="mt-1 block text-base font-medium text-slate-500">
                           {group.subheading}
                         </span>
                       )}
@@ -200,15 +200,15 @@ export default function Offerings({
                       <div className="space-y-5">
                         {group.items.map((item) => (
                           <article key={`${group.key}-${item.title}`} className="border-b border-slate-200/60 pb-5 last:border-b-0 last:pb-0">
-                            <h4 className="text-sm font-semibold text-slate-800">{item.title}</h4>
-                            <p className="mt-2 text-sm leading-6 text-slate-600">{item.body}</p>
+                            <h4 className="text-base font-semibold text-slate-800 md:text-[1.05rem]">{item.title}</h4>
+                            <p className="mt-2 text-base leading-7 text-slate-600">{item.body}</p>
                           </article>
                         ))}
                       </div>
-                      <div className="pt-6">
+                      <div className="mt-5 pt-5 pb-1">
                         <Link
                           href="/lesson-request"
-                          className="inline-flex items-center justify-center rounded-lg bg-sky-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2"
+                          className="inline-flex items-center justify-center rounded-xl bg-linear-to-b from-[#1b80d0] to-[#1562bc] px-4 py-2 font-sf-pro text-[1rem] font-medium text-white shadow-[0_2px_8px_rgba(27,128,208,0.18)] transition hover:brightness-95"
                         >
                           {group.ctaLabel}
                         </Link>
@@ -230,7 +230,6 @@ export default function Offerings({
           />
         </div>
       </div>
-
     </section>
   );
 }

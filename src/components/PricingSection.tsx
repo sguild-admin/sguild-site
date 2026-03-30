@@ -25,10 +25,10 @@ export default function PricingSection({
             <h2 className="text-2xl font-bold tracking-tight text-slate-900 md:text-3xl">
               {title}
             </h2>
-            <p className="mt-2 text-sm text-slate-600">{subtitle}</p>
+            <p className="mt-2 font-sf-pro text-[0.95rem] text-slate-600 md:text-base">{subtitle}</p>
           </div>
 
-          <span className="inline-flex w-fit items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
+          <span className="inline-flex w-fit items-center rounded-full border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-[0.82rem] font-semibold text-slate-700">
             {badgeText}
           </span>
         </div>

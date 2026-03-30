@@ -64,10 +64,10 @@ export default async function BlogPage() {
             Use these guides at home, then accelerate progress with one-on-one or small-group instruction.
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
-            <Link href="/pricing" className="rounded-full bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700">
+            <Link href="/pricing" className="inline-flex items-center rounded-xl bg-linear-to-b from-[#1b80d0] to-[#1562bc] px-4 py-2 font-sf-pro text-[1rem] font-medium text-white shadow-[0_2px_8px_rgba(27,128,208,0.18)] transition hover:brightness-95">
               See Pricing
             </Link>
-            <Link href="/lesson-request" className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+              <Link href="/lesson-request" className="inline-flex items-center rounded-xl border-[0.4px] border-slate-200/45 bg-white/90 px-4 py-2 font-sf-pro text-[1rem] font-medium text-sky-700 shadow-[0_2px_6px_rgba(15,23,42,0.08)] transition hover:bg-white">
               Check Availability
             </Link>
           </div>

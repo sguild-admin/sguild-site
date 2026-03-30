@@ -76,7 +76,7 @@ return (
               <span
                 className={[
                   'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold',
-                  it.featured ? 'bg-sky-600 text-white' : 'bg-slate-900 text-white',
+                  it.featured ? 'bg-linear-to-b from-[#1b80d0] to-[#1562bc] text-white' : 'bg-slate-900 text-white',
                 ].join(' ')}
               >
                 {it.badge}

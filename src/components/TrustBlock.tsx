@@ -47,7 +47,7 @@ export default function TrustBlock({
         </div>
 
         {(author || true) && (
-          <div className="mt-5 inline-flex w-fit items-center gap-3 rounded-xl border border-slate-200 px-3 py-1.5">
+          <div className="mt-5 inline-flex w-fit items-center gap-3 rounded-xl border-[0.4px] border-slate-200/45 bg-white/90 px-3 py-1.5 shadow-[0_2px_6px_rgba(15,23,42,0.08)]">
             <div
               className="flex items-center gap-0.5 text-amber-400"
               aria-label="5 out of 5 stars"
@@ -69,7 +69,7 @@ export default function TrustBlock({
           <div className="mt-6 pr-4 sm:pr-8">
             <Link
               href="/lesson-request"
-              className="inline-flex w-full items-center justify-center rounded-lg bg-sky-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-sky-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 sm:w-auto"
+              className="inline-flex w-full items-center justify-center rounded-xl bg-linear-to-b from-[#1b80d0] to-[#1562bc] px-4 py-2 font-sf-pro text-[1rem] font-medium text-white shadow-[0_2px_8px_rgba(27,128,208,0.18)] transition hover:brightness-95 sm:w-auto"
             >
               {ctaLabel}
             </Link>

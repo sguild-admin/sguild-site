@@ -4,7 +4,7 @@ import Hero from '../../components/Hero'
 import FAQs from '../../components/FAQs'
 import ContactCTA from '../../components/ContactCTA'
 import Offerings from '../../components/Offerings'
-import ServiceArea from '../../components/ServiceArea'
+import HowItWorks from '../../components/HowItWorks'
 import PricingSection from '../../components/PricingSection'
 import { CONTACTS } from '../../config/contact'
 import { getSiteUrl } from '@/lib/blog'
@@ -57,7 +57,7 @@ export default function OahuPage() {
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-sky-50 to-white text-slate-800">
+    <div className="min-h-screen bg-linear-to-b from-sky-50 to-slate-50 text-slate-800">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(businessStructuredData) }}
@@ -67,10 +67,15 @@ export default function OahuPage() {
         title={"Mobile Swim Lessons on Oʻahu"}
         subtitle={"Personalized swim instruction for kids and adults, designed to build confidence and technique at your ocean spot or pool on Oʻahu."}
         ctas={[
-          { label: 'Check Availability', href: '/lesson-request', variant: 'primary' },
-          { label: PHONE_DISPLAY, href: telHref, variant: 'secondary' },
+          { label: 'Book Your First Lesson', href: '/lesson-request', variant: 'primary' },
           { label: 'See Pricing', href: '#pricing', variant: 'secondary' },
         ]}
+        contactLine={
+          <>
+            Call or text{" "}
+            <a href={smsHref} className="font-medium text-sky-700 hover:text-sky-800 hover:underline">{PHONE_DISPLAY}</a>
+          </>
+        }
         imageSrc={'/assets/oahuHero.png'}
         imageAlt={'Oʻahu swim lessons with Sguild Swim Instruction'}
         trustCityLabel="Oʻahu families"
@@ -83,20 +88,13 @@ export default function OahuPage() {
         youthLabel="For Keiki"
       />
 
+      <div className="mx-auto mb-2 max-w-6xl px-4">
+        <div className="border-b-2 border-slate-200/60" />
+      </div>
+
       <PricingSection city="oahu" />
 
-      <ServiceArea city="oahu" />
-
-      <section className="mx-auto max-w-6xl px-4 py-12">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-2xl font-bold">About Sguild Swim Instruction</h2>
-          <p className="mt-2 text-slate-700">
-            Sguild Swim is a mobile swim school dedicated to helping swimmers of all ages build confidence and strong
-            technique. On Oʻahu, our experienced instructors bring <strong>at-home swim lessons</strong> and ocean
-            sessions directly to you, tailoring each class to your swimmer's age, goals, and comfort level.
-          </p>
-        </div>
-      </section>
+      <HowItWorks city="oahu" />
 
       <FAQs
         city="Oʻahu"
@@ -104,6 +102,7 @@ export default function OahuPage() {
         telHref={telHref}
         smsHref={smsHref}
         requestHref={requestHref}
+        serviceAreaSummary="Honolulu, Windward, and West O'ahu"
       />
 
       <ContactCTA city="Oʻahu" href="/lesson-request" />

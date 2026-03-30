@@ -4,7 +4,7 @@ import Hero from '../../components/Hero'
 import FAQs from '../../components/FAQs'
 import ContactCTA from '../../components/ContactCTA'
 import Offerings from '../../components/Offerings'
-import ServiceArea from '../../components/ServiceArea'
+import HowItWorks from '../../components/HowItWorks'
 import PricingSection from '../../components/PricingSection'
 import { CONTACTS } from '../../config/contact'
 import { getSiteUrl } from '@/lib/blog'
@@ -57,7 +57,7 @@ export default function DallasPage() {
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-sky-50 to-white text-slate-800">
+    <div className="min-h-screen bg-linear-to-b from-sky-50 to-slate-50 text-slate-800">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(businessStructuredData) }}
@@ -67,10 +67,15 @@ export default function DallasPage() {
         title={'Mobile Swim Lessons in Dallas'}
         subtitle={'Personalized swim instruction for kids and adults, focused on confidence, safety, and technique. One price per 30-minute lesson for private or small-group sessions.'}
         ctas={[
-          { label: 'Check Availability', href: '/lesson-request', variant: 'primary' },
-          { label: PHONE, href: telHref, variant: 'secondary' },
+          { label: 'Book Your First Lesson', href: '/lesson-request', variant: 'primary' },
           { label: 'See Pricing', href: '#pricing', variant: 'secondary' },
         ]}
+        contactLine={
+          <>
+            Call or text{" "}
+            <a href={smsHref} className="font-medium text-sky-700 hover:text-sky-800 hover:underline">{PHONE}</a>
+          </>
+        }
         imageSrc={'/assets/dallasHero.png'}
         imageAlt={'Backyard swim lessons in Dallas'}
         trustCityLabel="Dallas families"
@@ -83,20 +88,13 @@ export default function DallasPage() {
         youthLabel="For Kids"
       />
 
+      <div className="mx-auto mb-2 max-w-6xl px-4">
+        <div className="border-b-2 border-slate-200/60" />
+      </div>
+
       <PricingSection city="dallas" />
 
-      <ServiceArea city="dallas" title="Where we teach" />
-
-      <section className="mx-auto max-w-6xl px-4 py-12">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-2xl font-bold">About Sguild Swim</h2>
-          <p className="mt-2 text-slate-700">
-            Sguild Swim is a mobile swim school dedicated to helping swimmers of all ages build confidence and strong
-            technique. In Dallas, our team brings a wide variety of classes to your pool - tailored to meet every
-            need and level.
-          </p>
-        </div>
-      </section>
+      <HowItWorks city="dallas" />
 
       <FAQs
         city="Dallas"
@@ -105,6 +103,7 @@ export default function DallasPage() {
         smsHref={smsHref}
         requestHref={requestHref}
         includeOcean={false}
+        serviceAreaSummary="Dallas, Collin, and Denton Counties"
       />
 
       <ContactCTA city="Dallas" href="/lesson-request" />

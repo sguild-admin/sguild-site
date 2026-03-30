@@ -1,7 +1,7 @@
 ﻿import React from "react";
 import Button from "./Button";
 import NextImage from "./NextImage";
-import { Phone, Star } from "lucide-react";
+import TrustBar from "./TrustBar";
 
 type CTA = { label: string; href: string; variant?: "primary" | "secondary" };
 
@@ -9,6 +9,7 @@ export default function Hero({
   title,
   subtitle,
   ctas = [],
+  contactLine,
   imageSrc,
   imageAlt,
   blockquote,
@@ -17,6 +18,7 @@ export default function Hero({
   title: React.ReactNode;
   subtitle?: React.ReactNode;
   ctas?: CTA[];
+  contactLine?: React.ReactNode;
   imageSrc?: string;
   imageAlt?: string;
   blockquote?: React.ReactNode;
@@ -30,10 +32,10 @@ export default function Hero({
         <div className="absolute right-0 bottom-0 h-40 w-40 rounded-full bg-slate-200/30 blur-3xl" />
       </div>
 
-      <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 md:grid-cols-2 md:py-24 lg:gap-12">
-        <div className="max-w-xl">
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl lg:text-5xl">{title}</h1>
-          {subtitle && <p className="mt-4 max-w-lg text-base leading-relaxed text-slate-700 md:mt-5 md:text-lg">{subtitle}</p>}
+      <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 md:grid-cols-[1fr_1.08fr] md:py-24 lg:gap-12">
+        <div className="mx-auto max-w-xl text-center md:mx-0 md:text-left">
+          <h1 className="font-['Inter'] text-[1.95rem] font-bold leading-[1.05] tracking-tight text-slate-900 sm:text-[2.3rem] lg:text-[3rem]">{title}</h1>
+          {subtitle && <p className="mt-4 max-w-lg text-base leading-relaxed text-slate-700 md:mt-5 md:text-lg mx-auto md:mx-0">{subtitle}</p>}
 
           {blockquote && (
             <blockquote className="mt-4 rounded-xl bg-white/70 p-4 text-slate-700 ring-1 ring-slate-200 italic">
@@ -42,34 +44,35 @@ export default function Hero({
           )}
 
           {ctas.length > 0 && (
-            <div className="mt-6 flex flex-wrap gap-3">
+            <div className="mt-6 flex flex-col items-center gap-3 md:items-start">
               {ctas.map((c) => (
-                <Button key={c.href + c.label} href={c.href} variant={c.variant}>
-                  {c.href.startsWith("tel:") ? (
-                    <span className="inline-flex items-center gap-2">
-                      <Phone className="h-4 w-4" aria-hidden="true" />
-                      {c.label}
-                    </span>
-                  ) : (
-                    c.label
-                  )}
+                <Button
+                  key={c.href + c.label}
+                  href={c.href}
+                  variant={c.variant}
+                  className={`w-full max-w-[320px] justify-center rounded-2xl px-5 py-3 text-[1.15rem] ${
+                    c.variant !== "secondary" ? "shadow-[0_3px_10px_rgba(27,128,208,0.27)]" : ""
+                  }`}
+                >
+                  {c.label}
                 </Button>
               ))}
             </div>
           )}
 
-          <div className="mt-5 inline-flex items-center gap-2 text-xs text-slate-700 sm:text-sm">
-            <div className="flex items-center gap-0.5 text-amber-400">
-              {[0, 1, 2, 3, 4].map((i) => (
-                <Star key={i} className="h-3.5 w-3.5 fill-current sm:h-4 sm:w-4" />
-              ))}
-            </div>
-            <p className="font-medium">5.0 rated by {trustCityLabel ?? "local families"}</p>
+          <div className="mt-4 flex flex-col items-center space-y-4 md:items-start">
+            {contactLine && (
+              <p className="text-base leading-relaxed text-slate-700 md:pl-1">{contactLine}</p>
+            )}
+
+            <TrustBar
+              ariaLabel={`Google rating: 5.0 out of 5, trusted by ${trustCityLabel ?? "local families"}`}
+            />
           </div>
         </div>
 
         {imageSrc && (
-          <div className="relative">
+          <div className="relative mx-auto w-full max-w-xl md:mx-0 md:max-w-none">
             <div className="w-full overflow-hidden rounded-3xl shadow-2xl ring-1 ring-slate-200 relative" style={{ aspectRatio: '4 / 3' }}>
               <NextImage src={imageSrc} alt={imageAlt || "Hero image"} fill className="object-cover" />
             </div>
@@ -78,6 +81,10 @@ export default function Hero({
             </div>
           </div>
         )}
+      </div>
+
+      <div className="mx-auto max-w-6xl px-4">
+        <div className="border-b-2 border-slate-200/60" />
       </div>
     </section>
   );
