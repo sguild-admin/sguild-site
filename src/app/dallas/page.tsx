@@ -65,7 +65,7 @@ export default function DallasPage() {
 
       <Hero
         title={'Mobile Swim Lessons in Dallas'}
-        subtitle={'Private swim instruction for kids and adults, focused on confidence and technique at your home or community pool in Dallas.'}
+        subtitle={'Private swim instruction for kids and adults, tailored to your goals and schedule at your home or community pool in Dallas.'}
         ctas={[
           { label: 'Book Your First Lesson', href: '/lesson-request', variant: 'primary' },
           { label: 'See Pricing', href: '#pricing', variant: 'secondary' },
@@ -78,6 +78,7 @@ export default function DallasPage() {
         }
         imageSrc={'/assets/dallasHero.png'}
         imageAlt={'Backyard swim lessons in Dallas'}
+        imageTagline="Water Safety • Confidence • Technique"
         trustCityLabel="Dallas families"
       />
 
