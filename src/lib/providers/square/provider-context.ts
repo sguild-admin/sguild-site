@@ -1,13 +1,11 @@
-import type { OrgIntegrationRecord } from "@/lib/airtable/order-billing";
 import { SyncEndpointError } from "@/lib/errors";
-import type { BillingAction } from "@/lib/types/billing";
+import type { SquareAuthContext, SquareProviderContext } from "./types";
 
-export type ProviderContext = {
-  provider: "Square";
-  providerAccountId: string;
-  accessTokenAlias: string;
-  accessToken: string;
-  externalLocationId: string;
+type OrgIntegrationRecord = {
+  provider: string | null;
+  providerAccountId: string | null;
+  accessToken: string | null;
+  externalLocationId: string | null;
 };
 
 function readAliasToTokenMap(): Record<string, string> {
@@ -43,10 +41,10 @@ function readAliasToTokenMap(): Record<string, string> {
   return normalized;
 }
 
-export function resolveProviderContext(
+export function resolveSquareProviderContext(
   orgIntegration: OrgIntegrationRecord,
-  action: BillingAction,
-): ProviderContext {
+  action: string,
+): SquareProviderContext {
   const provider = orgIntegration.provider?.toLowerCase();
   if (provider !== "square") {
     throw new SyncEndpointError("Unsupported provider.", 422);
@@ -82,5 +80,28 @@ export function resolveProviderContext(
     accessTokenAlias: orgIntegration.accessToken,
     accessToken,
     externalLocationId: orgIntegration.externalLocationId,
+  };
+}
+
+export function resolveSquareAuthContextFromAlias(accessTokenAlias: string): SquareAuthContext {
+  const alias = accessTokenAlias.trim();
+  if (!alias) {
+    throw new SyncEndpointError("Missing Square access token alias.", 422);
+  }
+
+  const aliasMap = readAliasToTokenMap();
+  const accessToken = aliasMap[alias];
+  if (!accessToken) {
+    throw new SyncEndpointError(
+      `No Square token configured for alias '${alias}'.`,
+      422,
+    );
+  }
+
+  return {
+    provider: "Square",
+    providerAccountId: alias,
+    accessTokenAlias: alias,
+    accessToken,
   };
 }

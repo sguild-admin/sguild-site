@@ -1,7 +1,7 @@
 import {
   handleSquareWebhookGet,
   handleSquareWebhookPost,
-} from "@/modules/webhooks/route";
+} from "@/modules/webhooks";
 
 export const runtime = "nodejs";
 
@@ -12,3 +12,4 @@ export async function GET() {
 export async function POST(request: Request) {
   return handleSquareWebhookPost(request);
 }
+

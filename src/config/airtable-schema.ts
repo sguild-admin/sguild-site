@@ -11,6 +11,7 @@ export const airtableSchema = {
       orders: "Orders",
       orderItems: "Order Items",
       orderExternals: "Order Externals",
+      externalActions: "External Actions",
       invoices: "Invoices",
       invoiceExternals: "Invoice Externals",
       organizationIntegrations: "Organization Integrations",

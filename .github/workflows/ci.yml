@@ -16,6 +16,10 @@ jobs:
           node-version: 18
       - name: Install
         run: npm ci
+      - name: Boundary checks
+        run: |
+          npm run check:airtable-boundary
+          npm run check:dto-boundary
       - name: Lint
         run: npm run lint --if-present
       - name: Build

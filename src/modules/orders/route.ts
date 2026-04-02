@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { failureFromError } from "./service";
+import { assertAuthorizedOrderBillingRequest, failureFromError } from "./service";
 import { assertJsonRequest, parseJsonBody } from "@/lib/http/request";
-import { validateOrdersSecret } from "./repo";
 import { runOrderBilling } from "./service";
 
 export function methodNotAllowed(): NextResponse {
@@ -13,7 +12,7 @@ export function methodNotAllowed(): NextResponse {
 
 export async function handleProcessOrderBilling(request: Request) {
 	try {
-		validateOrdersSecret(request);
+		assertAuthorizedOrderBillingRequest(request);
 		assertJsonRequest(request);
 		const body = await parseJsonBody(request);
 		const response = await runOrderBilling(body);

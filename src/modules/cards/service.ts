@@ -1,19 +1,10 @@
 import { SyncEndpointError } from "@/lib/errors";
-import {
-  createCardExternalRecord,
-  disableCardExternalRecord,
-  fetchSquareCardsForCustomer,
-  findExistingCardExternalByKey,
-  listExistingCardExternals,
-  loadClientExternal,
-  updateCardExternalRecord,
-} from "./repo";
+import { cardsRepo } from "./repo";
 import {
   parseSyncRecordId,
   resolveSquareContext,
-  type CardSyncErrorResponse,
-  type CardSyncSuccessResponse,
 } from "./schema";
+import type { CardSyncErrorResponse, CardSyncSuccessResponse } from "./dto";
 
 const OPERATION = "sync_card_external";
 
@@ -91,13 +82,13 @@ export function mapCardSyncError(error: unknown): { status: number; body: CardSy
 }
 
 export async function runCardExternalSync(recordId: string): Promise<CardSyncSuccessResponse> {
-  const clientExternal = await loadClientExternal(recordId);
+  const clientExternal = await cardsRepo.loadClientExternal(recordId);
   assertOperationalPrerequisites(clientExternal);
 
   const squareContext = resolveSquareContext(clientExternal);
   const externalCustomerId = clientExternal.externalCustomerId as string;
-  const cards = await fetchSquareCardsForCustomer(squareContext, externalCustomerId);
-  const existingRows = await listExistingCardExternals(clientExternal.recordId);
+  const cards = await cardsRepo.fetchSquareCardsForCustomer(squareContext, externalCustomerId);
+  const existingRows = await cardsRepo.listExistingCardExternals(clientExternal.recordId);
   const existingMap = existingByExternalCardId(existingRows);
 
   let createdCount = 0;
@@ -122,14 +113,14 @@ export async function runCardExternalSync(recordId: string): Promise<CardSyncSuc
     const existing = existingMap.get(card.id);
     const fallbackExisting =
       existing ??
-      (await findExistingCardExternalByKey(clientExternal.recordId, card.id));
+      (await cardsRepo.findExistingCardExternalByKey(clientExternal.recordId, card.id));
 
     if (fallbackExisting) {
-      await updateCardExternalRecord(fallbackExisting.recordId, baseFields);
+      await cardsRepo.updateCardExternalRecord(fallbackExisting.recordId, baseFields);
       updatedCount += 1;
       existingMap.set(card.id, fallbackExisting);
     } else {
-      await createCardExternalRecord(baseFields);
+      await cardsRepo.createCardExternalRecord(baseFields);
       createdCount += 1;
     }
   }
@@ -138,7 +129,7 @@ export async function runCardExternalSync(recordId: string): Promise<CardSyncSuc
     if (!row.externalCardId) continue;
     if (returnedIds.has(row.externalCardId)) continue;
     if (!row.enabled) continue;
-    await disableCardExternalRecord(row.recordId);
+    await cardsRepo.disableCardExternalRecord(row.recordId);
     disabledCount += 1;
   }
 
@@ -162,3 +153,4 @@ export async function runCardSync(body: unknown) {
   const recordId = parseSyncRecordId(body);
   return runCardExternalSync(recordId);
 }
+

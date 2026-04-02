@@ -1,4 +1,4 @@
-import { updateInvoiceExternal } from "./ports";
+import { invoicesRepo } from "@/modules/invoices";
 
 export async function markInvoiceExternalRefundSignals(input: {
   invoiceExternalRecordId: string;
@@ -6,7 +6,7 @@ export async function markInvoiceExternalRefundSignals(input: {
   providerEventId: string;
   payloadJson: string;
 }) {
-  return updateInvoiceExternal(input.invoiceExternalRecordId, {
+  return invoicesRepo.updateInvoiceExternal(input.invoiceExternalRecordId, {
     "Last Webhook Event Type": input.eventType,
     "Last Webhook Event ID": input.providerEventId,
     "Webhook Raw Payload": input.payloadJson,

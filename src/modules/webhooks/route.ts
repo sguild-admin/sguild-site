@@ -1,8 +1,15 @@
 import {
+  handleBackfillSquareWebhooks,
   handleMetaWebhookGet,
   handleMetaWebhookPost,
   handleSquareWebhookGet,
   handleSquareWebhookPost,
 } from "./service";
 
-export { handleMetaWebhookGet, handleMetaWebhookPost, handleSquareWebhookGet, handleSquareWebhookPost };
+export {
+  handleBackfillSquareWebhooks,
+  handleMetaWebhookGet,
+  handleMetaWebhookPost,
+  handleSquareWebhookGet,
+  handleSquareWebhookPost,
+};

@@ -1,5 +1,6 @@
-import { handleLeadSubmission } from "@/modules/customers/route";
+import { handleLeadSubmission } from "@/modules/customers";
 
 export async function POST(request: Request) {
   return handleLeadSubmission(request);
 }
+

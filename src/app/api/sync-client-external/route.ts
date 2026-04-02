@@ -1,4 +1,4 @@
-import { handleClientExternalSync, methodNotAllowed } from "@/modules/clients/route";
+import { handleClientExternalSync, methodNotAllowed } from "@/modules/clients";
 
 export const runtime = "nodejs";
 
@@ -21,3 +21,4 @@ export async function PATCH() {
 export async function DELETE() {
   return methodNotAllowed();
 }
+

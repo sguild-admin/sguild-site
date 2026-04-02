@@ -2,7 +2,7 @@ import {
   SyncEndpointError,
 } from "@/lib/errors";
 import type { BillingAction } from "@/lib/types/billing";
-import type { OrderBillingRequest } from "./service";
+import type { OrderBillingRequest } from "./dto";
 
 type ProcessOrderBillingBody = {
   orderRecordId?: unknown;

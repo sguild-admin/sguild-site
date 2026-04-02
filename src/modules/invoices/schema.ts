@@ -1,6 +1,9 @@
 import { SyncEndpointError } from "@/lib/errors";
-
-export type DeliveryMethod = "Email" | "Sms" | "Link";
+import type {
+  DeliveryMethod,
+  ReconcileInvoiceExternalsRequestDto,
+  SendInvoiceRequestDto,
+} from "./dto";
 
 type SendInvoiceBody = {
   invoiceRecordId?: unknown;
@@ -62,18 +65,7 @@ export function coerceDeliveryMethod(value: unknown): DeliveryMethod | null {
   return null;
 }
 
-export function parseSendInvoiceBody(body: unknown): {
-  invoiceRecordId: string;
-  orderRecordId?: string;
-  orgIntegrationRecordId: string;
-  invoiceExternalRecordId?: string;
-  externalInvoiceId?: string;
-  deliveryMethod?: DeliveryMethod;
-  saveCard?: boolean;
-  phoneSnapshot?: string;
-  idempotencyKey?: string;
-  forceResend: boolean;
-} {
+export function parseSendInvoiceBody(body: unknown): SendInvoiceRequestDto {
   if (typeof body !== "object" || body == null || Array.isArray(body)) {
     throw new SyncEndpointError("Invalid request body.", 400);
   }
@@ -109,11 +101,7 @@ export function parseSendInvoiceBody(body: unknown): {
   };
 }
 
-export function parseReconcileBody(body: unknown): {
-  orderRecordId: string;
-  orgIntegrationRecordId: string;
-  dryRun: boolean;
-} {
+export function parseReconcileBody(body: unknown): ReconcileInvoiceExternalsRequestDto {
   if (typeof body !== "object" || body == null || Array.isArray(body)) {
     throw new SyncEndpointError("Invalid request body.", 400);
   }

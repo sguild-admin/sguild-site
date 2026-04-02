@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { assertJsonRequest, parseJsonBody } from "@/lib/http/request";
-import { validateClientsSecret } from "./client.repo";
-import { mapClientSyncError, runClientSync } from "./client.service";
+import { clientSyncRepo } from "./repo";
+import { mapClientSyncError, runClientSync } from "./service";
 
 export function methodNotAllowed(): NextResponse {
   return NextResponse.json(
@@ -13,7 +13,7 @@ export function methodNotAllowed(): NextResponse {
 export async function handleClientExternalSync(request: Request) {
   let parsedBody: unknown;
   try {
-    validateClientsSecret(request);
+    clientSyncRepo.validateClientsSecret(request);
     assertJsonRequest(request);
     parsedBody = await parseJsonBody(request);
     const response = await runClientSync(parsedBody);
@@ -23,3 +23,4 @@ export async function handleClientExternalSync(request: Request) {
     return NextResponse.json(body, { status });
   }
 }
+

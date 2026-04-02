@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
-import { assertAuthorizedSyncRequest } from "@/modules/integrations/service";
-import { failureFromError } from "@/modules/orders/service";
-import { SyncEndpointError as BillingSyncEndpointError } from "@/lib/errors";
+import { assertAuthorizedSyncRequest } from "@/modules/integrations";
+import { failureFromError } from "@/modules/orders";
 import { assertJsonRequest, parseJsonBody } from "@/lib/http/request";
-import { sendInvoice, reconcileInvoiceExternals } from "./service";
-import { updateInvoiceExternal } from "./repo";
+import { reconcileInvoiceExternals, sendInvoice, writeSendInvoiceFailure } from "./service";
 
 export function methodNotAllowed(): NextResponse {
   return NextResponse.json(
@@ -30,27 +28,10 @@ export async function handleSendInvoice(request: Request) {
     return NextResponse.json(response, { status: 200 });
   } catch (error) {
     if (invoiceExternalRecordIdForFailure) {
-      const message = error instanceof Error ? error.message : "Unexpected server error.";
-      const statusCode = error instanceof BillingSyncEndpointError ? error.status : 500;
-      const rawPayload = error instanceof BillingSyncEndpointError ? error.rawPayload : undefined;
-
       try {
-        await updateInvoiceExternal(invoiceExternalRecordIdForFailure, {
-          "External Process Action": "Send Invoice",
-          "External Process Status": "Failed",
-          "External Process At": new Date().toISOString(),
-          "External Process Error": message,
-          ...(rawPayload ? { "External Process Raw Payload": rawPayload } : {}),
-          "Writeback Status": "Failed",
-          "Writeback At": new Date().toISOString(),
-          "Writeback Error": message,
-          "Writeback Last Attempt At": new Date().toISOString(),
-          "Reconciliation Status": "Needs Review",
-          "Last Synced At": new Date().toISOString(),
-          "Last Sync Activity At": new Date().toISOString(),
-          "Last API Response Code": statusCode,
-          "Last API Message": message,
-          "Last Send Error": message,
+        await writeSendInvoiceFailure({
+          invoiceExternalRecordId: invoiceExternalRecordIdForFailure,
+          error,
         });
       } catch {
         // preserve original error response
@@ -74,3 +55,4 @@ export async function handleReconcileInvoiceExternals(request: Request) {
     return NextResponse.json(body, { status });
   }
 }
+

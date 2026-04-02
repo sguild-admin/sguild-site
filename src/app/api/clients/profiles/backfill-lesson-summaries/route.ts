@@ -1,35 +1,13 @@
-import { NextResponse } from "next/server";
-import { assertJsonRequest, parseJsonBody } from "@/lib/http/request";
-import { validateClientsSecret } from "@/modules/clients/client.repo";
-import { backfillClientProfileLessonSummaries } from "@/modules/clients/profile.service";
-import { parseBackfillLessonSummariesBody } from "@/modules/clients/profile.schema";
-import { SyncEndpointError } from "@/lib/errors";
+import { handleBackfillLessonSummaries, methodNotAllowed } from "@/modules/client-profiles";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  try {
-    validateClientsSecret(request);
-    assertJsonRequest(request);
-    const body = await parseJsonBody(request);
-    const parsed = parseBackfillLessonSummariesBody(body);
-    const response = await backfillClientProfileLessonSummaries(parsed);
-    return NextResponse.json(response, { status: 200 });
-  } catch (error) {
-    if (error instanceof SyncEndpointError) {
-      return NextResponse.json(
-        { ok: false, error: error.exposeMessage ? error.message : "Unexpected server error." },
-        { status: error.status },
-      );
-    }
-
-    return NextResponse.json({ ok: false, error: "Unexpected server error." }, { status: 500 });
-  }
+  return handleBackfillLessonSummaries(request);
 }
 
 export async function GET() {
-  return NextResponse.json(
-    { ok: false, error: "Method Not Allowed" },
-    { status: 405, headers: { Allow: "POST" } },
-  );
+  return methodNotAllowed();
 }
+
+

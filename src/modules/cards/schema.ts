@@ -1,23 +1,6 @@
-import type { ClientExternalRecord } from "@/lib/airtable/card-external-sync";
+import type { ClientExternalRecord } from "./repo";
 import { SyncEndpointError } from "@/lib/errors";
-
-export type CardSyncSuccessResponse = {
-  ok: true;
-  syncStatus: "Synced";
-  cardsFound: number;
-};
-
-export type CardSyncErrorResponse = {
-  ok: false;
-  error: string;
-};
-
-export type SquareContext = {
-  provider: "Square";
-  providerAccountId: string;
-  accessTokenAlias: string;
-  accessToken: string;
-};
+import type { SquareAuthContext } from "@/lib/providers/square/types";
 
 function readAliasToTokenMap(): Record<string, string> {
   const raw = process.env.SQUARE_ACCESS_TOKENS_BY_ALIAS_JSON;
@@ -52,7 +35,7 @@ function readAliasToTokenMap(): Record<string, string> {
   return normalized;
 }
 
-export function resolveSquareContext(clientExternal: ClientExternalRecord): SquareContext {
+export function resolveSquareContext(clientExternal: ClientExternalRecord): SquareAuthContext {
   const provider = clientExternal.provider?.toLowerCase();
   if (provider !== "square") {
     throw new SyncEndpointError("Unsupported provider.", 422);

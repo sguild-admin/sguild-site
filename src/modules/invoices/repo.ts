@@ -1,37 +1,29 @@
 import {
-  createInvoiceExternal,
-  findInvoiceExternalByInvoiceAndOrgIntegration,
-  getInvoiceExternalById,
-  getInvoiceRecord,
-  getOrderRecord,
-  getOrgIntegrationRecord,
-  listInvoicesByOrder,
-  listOrderExternalsByInvoice,
-  updateInvoiceExternal,
-  updateInvoicePaymentLink,
-} from "./ports";
+  invoicesRepo as ordersInvoicesRepo,
+  ordersRepo,
+  providerBillingRepo,
+  providerContextRepo,
+} from "@/modules/orders";
 import {
-  cancelInvoice,
-  getInvoiceDetails,
-  getInvoicePublicUrl,
   publishInvoice,
   updateInvoiceSettings,
-} from "./ports";
+} from "@/lib/providers/square/invoices";
 
-export {
-  createInvoiceExternal,
-  findInvoiceExternalByInvoiceAndOrgIntegration,
-  getInvoiceExternalById,
-  getInvoiceRecord,
-  getOrderRecord,
-  getOrgIntegrationRecord,
-  listInvoicesByOrder,
-  listOrderExternalsByInvoice,
-  updateInvoiceExternal,
-  updateInvoicePaymentLink,
-  cancelInvoice,
-  getInvoiceDetails,
-  getInvoicePublicUrl,
+export const invoicesRepo = {
+  getOrderRecord: ordersRepo.getOrderRecord,
+  getInvoiceRecord: ordersInvoicesRepo.getInvoiceRecord,
+  getInvoiceExternalById: ordersInvoicesRepo.getInvoiceExternalById,
+  getOrgIntegrationRecord: providerContextRepo.getOrgIntegrationRecord,
+  findInvoiceExternalByInvoiceAndOrgIntegration:
+    ordersInvoicesRepo.findInvoiceExternalByInvoiceAndOrgIntegration,
+  listInvoicesByOrder: ordersInvoicesRepo.listInvoicesByOrder,
+  listOrderExternalsByInvoice: ordersRepo.listOrderExternalsByInvoice,
+  createInvoiceExternal: ordersInvoicesRepo.createInvoiceExternal,
+  updateInvoicePaymentLink: ordersInvoicesRepo.updateInvoicePaymentLink,
+  updateInvoiceExternal: ordersInvoicesRepo.updateInvoiceExternal,
+  cancelInvoice: providerBillingRepo.cancelInvoice,
+  getInvoiceDetails: providerBillingRepo.getInvoiceDetails,
+  getInvoicePublicUrl: providerBillingRepo.getInvoicePublicUrl,
   publishInvoice,
   updateInvoiceSettings,
 };

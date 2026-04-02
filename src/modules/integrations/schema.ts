@@ -1,4 +1,5 @@
 import { SyncEndpointError } from "@/lib/errors";
+import type { SyncRecordRequestDto } from "./dto";
 
 export type ProcessOrderBillingBody = {
   orderRecordId?: unknown;
@@ -11,7 +12,7 @@ export type ProcessOrderBillingBody = {
   action?: unknown;
 };
 
-export function parseSyncRecordId(body: unknown): string {
+export function parseSyncRecordId(body: unknown): SyncRecordRequestDto["recordId"] {
   if (typeof body !== "object" || body == null || Array.isArray(body)) {
     throw new SyncEndpointError("Invalid request body.", 400);
   }

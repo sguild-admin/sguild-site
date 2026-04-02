@@ -7,7 +7,11 @@
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
-    "backfill:square:24h": "node --env-file=.env.local scripts/backfill-square-events.mjs --hours=24"
+    "check:airtable-boundary": "node scripts/check-airtable-boundary.mjs",
+    "check:dto-boundary": "node scripts/check-dto-boundary.mjs",
+    "backfill:square:24h": "node --env-file=.env.local scripts/backfill-square-events.mjs --hours=24",
+    "backfill:external-actions:dry-run": "node --env-file=.env.local scripts/backfill-external-actions.mjs",
+    "backfill:external-actions": "node --env-file=.env.local scripts/backfill-external-actions.mjs --execute"
   },
   "dependencies": {
     "framer-motion": "^12.23.22",

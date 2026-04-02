@@ -1,21 +1,16 @@
 import { SyncEndpointError } from "@/lib/errors";
-import { getBillingProviderContext } from "@/modules/integrations/service";
 import {
-  cancelInvoice,
-  createInvoiceExternal,
-  findInvoiceExternalByInvoiceAndOrgIntegration,
-  getInvoiceDetails,
-  getInvoiceExternalById,
-  getInvoicePublicUrl,
-  getInvoiceRecord,
-  getOrderRecord,
-  listInvoicesByOrder,
-  listOrderExternalsByInvoice,
-  publishInvoice,
-  updateInvoiceExternal,
-  updateInvoicePaymentLink,
-  updateInvoiceSettings,
-} from "./repo";
+  countExternalActionsByInvoiceExternal,
+  createExternalAction,
+  getBillingProviderContext,
+  updateExternalAction,
+} from "@/modules/integrations";
+import { invoicesRepo } from "./repo";
+import type {
+  InvoiceReconcileResultDto,
+  ReconcileInvoiceExternalsResponseDto,
+  SendInvoiceResponseDto,
+} from "./dto";
 import {
   coerceDeliveryMethod,
   defaultSendIdempotencyKey,
@@ -25,23 +20,13 @@ import {
   pickCanonicalExternalInvoiceId,
 } from "./schema";
 
-type InvoiceReconcileResult = {
-  invoiceId: string;
-  canonicalExternalInvoiceId: string | null;
-  createdInvoiceExternalRecordId: string | null;
-  reusedInvoiceExternalRecordId: string | null;
-  canceledExternalInvoiceIds: string[];
-  skippedCancelExternalInvoiceIds: Array<{ externalInvoiceId: string; reason: string }>;
-  errors: string[];
-};
-
 async function reconcileOneInvoice(input: {
   invoiceId: string;
   orderRecordId: string;
   orgIntegrationRecordId: string;
   dryRun: boolean;
-}): Promise<InvoiceReconcileResult> {
-  const result: InvoiceReconcileResult = {
+}): Promise<InvoiceReconcileResultDto> {
+  const result: InvoiceReconcileResultDto = {
     invoiceId: input.invoiceId,
     canonicalExternalInvoiceId: null,
     createdInvoiceExternalRecordId: null,
@@ -56,7 +41,7 @@ async function reconcileOneInvoice(input: {
     action: "Invoice",
   });
 
-  const invoiceExternal = await findInvoiceExternalByInvoiceAndOrgIntegration(
+  const invoiceExternal = await invoicesRepo.findInvoiceExternalByInvoiceAndOrgIntegration(
     input.invoiceId,
     input.orgIntegrationRecordId,
   );
@@ -64,7 +49,7 @@ async function reconcileOneInvoice(input: {
     result.reusedInvoiceExternalRecordId = invoiceExternal.recordId;
   }
 
-  const linkedOrderExternals = await listOrderExternalsByInvoice(input.invoiceId);
+  const linkedOrderExternals = await invoicesRepo.listOrderExternalsByInvoice(input.invoiceId);
   const candidateExternalInvoiceIds = linkedOrderExternals
     .map((row) => row.externalInvoiceId)
     .filter((value): value is string => typeof value === "string" && value.length > 0);
@@ -81,19 +66,19 @@ async function reconcileOneInvoice(input: {
 
   result.canonicalExternalInvoiceId = canonicalPick.externalInvoiceId;
 
-  const canonicalDetails = await getInvoiceDetails({
+  const canonicalDetails = await invoicesRepo.getInvoiceDetails({
     context,
     externalInvoiceId: canonicalPick.externalInvoiceId,
   });
 
-  const hostedInvoiceUrl = canonicalDetails.publicUrl ?? (await getInvoicePublicUrl({
+  const hostedInvoiceUrl = canonicalDetails.publicUrl ?? (await invoicesRepo.getInvoicePublicUrl({
     context,
     externalInvoiceId: canonicalPick.externalInvoiceId,
   }));
 
   if (!invoiceExternal) {
     if (!input.dryRun) {
-      const created = await createInvoiceExternal({
+      const created = await invoicesRepo.createInvoiceExternal({
         Invoice: [input.invoiceId],
         Order: [input.orderRecordId],
         "Org Integration": [input.orgIntegrationRecordId],
@@ -110,7 +95,7 @@ async function reconcileOneInvoice(input: {
       result.createdInvoiceExternalRecordId = created.recordId;
     }
   } else if (!input.dryRun) {
-    await updateInvoiceExternal(invoiceExternal.recordId, {
+    await invoicesRepo.updateInvoiceExternal(invoiceExternal.recordId, {
       "External Invoice ID": canonicalPick.externalInvoiceId,
       "External Status": canonicalDetails.status ?? invoiceExternal.externalStatus ?? "UNKNOWN",
       ...(hostedInvoiceUrl ? { "Hosted Invoice URL": hostedInvoiceUrl } : {}),
@@ -126,7 +111,7 @@ async function reconcileOneInvoice(input: {
 
   for (const extraExternalInvoiceId of extras) {
     try {
-      const details = await getInvoiceDetails({
+      const details = await invoicesRepo.getInvoiceDetails({
         context,
         externalInvoiceId: extraExternalInvoiceId,
       });
@@ -164,7 +149,7 @@ async function reconcileOneInvoice(input: {
         continue;
       }
 
-      await cancelInvoice({
+      await invoicesRepo.cancelInvoice({
         context,
         externalInvoiceId: extraExternalInvoiceId,
         version: details.version,
@@ -182,11 +167,11 @@ async function reconcileOneInvoice(input: {
   return result;
 }
 
-export async function sendInvoice(body: unknown) {
+export async function sendInvoice(body: unknown): Promise<SendInvoiceResponseDto> {
   const parsed = parseSendInvoiceBody(body);
 
   const [invoice] = await Promise.all([
-    getInvoiceRecord(parsed.invoiceRecordId),
+    invoicesRepo.getInvoiceRecord(parsed.invoiceRecordId),
   ]);
 
   const resolvedOrderRecordId = parsed.orderRecordId ?? invoice.orderId ?? null;
@@ -198,7 +183,7 @@ export async function sendInvoice(body: unknown) {
     throw new SyncEndpointError("Invoice is not linked to the provided Order.", 422);
   }
 
-  const order = await getOrderRecord(resolvedOrderRecordId);
+  const order = await invoicesRepo.getOrderRecord(resolvedOrderRecordId);
   if (!order.recordId) {
     throw new SyncEndpointError("Order not found.", 404);
   }
@@ -209,8 +194,8 @@ export async function sendInvoice(body: unknown) {
   });
 
   let invoiceExternal = parsed.invoiceExternalRecordId
-    ? await getInvoiceExternalById(parsed.invoiceExternalRecordId)
-    : await findInvoiceExternalByInvoiceAndOrgIntegration(
+    ? await invoicesRepo.getInvoiceExternalById(parsed.invoiceExternalRecordId)
+    : await invoicesRepo.findInvoiceExternalByInvoiceAndOrgIntegration(
         parsed.invoiceRecordId,
         parsed.orgIntegrationRecordId,
       );
@@ -226,7 +211,7 @@ export async function sendInvoice(body: unknown) {
   let externalInvoiceId = parsed.externalInvoiceId ?? invoiceExternal?.externalInvoiceId ?? null;
 
   if (!externalInvoiceId) {
-    const orderExternals = await listOrderExternalsByInvoice(parsed.invoiceRecordId);
+    const orderExternals = await invoicesRepo.listOrderExternalsByInvoice(parsed.invoiceRecordId);
     const derivedExternalInvoiceIds = [
       ...new Set(
         orderExternals
@@ -253,7 +238,7 @@ export async function sendInvoice(body: unknown) {
   }
 
   if (!invoiceExternal) {
-    invoiceExternal = await createInvoiceExternal({
+    invoiceExternal = await invoicesRepo.createInvoiceExternal({
       Invoice: [parsed.invoiceRecordId],
       Order: [resolvedOrderRecordId],
       "Org Integration": [parsed.orgIntegrationRecordId],
@@ -275,7 +260,7 @@ export async function sendInvoice(body: unknown) {
   }
 
   if (!invoiceExternal.externalInvoiceId) {
-    await updateInvoiceExternal(invoiceExternal.recordId, {
+    await invoicesRepo.updateInvoiceExternal(invoiceExternal.recordId, {
       "External Invoice ID": externalInvoiceId,
     });
     invoiceExternal = {
@@ -292,26 +277,58 @@ export async function sendInvoice(body: unknown) {
       deliveryMethod,
     });
 
-  await updateInvoiceExternal(invoiceExternal.recordId, {
-    "Delivery Method": deliveryMethod,
-    "Save Card": saveCard,
-    ...(phoneSnapshot ? { "Phone Snapshot": phoneSnapshot } : {}),
-    "Send Attempt Count": (invoiceExternal.sendAttemptCount ?? 0) + 1,
-    "External Process Action": "Send Invoice",
-    "External Process Status": "Pending",
-    "External Process At": new Date().toISOString(),
-    "External Process Error": "",
-    "External Action Idempotency Key": idempotencyKey,
-    "Writeback Status": "Pending",
-    "Writeback Last Attempt At": new Date().toISOString(),
-    "Writeback Error": "",
-    "Reconciliation Status": "In Progress",
-    "Last Sync Activity At": new Date().toISOString(),
-    "Last API Response Code": 200,
-    "Last API Message": "Send Invoice started",
+  const priorAttempts = await countExternalActionsByInvoiceExternal(invoiceExternal.recordId);
+  const outboundAttemptNumber = priorAttempts + 1;
+  const outboundActionType = outboundAttemptNumber > 1 ? "Retry" : "Send";
+  const outboundExternalActionRecordId = await createExternalAction({
+    externalEntityType: "Invoice",
+    actionType: outboundActionType,
+    direction: "Outbound",
+    triggerSource: "Automation",
+    occurredAt: new Date().toISOString(),
+    status: "Pending",
+    attemptNumber: outboundAttemptNumber,
+    retryable: true,
+    provider: context.provider,
+    providerEventType: "Send Invoice",
+    providerReferenceId: externalInvoiceId,
+    requestPayload: JSON.stringify({
+      invoiceRecordId: parsed.invoiceRecordId,
+      orderRecordId: resolvedOrderRecordId,
+      orgIntegrationRecordId: parsed.orgIntegrationRecordId,
+      invoiceExternalRecordId: invoiceExternal.recordId,
+      externalInvoiceId,
+      deliveryMethod,
+      saveCard,
+      forceResend: parsed.forceResend,
+    }),
+    writebackStatus: "Pending",
+    writebackLastAttemptAt: new Date().toISOString(),
+    orgIntegrationRecordId: parsed.orgIntegrationRecordId,
+    invoiceExternalRecordId: invoiceExternal.recordId,
   });
 
-  const details = await getInvoiceDetails({
+  try {
+    await invoicesRepo.updateInvoiceExternal(invoiceExternal.recordId, {
+      "Delivery Method": deliveryMethod,
+      "Save Card": saveCard,
+      ...(phoneSnapshot ? { "Phone Snapshot": phoneSnapshot } : {}),
+      "Send Attempt Count": (invoiceExternal.sendAttemptCount ?? 0) + 1,
+      "External Process Action": "Send Invoice",
+      "External Process Status": "Pending",
+      "External Process At": new Date().toISOString(),
+      "External Process Error": "",
+      "External Action Idempotency Key": idempotencyKey,
+      "Writeback Status": "Pending",
+      "Writeback Last Attempt At": new Date().toISOString(),
+      "Writeback Error": "",
+      "Reconciliation Status": "In Progress",
+      "Last Sync Activity At": new Date().toISOString(),
+      "Last API Response Code": 200,
+      "Last API Message": "Send Invoice started",
+    });
+
+  const details = await invoicesRepo.getInvoiceDetails({
     context,
     externalInvoiceId,
   });
@@ -322,7 +339,7 @@ export async function sendInvoice(body: unknown) {
   let settingsRawPayload: string | null = null;
 
   if (effectiveVersion != null) {
-    const settingsUpdate = await updateInvoiceSettings({
+    const settingsUpdate = await invoicesRepo.updateInvoiceSettings({
       context,
       externalInvoiceId,
       version: effectiveVersion,
@@ -345,12 +362,12 @@ export async function sendInvoice(body: unknown) {
   if (alreadySentLike && !parsed.forceResend) {
     const hostedInvoiceUrl =
       effectivePublicUrl ??
-      (await getInvoicePublicUrl({
+      (await invoicesRepo.getInvoicePublicUrl({
         context,
         externalInvoiceId,
       }));
 
-    await updateInvoiceExternal(invoiceExternal.recordId, {
+    await invoicesRepo.updateInvoiceExternal(invoiceExternal.recordId, {
       "External Status": externalStatusNow,
       ...(hostedInvoiceUrl ? { "Hosted Invoice URL": hostedInvoiceUrl } : {}),
       "Sent At": invoiceExternal.sentAt ?? new Date().toISOString(),
@@ -369,8 +386,19 @@ export async function sendInvoice(body: unknown) {
     });
 
     if (hostedInvoiceUrl) {
-      await updateInvoicePaymentLink(parsed.invoiceRecordId, hostedInvoiceUrl);
+      await invoicesRepo.updateInvoicePaymentLink(parsed.invoiceRecordId, hostedInvoiceUrl);
     }
+
+    await updateExternalAction(outboundExternalActionRecordId, {
+      status: "Succeeded",
+      occurredAt: new Date().toISOString(),
+      providerReferenceId: externalInvoiceId,
+      responsePayload: settingsRawPayload ?? details.rawPayload,
+      httpStatusCode: 200,
+      errorSummary: "",
+      writebackStatus: "Succeeded",
+      writebackSucceededAt: new Date().toISOString(),
+    });
 
     return {
       ok: true,
@@ -391,7 +419,7 @@ export async function sendInvoice(body: unknown) {
     throw new SyncEndpointError("Unable to send invoice: provider invoice version is missing.", 409);
   }
 
-  const publishResult = await publishInvoice({
+  const publishResult = await invoicesRepo.publishInvoice({
     context,
     externalInvoiceId,
     version: effectiveVersion,
@@ -401,14 +429,14 @@ export async function sendInvoice(body: unknown) {
   const hostedInvoiceUrl =
     publishResult.hostedInvoiceUrl ??
     effectivePublicUrl ??
-    (await getInvoicePublicUrl({
+    (await invoicesRepo.getInvoicePublicUrl({
       context,
       externalInvoiceId,
     }));
 
   const mappedStatus = mapProviderInvoiceStatusToExternal(publishResult.externalStatus);
 
-  await updateInvoiceExternal(invoiceExternal.recordId, {
+  await invoicesRepo.updateInvoiceExternal(invoiceExternal.recordId, {
     "External Invoice ID": externalInvoiceId,
     ...(details.externalOrderId ? { "External Order ID": details.externalOrderId } : {}),
     "External Status": mappedStatus,
@@ -432,35 +460,75 @@ export async function sendInvoice(body: unknown) {
   });
 
   if (hostedInvoiceUrl) {
-    await updateInvoicePaymentLink(parsed.invoiceRecordId, hostedInvoiceUrl);
+    await invoicesRepo.updateInvoicePaymentLink(parsed.invoiceRecordId, hostedInvoiceUrl);
   }
 
-  return {
-    ok: true,
-    action: "Send Invoice",
-    result: "processed",
-    invoiceId: parsed.invoiceRecordId,
-    orderId: resolvedOrderRecordId,
-    invoiceExternalRecordId: invoiceExternal.recordId,
-    externalInvoiceId,
-    externalStatus: mappedStatus,
-    deliveryMethod,
-    saveCard,
-    hostedInvoiceUrl,
-    sentAt: new Date().toISOString(),
-  };
+    await updateExternalAction(outboundExternalActionRecordId, {
+      status: "Succeeded",
+      occurredAt: new Date().toISOString(),
+      providerReferenceId: externalInvoiceId,
+      responsePayload: settingsRawPayload
+        ? JSON.stringify({ settings: settingsRawPayload, publish: publishResult.rawPayload })
+        : publishResult.rawPayload,
+      httpStatusCode: 200,
+      errorSummary: "",
+      writebackStatus: "Succeeded",
+      writebackSucceededAt: new Date().toISOString(),
+    });
+
+    return {
+      ok: true,
+      action: "Send Invoice",
+      result: "processed",
+      invoiceId: parsed.invoiceRecordId,
+      orderId: resolvedOrderRecordId,
+      invoiceExternalRecordId: invoiceExternal.recordId,
+      externalInvoiceId,
+      externalStatus: mappedStatus,
+      deliveryMethod,
+      saveCard,
+      hostedInvoiceUrl,
+      sentAt: new Date().toISOString(),
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unexpected server error.";
+    const statusCode = error instanceof SyncEndpointError ? error.status : 500;
+    const rawPayload = error instanceof SyncEndpointError ? error.rawPayload : undefined;
+
+    try {
+      await updateExternalAction(outboundExternalActionRecordId, {
+        status: "Failed",
+        occurredAt: new Date().toISOString(),
+        providerReferenceId: externalInvoiceId,
+        errorSummary: message,
+        rawProviderPayload: rawPayload,
+        httpStatusCode: statusCode,
+        retryable: true,
+        writebackStatus: "Failed",
+        writebackError: message,
+        writebackRetryCount: outboundAttemptNumber,
+        writebackLastAttemptAt: new Date().toISOString(),
+      });
+    } catch {
+      // preserve original error
+    }
+
+    throw error;
+  }
 }
 
-export async function reconcileInvoiceExternals(body: unknown) {
+export async function reconcileInvoiceExternals(
+  body: unknown,
+): Promise<ReconcileInvoiceExternalsResponseDto> {
   const parsed = parseReconcileBody(body);
 
-  await getOrderRecord(parsed.orderRecordId);
-  const invoices = await listInvoicesByOrder(parsed.orderRecordId);
+  await invoicesRepo.getOrderRecord(parsed.orderRecordId);
+  const invoices = await invoicesRepo.listInvoicesByOrder(parsed.orderRecordId);
   if (invoices.length === 0) {
     throw new SyncEndpointError("No Invoices linked to this Order.", 422);
   }
 
-  const results: InvoiceReconcileResult[] = [];
+  const results: InvoiceReconcileResultDto[] = [];
   for (const invoice of invoices) {
     const result = await reconcileOneInvoice({
       invoiceId: invoice.recordId,
@@ -480,3 +548,33 @@ export async function reconcileInvoiceExternals(body: unknown) {
     results,
   };
 }
+
+export async function writeSendInvoiceFailure(input: {
+  invoiceExternalRecordId: string;
+  error: unknown;
+}): Promise<void> {
+  const message =
+    input.error instanceof Error ? input.error.message : "Unexpected server error.";
+  const statusCode = input.error instanceof SyncEndpointError ? input.error.status : 500;
+  const rawPayload = input.error instanceof SyncEndpointError ? input.error.rawPayload : undefined;
+
+  await invoicesRepo.updateInvoiceExternal(input.invoiceExternalRecordId, {
+    "External Process Action": "Send Invoice",
+    "External Process Status": "Failed",
+    "External Process At": new Date().toISOString(),
+    "External Process Error": message,
+    ...(rawPayload ? { "External Process Raw Payload": rawPayload } : {}),
+    "Writeback Status": "Failed",
+    "Writeback At": new Date().toISOString(),
+    "Writeback Error": message,
+    "Writeback Last Attempt At": new Date().toISOString(),
+    "Reconciliation Status": "Needs Review",
+    "Last Synced At": new Date().toISOString(),
+    "Last Sync Activity At": new Date().toISOString(),
+    "Last API Response Code": statusCode,
+    "Last API Message": message,
+    "Last Send Error": message,
+  });
+}
+
+

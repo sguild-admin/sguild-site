@@ -1,4 +1,4 @@
-import { handleProcessOrderBilling, methodNotAllowed } from "@/modules/orders/route";
+import { handleProcessOrderBilling, methodNotAllowed } from "@/modules/orders";
 
 export const runtime = "nodejs";
 
@@ -21,3 +21,4 @@ export async function PATCH() {
 export async function DELETE() {
   return methodNotAllowed();
 }
+

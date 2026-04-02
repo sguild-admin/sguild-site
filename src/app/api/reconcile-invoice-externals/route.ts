@@ -1,4 +1,4 @@
-import { handleReconcileInvoiceExternals, methodNotAllowed } from "@/modules/invoices/route";
+import { handleReconcileInvoiceExternals, methodNotAllowed } from "@/modules/invoices";
 
 export const runtime = "nodejs";
 
@@ -21,3 +21,4 @@ export async function PATCH() {
 export async function DELETE() {
   return methodNotAllowed();
 }
+

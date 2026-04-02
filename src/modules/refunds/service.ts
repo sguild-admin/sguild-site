@@ -1,11 +1,6 @@
 import { parseRefundWebhookEvent } from "./schema";
+import type { ProcessRefundWebhookEventInput } from "./dto";
 
-export async function processRefundWebhookEvent(input: {
-  eventType: string;
-  providerEventId: string;
-  merchantId: string | null;
-  occurredAt: string | null;
-  payloadJson: string;
-}) {
+export async function processRefundWebhookEvent(input: ProcessRefundWebhookEventInput) {
   return parseRefundWebhookEvent(input);
 }
