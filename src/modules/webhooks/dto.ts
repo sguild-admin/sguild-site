@@ -48,3 +48,28 @@ export type BackfillSquareWebhooksResponseDto = {
   failedEvents: number;
   failures: BackfillSquareWebhooksFailure[];
 };
+
+export type BackfillExternalActionsFromWebhookEventsRequestDto = {
+  dryRun: boolean;
+  pageSize: number;
+  maxEvents: number;
+  onlySupportedEvents: boolean;
+};
+
+export type BackfillExternalActionsFromWebhookEventsFailure = {
+  eventRecordId: string;
+  providerEventId: string | null;
+  eventType: string | null;
+  error: string;
+};
+
+export type BackfillExternalActionsFromWebhookEventsResponseDto = {
+  ok: true;
+  dryRun: boolean;
+  scannedEvents: number;
+  eligibleEvents: number;
+  createdOrUpdatedExternalActions: number;
+  skippedUnsupportedEvents: number;
+  failedEvents: number;
+  failures: BackfillExternalActionsFromWebhookEventsFailure[];
+};

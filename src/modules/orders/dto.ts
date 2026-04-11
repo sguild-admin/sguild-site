@@ -55,6 +55,140 @@ export type OrderBillingRequest = {
   action: BillingAction;
 };
 
+export type ResolvePromotionRedemptionsRequest = {
+  recordId: string;
+  force: boolean;
+  idempotencyKey?: string;
+};
+
+export type ResolvePromotionRedemptionsResponse = {
+  result: "success";
+  appliedCount: number;
+  skippedCount: number;
+};
+
+export type OpenOrderRequest = {
+  recordId: string;
+  force: boolean;
+  idempotencyKey?: string;
+};
+
+export type OpenOrderResponse = {
+  result: "success";
+  activatedItemCount: number;
+  skippedItemCount: number;
+};
+
+export type SendInvoiceRequest = {
+  recordId: string;
+  force: boolean;
+  retryExternalActionId?: string;
+  idempotencyKey?: string;
+  externalActionAttemptNumber?: number;
+};
+
+export type ApplyInvoicePaymentEventInput = {
+  provider?: string;
+  providerEventId?: string;
+  providerEventType?: string;
+  externalInvoiceId?: string;
+  externalPaymentId?: string;
+  amountPaidCents?: number;
+  paidAt?: string;
+  rawPayload?: string;
+};
+
+export type GrantCreditsRequest = {
+  recordId: string;
+  force?: boolean;
+  idempotencyKey?: string;
+};
+
+export type GrantCreditsItemResult = {
+  orderItemId: string;
+  result: "granted" | "already_granted" | "skipped_zero_credits";
+  ledgerEntryId?: string;
+  existingLedgerEntryId?: string;
+  deltaCredits?: number;
+};
+
+export type GrantCreditsSummary = {
+  eligible: number;
+  granted: number;
+  alreadyGranted: number;
+  skippedZeroCredits: number;
+  totalCreditsGranted: number;
+};
+
+export type GrantCreditsSuccessResponse = {
+  ok: true;
+  endpoint: "/orders/grant-credits";
+  recordId: string;
+  result: "succeeded" | "noop" | "partial";
+  creditAccountId: string;
+  summary: GrantCreditsSummary;
+  items: GrantCreditsItemResult[];
+};
+
+export type GrantCreditsFailureResponse = {
+  ok: false;
+  endpoint: "/orders/grant-credits";
+  recordId: string;
+  stage: "validation" | "execution" | "ambiguity";
+  error: string;
+};
+
+export type GrantCreditsResponse = GrantCreditsSuccessResponse | GrantCreditsFailureResponse;
+
+export type ApplyInvoicePaymentRequest = {
+  recordId: string;
+  force: boolean;
+  idempotencyKey?: string;
+  providerEvent?: ApplyInvoicePaymentEventInput;
+};
+
+export type SendInvoiceSuccessResponse = {
+  ok: true;
+  endpoint: "/api/orders/send-invoice";
+  recordId: string;
+  crossedProviderBoundary: true;
+  providerResult: "succeeded" | "noop" | "ignored";
+  externalActionId: string;
+  writebackStatus: "Succeeded" | "Failed" | "Pending";
+  idempotencyKey: string;
+};
+
+export type SendInvoiceFailureResponse = {
+  ok: false;
+  endpoint: "/api/orders/send-invoice";
+  recordId: string;
+  crossedProviderBoundary: boolean;
+  stage: "validation" | "provider" | "writeback" | "ambiguity";
+  error: string;
+  externalActionId?: string;
+};
+
+export type ApplyInvoicePaymentSuccessResponse = {
+  ok: true;
+  endpoint: "/api/orders/apply-invoice-payment";
+  recordId: string;
+  crossedProviderBoundary: true;
+  providerResult: "succeeded" | "noop";
+  externalActionId: string;
+  writebackStatus: "Succeeded" | "Failed" | "Pending";
+  idempotencyKey: string;
+};
+
+export type ApplyInvoicePaymentFailureResponse = {
+  ok: false;
+  endpoint: "/api/orders/apply-invoice-payment";
+  recordId: string;
+  crossedProviderBoundary: false;
+  stage: "validation" | "ambiguity" | "writeback";
+  error: string;
+  externalActionId?: string;
+};
+
 export type BillingProcessSuccessResponse = {
   ok: true;
   syncStatus: "Synced";

@@ -6,12 +6,15 @@ import { resolveSquareAuthContextFromAlias } from "@/lib/providers/square/provid
 import { listSquareEvents } from "@/lib/providers/square/events";
 import { webhooksIngestRepo, webhooksRepo } from "./repo";
 import { assertAuthorizedSyncRequest } from "@/modules/integrations";
+import { runApplyInvoicePayment } from "@/modules/orders";
 import type {
+  BackfillExternalActionsFromWebhookEventsResponseDto,
   BackfillSquareWebhooksResponseDto,
   MetaWebhookPayload,
   SquareWebhookPayload,
 } from "./dto";
 import {
+  parseBackfillExternalActionsFromWebhookEventsBody,
   parseBackfillSquareWebhooksBody,
   readString,
   SUPPORTED_SQUARE_WEBHOOK_EVENTS,
@@ -36,6 +39,147 @@ function readAtPath(value: unknown, path: string[]): string | null {
     current = (current as Record<string, unknown>)[segment];
   }
   return readString(current);
+}
+
+function readAtPathValue(value: unknown, path: string[]): unknown {
+  let current: unknown = value;
+  for (const segment of path) {
+    if (typeof current !== "object" || current == null || Array.isArray(current)) return null;
+    current = (current as Record<string, unknown>)[segment];
+  }
+  return current;
+}
+
+function readNonNegativeInteger(value: unknown): number | null {
+  if (value == null) return null;
+  const str = typeof value === "string" ? value.trim() : String(value);
+  const parsed = Number(str);
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
+  return Math.trunc(parsed);
+}
+
+function parseIso(value: string | null): string | null {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toISOString();
+}
+
+function parseSquareInvoicePaymentEventFromPayload(input: {
+  payload: unknown;
+  rawBody: string;
+  providerEventId: string;
+  occurredAt: string | null;
+}): {
+  provider: string;
+  providerEventId: string;
+  providerEventType: string;
+  externalInvoiceId: string;
+  externalPaymentId: string;
+  amountPaidCents: number;
+  paidAt: string;
+  rawPayload: string;
+} | null {
+  const readFirstPaymentRequestPath = (path: string[]): string | null => {
+    const paymentRequests = readAtPath(input.payload, ["data", "object", "invoice", "payment_requests"]);
+    if (!paymentRequests) return null;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(paymentRequests);
+    } catch {
+      parsed = undefined;
+    }
+
+    // If readAtPath couldn't represent the array (object traversal helper limitation),
+    // fall back to direct object access.
+    if (!Array.isArray(parsed)) {
+      let current: unknown = input.payload;
+      for (const segment of ["data", "object", "invoice", "payment_requests"]) {
+        if (typeof current !== "object" || current == null || Array.isArray(current)) {
+          current = null;
+          break;
+        }
+        current = (current as Record<string, unknown>)[segment];
+      }
+      if (!Array.isArray(current) || current.length === 0) return null;
+      let node: unknown = current[0];
+      for (const segment of path) {
+        if (typeof node !== "object" || node == null || Array.isArray(node)) return null;
+        node = (node as Record<string, unknown>)[segment];
+      }
+      return readString(node);
+    }
+
+    if (parsed.length === 0) return null;
+    let node: unknown = parsed[0];
+    for (const segment of path) {
+      if (typeof node !== "object" || node == null || Array.isArray(node)) return null;
+      node = (node as Record<string, unknown>)[segment];
+    }
+    return readString(node);
+  };
+
+  const readFirstPaymentRequestPathValue = (path: string[]): unknown => {
+    let current: unknown = input.payload;
+    for (const segment of ["data", "object", "invoice", "payment_requests"]) {
+      if (typeof current !== "object" || current == null || Array.isArray(current)) {
+        return null;
+      }
+      current = (current as Record<string, unknown>)[segment];
+    }
+    if (!Array.isArray(current) || current.length === 0) return null;
+    let node: unknown = current[0];
+    for (const segment of path) {
+      if (typeof node !== "object" || node == null || Array.isArray(node)) return null;
+      node = (node as Record<string, unknown>)[segment];
+    }
+    return node;
+  };
+
+  const providerEventType = readAtPath(input.payload, ["type"]) ?? "invoice.payment_made";
+  const externalInvoiceId =
+    readAtPath(input.payload, ["data", "object", "payment", "invoice_id"]) ??
+    readAtPath(input.payload, ["data", "object", "invoice", "id"]) ??
+    readAtPath(input.payload, ["data", "id"]);
+  const externalPaymentId =
+    readAtPath(input.payload, ["data", "object", "payment", "id"]) ??
+    readAtPath(input.payload, ["data", "object", "payment", "payment_id"]) ??
+    readFirstPaymentRequestPath(["uid"]) ??
+    input.providerEventId;
+  const amountPaidCents =
+    readNonNegativeInteger(readAtPathValue(input.payload, ["data", "object", "payment", "amount_money", "amount"])) ??
+    readNonNegativeInteger(readAtPathValue(input.payload, ["data", "object", "payment", "paid_money", "amount"])) ??
+    readNonNegativeInteger(readAtPathValue(input.payload, ["data", "object", "payment", "total_money", "amount"])) ??
+    readNonNegativeInteger(readFirstPaymentRequestPathValue(["total_completed_amount_money", "amount"])) ??
+    readNonNegativeInteger(readFirstPaymentRequestPathValue(["computed_amount_money", "amount"]));
+  const paidAt =
+    parseIso(readAtPath(input.payload, ["data", "object", "payment", "updated_at"])) ??
+    parseIso(readAtPath(input.payload, ["data", "object", "payment", "created_at"])) ??
+    parseIso(readAtPath(input.payload, ["data", "object", "invoice", "updated_at"])) ??
+    parseIso(input.occurredAt);
+
+  if (!externalInvoiceId || !externalPaymentId || amountPaidCents == null || !paidAt) {
+    console.error("Failed to parse Square invoice.payment_made payload", {
+      providerEventId: input.providerEventId,
+      externalInvoiceId,
+      externalPaymentId,
+      amountPaidCents,
+      paidAt,
+      payload: JSON.stringify(input.payload, null, 2),
+    });
+    return null;
+  }
+
+  return {
+    provider: "Square",
+    providerEventId: input.providerEventId,
+    providerEventType,
+    externalInvoiceId,
+    externalPaymentId,
+    amountPaidCents,
+    paidAt,
+    rawPayload: input.rawBody,
+  };
 }
 
 function parseSquareEventIdentity(payload: SquareWebhookPayload): {
@@ -103,6 +247,9 @@ async function upsertSquareInboundExternalAction(input: {
     readAtPath(input.payload, ["data", "object", "invoice", "order_id"]) ??
     readAtPath(input.payload, ["data", "object", "order", "id"]);
   const providerReferenceId = externalInvoiceId ?? externalOrderId ?? input.providerEventId;
+  // Compatibility: some bases do not include "Invoice" as an allowed option for External Entity Type.
+  // Invoice webhook events in this app are applied through Order Externals, so normalize to "Order".
+  const externalEntityType = "Order" as const;
 
   if (existing) {
     const attemptNumber = (existing.attemptNumber ?? 1) + 1;
@@ -110,7 +257,7 @@ async function upsertSquareInboundExternalAction(input: {
       occurredAt: input.occurredAt ?? new Date().toISOString(),
       status: input.status,
       actionType: "Webhook",
-      externalEntityType: externalInvoiceId ? "Invoice" : "Order",
+      externalEntityType,
       provider: "Square",
       providerEventType: input.eventType,
       providerEventId: input.providerEventId,
@@ -129,7 +276,7 @@ async function upsertSquareInboundExternalAction(input: {
   }
 
   return await webhooksIngestRepo.createExternalAction({
-    externalEntityType: externalInvoiceId ? "Invoice" : "Order",
+    externalEntityType,
     actionType: "Webhook",
     direction: "Inbound",
     triggerSource: input.triggerSource,
@@ -323,13 +470,42 @@ async function ingestSquareEvent(input: {
       triggerSource: input.triggerSource,
     });
 
+    if (identity.eventType === "invoice.payment_made") {
+      const orderExternalRecordId = await resolveOrderExternalLinkFromSquareWebhook(input.payload);
+      if (!orderExternalRecordId) {
+        throw new SyncEndpointError(
+          "Cannot reconcile invoice.payment_made to exactly one Order External.",
+          409,
+        );
+      }
+      const providerEvent = parseSquareInvoicePaymentEventFromPayload({
+        payload: input.payload,
+        rawBody: input.rawBody,
+        providerEventId: identity.providerEventId,
+        occurredAt: identity.occurredAt,
+      });
+      if (!providerEvent) {
+        throw new SyncEndpointError(
+          "invoice.payment_made payload is missing required invoice/payment identifiers or amount.",
+          422,
+        );
+      }
+
+      await runApplyInvoicePayment({
+        recordId: orderExternalRecordId,
+        force: false,
+        idempotencyKey: `apply-invoice-payment|Square|${identity.providerEventId}`,
+        providerEvent,
+      });
+    }
+
     await webhooksRepo.updateWebhookEvent(event.recordId, {
       status: "processed",
       processedAt: new Date().toISOString(),
       lastError: null,
     });
 
-    if (externalActionRecordId) {
+    if (externalActionRecordId && identity.eventType !== "invoice.payment_made") {
       await webhooksIngestRepo.updateExternalAction(externalActionRecordId, {
         status: "Succeeded",
         occurredAt: identity.occurredAt ?? new Date().toISOString(),
@@ -353,13 +529,27 @@ async function ingestSquareEvent(input: {
     });
 
     if (externalActionRecordId) {
-      await webhooksIngestRepo.updateExternalAction(externalActionRecordId, {
-        status: "Failed",
-        httpStatusCode: 500,
-        errorSummary: message,
-        occurredAt: identity.occurredAt ?? new Date().toISOString(),
-        retryable: true,
-      });
+      if (identity.eventType === "invoice.payment_made") {
+        const nowIso = new Date().toISOString();
+        await webhooksIngestRepo.updateExternalAction(externalActionRecordId, {
+          status: "Succeeded",
+          httpStatusCode: 500,
+          errorSummary: message,
+          occurredAt: identity.occurredAt ?? nowIso,
+          retryable: true,
+          writebackStatus: "Failed",
+          writebackError: message,
+          writebackLastAttemptAt: nowIso,
+        });
+      } else {
+        await webhooksIngestRepo.updateExternalAction(externalActionRecordId, {
+          status: "Failed",
+          httpStatusCode: 500,
+          errorSummary: message,
+          occurredAt: identity.occurredAt ?? new Date().toISOString(),
+          retryable: true,
+        });
+      }
     }
 
     throw error;
@@ -610,6 +800,163 @@ export async function handleBackfillSquareWebhooks(request: Request) {
     assertJsonRequest(request);
     const body = await parseJsonBody(request);
     const response = await backfillSquareWebhooks(body);
+    return NextResponse.json(response, { status: 200 });
+  } catch (error) {
+    const status = error instanceof SyncEndpointError ? error.status : 500;
+    const message =
+      error instanceof SyncEndpointError
+        ? (error.exposeMessage ? error.message : "Unexpected server error.")
+        : (error instanceof Error ? error.message : "Unexpected server error.");
+    return NextResponse.json({ ok: false, error: message }, { status });
+  }
+}
+
+export async function backfillExternalActionsFromWebhookEvents(
+  body: unknown,
+): Promise<BackfillExternalActionsFromWebhookEventsResponseDto> {
+  const parsed = parseBackfillExternalActionsFromWebhookEventsBody(body);
+
+  let offset: string | null = null;
+  let scannedEvents = 0;
+  let eligibleEvents = 0;
+  let createdOrUpdatedExternalActions = 0;
+  let skippedUnsupportedEvents = 0;
+  let failedEvents = 0;
+  const failures: Array<{
+    eventRecordId: string;
+    providerEventId: string | null;
+    eventType: string | null;
+    error: string;
+  }> = [];
+
+  do {
+    const page = await webhooksRepo.listWebhookEvents({
+      pageSize: parsed.pageSize,
+      ...(offset ? { offset } : {}),
+    });
+
+    for (const event of page.events) {
+      if (scannedEvents >= parsed.maxEvents) {
+        offset = null;
+        break;
+      }
+
+      scannedEvents += 1;
+
+      const provider = (event.provider ?? "").trim().toLowerCase();
+      if (provider !== "square" || !event.providerEventId || !event.eventType) {
+        continue;
+      }
+      if (parsed.onlySupportedEvents && !SUPPORTED_SQUARE_WEBHOOK_EVENTS.has(event.eventType)) {
+        skippedUnsupportedEvents += 1;
+        continue;
+      }
+      if (!event.payloadJson) {
+        failedEvents += 1;
+        failures.push({
+          eventRecordId: event.recordId,
+          providerEventId: event.providerEventId,
+          eventType: event.eventType,
+          error: "Missing Payload JSON on Webhook Event.",
+        });
+        continue;
+      }
+
+      eligibleEvents += 1;
+
+      try {
+        const payload = JSON.parse(event.payloadJson) as SquareWebhookPayload;
+
+        if (!parsed.dryRun) {
+          const externalActionRecordId = await upsertSquareInboundExternalAction({
+            payload,
+            rawBody: event.payloadJson,
+            providerEventId: event.providerEventId,
+            eventType: event.eventType,
+            occurredAt: event.occurredAt,
+            status: event.status === "failed" ? "Failed" : "Succeeded",
+            errorSummary: event.status === "failed" ? (event.lastError ?? "Webhook Event marked failed.") : "",
+            httpStatusCode: event.status === "failed" ? 500 : 200,
+            triggerSource: "Backfill",
+          });
+
+          if (event.eventType === "invoice.payment_made") {
+            const orderExternalRecordId = await resolveOrderExternalLinkFromSquareWebhook(payload);
+            if (!orderExternalRecordId) {
+              throw new SyncEndpointError(
+                "Cannot reconcile invoice.payment_made to exactly one Order External.",
+                409,
+              );
+            }
+            const providerEvent = parseSquareInvoicePaymentEventFromPayload({
+              payload,
+              rawBody: event.payloadJson,
+              providerEventId: event.providerEventId,
+              occurredAt: event.occurredAt,
+            });
+            if (!providerEvent) {
+              throw new SyncEndpointError(
+                "invoice.payment_made payload is missing required invoice/payment identifiers or amount.",
+                422,
+              );
+            }
+
+            await runApplyInvoicePayment({
+              recordId: orderExternalRecordId,
+              force: false,
+              idempotencyKey: `apply-invoice-payment|Square|${event.providerEventId}`,
+              providerEvent,
+            });
+          } else if (externalActionRecordId) {
+            // No canonical writeback is implemented for these inbound events yet;
+            // finalize as accepted+completed so they do not remain Pending.
+            const nowIso = new Date().toISOString();
+            await webhooksIngestRepo.updateExternalAction(externalActionRecordId, {
+              status: event.status === "failed" ? "Failed" : "Succeeded",
+              occurredAt: event.occurredAt ?? nowIso,
+              httpStatusCode: event.status === "failed" ? 500 : 200,
+              errorSummary: event.status === "failed" ? (event.lastError ?? "Webhook Event marked failed.") : "",
+              writebackStatus: "Succeeded",
+              writebackSucceededAt: nowIso,
+              writebackLastAttemptAt: nowIso,
+              writebackError: "",
+            });
+          }
+        }
+
+        createdOrUpdatedExternalActions += 1;
+      } catch (error) {
+        failedEvents += 1;
+        failures.push({
+          eventRecordId: event.recordId,
+          providerEventId: event.providerEventId,
+          eventType: event.eventType,
+          error: error instanceof Error ? error.message : "Unknown backfill error",
+        });
+      }
+    }
+
+    offset = page.nextOffset;
+  } while (offset);
+
+  return {
+    ok: true,
+    dryRun: parsed.dryRun,
+    scannedEvents,
+    eligibleEvents,
+    createdOrUpdatedExternalActions,
+    skippedUnsupportedEvents,
+    failedEvents,
+    failures,
+  };
+}
+
+export async function handleBackfillExternalActionsFromWebhookEvents(request: Request) {
+  try {
+    assertAuthorizedSyncRequest(request);
+    assertJsonRequest(request);
+    const body = await parseJsonBody(request);
+    const response = await backfillExternalActionsFromWebhookEvents(body);
     return NextResponse.json(response, { status: 200 });
   } catch (error) {
     const status = error instanceof SyncEndpointError ? error.status : 500;

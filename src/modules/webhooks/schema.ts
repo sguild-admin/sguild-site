@@ -1,6 +1,7 @@
 import { readString } from "@/lib/utils/strings";
 import { SyncEndpointError } from "@/lib/errors";
 import type {
+  BackfillExternalActionsFromWebhookEventsRequestDto,
   BackfillSquareWebhooksRequestDto,
   MetaWebhookPayload,
   SquareWebhookPayload,
@@ -22,6 +23,13 @@ type BackfillSquareWebhooksBody = {
   dryRun?: unknown;
   pageSize?: unknown;
   maxEvents?: unknown;
+};
+
+type BackfillExternalActionsFromWebhookEventsBody = {
+  dryRun?: unknown;
+  pageSize?: unknown;
+  maxEvents?: unknown;
+  onlySupportedEvents?: unknown;
 };
 
 function asPositiveInt(value: unknown): number | null {
@@ -111,6 +119,44 @@ export function parseBackfillSquareWebhooksBody(
     eventTypes: asStringArray(typed.eventTypes),
     maxEvents,
     pageSize,
+  };
+}
+
+export function parseBackfillExternalActionsFromWebhookEventsBody(
+  body: unknown,
+): BackfillExternalActionsFromWebhookEventsRequestDto {
+  if (body == null) {
+    return {
+      dryRun: true,
+      pageSize: 100,
+      maxEvents: 5000,
+      onlySupportedEvents: true,
+    };
+  }
+
+  if (typeof body !== "object" || Array.isArray(body)) {
+    throw new SyncEndpointError("Invalid request body.", 400);
+  }
+
+  const typed = body as BackfillExternalActionsFromWebhookEventsBody;
+  const dryRun = typed.dryRun === undefined ? true : Boolean(typed.dryRun);
+  const pageSize = asPositiveInt(typed.pageSize) ?? 100;
+  const maxEvents = asPositiveInt(typed.maxEvents) ?? 5000;
+  const onlySupportedEvents =
+    typed.onlySupportedEvents === undefined ? true : Boolean(typed.onlySupportedEvents);
+
+  if (pageSize > 100) {
+    throw new SyncEndpointError("pageSize cannot exceed 100.", 400);
+  }
+  if (maxEvents > 50000) {
+    throw new SyncEndpointError("maxEvents cannot exceed 50000.", 400);
+  }
+
+  return {
+    dryRun,
+    pageSize,
+    maxEvents,
+    onlySupportedEvents,
   };
 }
 

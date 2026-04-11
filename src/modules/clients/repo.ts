@@ -36,6 +36,7 @@ export type ClientExternalRecord = {
   missingRequiredLinks: string | null;
   provider: string | null;
   providerAccessTokenAlias: string | null;
+  externalActionIds: string[];
 };
 
 function timingSafeEqual(a: string, b: string): boolean {
@@ -70,6 +71,15 @@ function readFirstLinkedId(value: unknown): string | null {
   if (!Array.isArray(value) || value.length === 0) return null;
   const [first] = value;
   return typeof first === "string" && first.trim().length > 0 ? first.trim() : null;
+}
+
+function readLinkedIds(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const ids: string[] = [];
+  for (const item of value) {
+    if (typeof item === "string" && item.trim().length > 0) ids.push(item.trim());
+  }
+  return ids;
 }
 
 function isTruthyMissingRequiredLinks(value: unknown): boolean {
@@ -157,10 +167,14 @@ async function loadClientExternal(recordId: string): Promise<ClientExternalRecor
     latestPhoneNormalized: readFirstStringFromFields(fields, [
       "Latest Phone Normalized",
       "Latest phone normalized",
+      "Phone",
+      "Phone Number",
     ]),
     clientCanonicalPhone: readFirstStringFromFields(clientFields, [
       "Latest Phone Normalized",
       "Latest phone normalized",
+      "Phone",
+      "Phone Number",
     ]),
     nameSnapshot: readString(fields["Name Snapshot"]),
     phoneSnapshot: readString(fields["Phone Snapshot"]),
@@ -172,8 +186,10 @@ async function loadClientExternal(recordId: string): Promise<ClientExternalRecor
       : null,
     provider: readString(providerFields.Provider),
     providerAccessTokenAlias:
+      readString(providerFields["API Credential Alias"]) ??
       readString(providerFields["Access Token Alias"]) ??
       readString(providerFields["Access Token"]),
+    externalActionIds: readLinkedIds(fields["External Actions"]),
   };
 }
 
@@ -198,6 +214,86 @@ async function persistClientExternalSnapshots(
   if (!response.ok) {
     const message = await parseAirtableError(response);
     throw new SyncEndpointError(`Airtable snapshot update failed: ${message}`, 502);
+  }
+}
+
+async function writeClientExternalSyncPending(recordId: string): Promise<void> {
+  const response = await airtableRequest(
+    `${encodeURIComponent(CLIENT_EXTERNALS_TABLE)}/${encodeURIComponent(recordId)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({
+        fields: {
+          "Sync Status": "Pending",
+          "Sync Error": "",
+        },
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    const message = await parseAirtableError(response);
+    throw new SyncEndpointError(`Airtable sync pending write failed: ${message}`, 502);
+  }
+}
+
+async function writeClientExternalSyncSuccess(input: {
+  recordId: string;
+  externalCustomerId: string;
+  nameSnapshot?: string | null;
+  phoneSnapshot?: string | null;
+  externalActionId?: string | null;
+}): Promise<void> {
+  const fields: Record<string, unknown> = {
+    "External Customer ID": input.externalCustomerId,
+    "Sync Status": "Synced",
+    "Sync Error": "",
+    "Last Synced At": new Date().toISOString(),
+    "Last Successful Call At": new Date().toISOString(),
+  };
+  if (input.nameSnapshot) fields["Name Snapshot"] = input.nameSnapshot;
+  if (input.phoneSnapshot) fields["Phone Snapshot"] = input.phoneSnapshot;
+
+  if (input.externalActionId) {
+    const current = await loadClientExternal(input.recordId);
+    fields["External Actions"] = [...new Set([...current.externalActionIds, input.externalActionId])];
+  }
+
+  const response = await airtableRequest(
+    `${encodeURIComponent(CLIENT_EXTERNALS_TABLE)}/${encodeURIComponent(input.recordId)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ fields }),
+    },
+  );
+
+  if (!response.ok) {
+    const message = await parseAirtableError(response);
+    throw new SyncEndpointError(`Airtable sync success write failed: ${message}`, 502);
+  }
+}
+
+async function writeClientExternalSyncFailure(
+  recordId: string,
+  errorMessage: string,
+): Promise<void> {
+  const response = await airtableRequest(
+    `${encodeURIComponent(CLIENT_EXTERNALS_TABLE)}/${encodeURIComponent(recordId)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({
+        fields: {
+          "Sync Status": "Failed",
+          "Sync Error": errorMessage,
+          "Last Error At": new Date().toISOString(),
+        },
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    const message = await parseAirtableError(response);
+    throw new SyncEndpointError(`Airtable sync failure write failed: ${message}`, 502);
   }
 }
 
@@ -228,5 +324,8 @@ export const clientSyncRepo = {
   validateAirtableSecret,
   loadClientExternal,
   persistClientExternalSnapshots,
+  writeClientExternalSyncPending,
+  writeClientExternalSyncSuccess,
+  writeClientExternalSyncFailure,
   runSquareClientSync,
 };

@@ -1,8 +1,12 @@
 import {
+	createClientProfile,
+	findClientProfileByContext,
+	getClientProfileWorkflowRecord,
 	getClientProfile,
 	linkLessonSummaryToProfile,
 	listClientProfiles,
 	listProfilesMissingLessonSummary,
+	updateClientProfile,
 } from "./repo";
 import {
 	createInitialLessonSummaryForProfile,
@@ -13,10 +17,12 @@ import {
 } from "@/modules/lesson-summaries";
 import type {
 	BackfillLessonSummariesResponse,
+	ClientProfilesWorkflowResponseDto,
 	EnsureLessonSummaryResponse,
 	RecomputeLessonSummariesResponse,
 	RecomputeSingleLessonSummaryResponse,
 } from "./dto";
+import { parseClientProfilesWorkflowBody } from "./schema";
 
 export async function ensureLessonSummaryForClientProfile(
 	profileRecordId: string,
@@ -215,4 +221,26 @@ export async function recomputeClientProfileLessonSummary(input: {
 		}
 		throw error;
 	}
+}
+
+export async function runClientProfilesWorkflow(
+	body: unknown,
+): Promise<ClientProfilesWorkflowResponseDto> {
+	const parsed = parseClientProfilesWorkflowBody(body);
+
+	if (parsed.operation === "create") {
+		const record = await createClientProfile(parsed.payload);
+		return { ok: true, operation: "create", record };
+	}
+	if (parsed.operation === "update") {
+		const record = await updateClientProfile(parsed.payload);
+		return { ok: true, operation: "update", record };
+	}
+	if (parsed.operation === "get") {
+		const record = await getClientProfileWorkflowRecord(parsed.payload.recordId);
+		return { ok: true, operation: "get", record };
+	}
+
+	const record = await findClientProfileByContext(parsed.payload);
+	return { ok: true, operation: "find_by_context", record };
 }

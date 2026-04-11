@@ -150,6 +150,7 @@ async function loadClientExternal(recordId: string): Promise<ClientExternalRecor
     cardSyncEligible: readNullableBoolean(fields["Card Sync Eligible"]),
     provider: readString(fields.Provider) ?? readString(providerFields.Provider),
     providerAccessTokenAlias:
+      readString(providerFields["API Credential Alias"]) ??
       readString(providerFields["Access Token Alias"]) ??
       readString(providerFields["Access Token"]),
   };

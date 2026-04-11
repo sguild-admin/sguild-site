@@ -28,6 +28,10 @@ export type WebhookEventRecord = {
   provider: string | null;
   providerEventId: string | null;
   eventType: string | null;
+  merchantId: string | null;
+  payloadJson: string | null;
+  occurredAt: string | null;
+  lastError: string | null;
   status: WebhookEventStatus | null;
 };
 
@@ -128,6 +132,10 @@ function toWebhookEventRecord(record: AirtableRecord): WebhookEventRecord {
     provider: readString(fields.Provider),
     providerEventId: readString(fields["Provider Event ID"]),
     eventType: readString(fields["Event Type"]),
+    merchantId: readString(fields["Merchant ID"]),
+    payloadJson: readString(fields["Payload JSON"]),
+    occurredAt: readString(fields["Occurred At"]),
+    lastError: readString(fields["Last Error"]),
     status: readStatus(fields.Status),
   };
 }

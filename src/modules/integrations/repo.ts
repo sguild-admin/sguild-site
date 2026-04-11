@@ -8,6 +8,7 @@ import {
 import { resolveSquareProviderContext } from "@/lib/providers/square/provider-context";
 import type { BillingAction } from "@/lib/types/billing";
 import { clientSyncRepo } from "@/modules/clients";
+import type { RetryClassification } from "@/modules/external-actions";
 
 const EXTERNAL_ACTIONS_TABLE = airtableSchema.operations.tables.externalActions;
 const ORG_INTEGRATIONS_TABLE = airtableSchema.operations.tables.organizationIntegrations;
@@ -64,6 +65,7 @@ export type CreateExternalActionInput = {
   status?: ExternalActionStatus;
   attemptNumber?: number;
   retryable?: boolean;
+  retryClassification?: RetryClassification;
   provider?: string;
   providerEventType?: string;
   providerReferenceId?: string;
@@ -157,7 +159,8 @@ function toFields(input: CreateExternalActionInput | UpdateExternalActionInput):
   if (input.status) fields.Status = input.status;
   if (input.attemptNumber != null) fields["Attempt Number"] = input.attemptNumber;
   if (typeof input.retryable === "boolean") fields.Retryable = input.retryable;
-  if (input.provider) fields.Provider = input.provider;
+  if (input.retryClassification != null) fields["Retry Classification"] = input.retryClassification;
+  // Provider is a computed lookup in this base and must not be written directly.
   if (input.providerEventType) fields["Provider Event Type"] = input.providerEventType;
   if (input.providerReferenceId) fields["Provider Reference ID"] = input.providerReferenceId;
   if (input.providerEventId) fields["Provider Event ID"] = input.providerEventId;
@@ -179,6 +182,16 @@ function toFields(input: CreateExternalActionInput | UpdateExternalActionInput):
   return fields;
 }
 
+function getRemovableFieldFromAirtableError(message: string): string | null {
+  const unknownMatch = message.match(/Unknown field name: "([^"]+)"/);
+  if (unknownMatch?.[1]) return unknownMatch[1];
+
+  const computedMatch = message.match(/Field "([^"]+)" cannot accept a value because the field is computed/i);
+  if (computedMatch?.[1]) return computedMatch[1];
+
+  return null;
+}
+
 export async function createExternalAction(input: CreateExternalActionInput): Promise<string> {
   const fields = toFields(input);
   const optionalFields = new Set(Object.keys(fields));
@@ -195,12 +208,11 @@ export async function createExternalAction(input: CreateExternalActionInput): Pr
     }
 
     const message = await parseAirtableError(response);
-    const missingFieldMatch = message.match(/Unknown field name: "([^"]+)"/);
-    const missingField = missingFieldMatch?.[1];
-    if (missingField && optionalFields.has(missingField) && missingField in nextFields) {
+    const removableField = getRemovableFieldFromAirtableError(message);
+    if (removableField && optionalFields.has(removableField) && removableField in nextFields) {
       const reduced: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(nextFields)) {
-        if (key === missingField) continue;
+        if (key === removableField) continue;
         reduced[key] = value;
       }
       nextFields = reduced;
@@ -230,12 +242,11 @@ export async function updateExternalAction(
     if (response.ok) return;
 
     const message = await parseAirtableError(response);
-    const missingFieldMatch = message.match(/Unknown field name: "([^"]+)"/);
-    const missingField = missingFieldMatch?.[1];
-    if (missingField && optionalFields.has(missingField) && missingField in nextFields) {
+    const removableField = getRemovableFieldFromAirtableError(message);
+    if (removableField && optionalFields.has(removableField) && removableField in nextFields) {
       const reduced: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(nextFields)) {
-        if (key === missingField) continue;
+        if (key === removableField) continue;
         reduced[key] = value;
       }
       nextFields = reduced;
@@ -311,34 +322,61 @@ export async function findInboundExternalActionByIdentity(input: {
   const accountClause = input.providerAccountRecordId
     ? `, FIND('${escapeAirtableFormulaString(input.providerAccountRecordId)}', ARRAYJOIN({Provider Account}))`
     : "";
-  const formula = `AND({Direction}='Inbound', {Provider}='${escapedProvider}', {Provider Event ID}='${escapedEventId}'${accountClause})`;
-  const params = new URLSearchParams({ pageSize: "1", filterByFormula: formula });
+  const tryFormula = async (formula: string): Promise<ExternalActionRecord | null> => {
+    const params = new URLSearchParams({ pageSize: "1", filterByFormula: formula });
+    const response = await airtableRequest(
+      `${encodeURIComponent(EXTERNAL_ACTIONS_TABLE)}?${params.toString()}`,
+      { method: "GET" },
+    );
+    if (!response.ok) {
+      const message = await parseAirtableError(response);
+      throw new SyncEndpointError(`Failed to find inbound External Action: ${message}`, 502);
+    }
 
-  const response = await airtableRequest(
-    `${encodeURIComponent(EXTERNAL_ACTIONS_TABLE)}?${params.toString()}`,
-    { method: "GET" },
-  );
-  if (!response.ok) {
-    const message = await parseAirtableError(response);
-    throw new SyncEndpointError(`Failed to find inbound External Action: ${message}`, 502);
+    const body = (await response.json()) as { records?: AirtableRecord[] };
+    const first = body.records?.[0];
+    if (!first) return null;
+    const fields = first.fields ?? {};
+
+    return {
+      recordId: first.id,
+      provider: readString(fields.Provider),
+      providerEventId: readString(fields["Provider Event ID"]),
+      direction: asDirection(fields.Direction),
+      orderExternalId: readFirstLinkedId(fields["Order External"]),
+      invoiceExternalId: readFirstLinkedId(fields["Invoice External"]),
+      actionType: asActionType(fields["Action Type"]),
+      status: asStatus(fields.Status),
+      attemptNumber: readNumber(fields["Attempt Number"]),
+    };
+  };
+
+  const primaryFormula = `AND({Direction}='Inbound', {Provider}='${escapedProvider}', {Provider Event ID}='${escapedEventId}'${accountClause})`;
+
+  try {
+    return await tryFormula(primaryFormula);
+  } catch (error) {
+    if (!(error instanceof SyncEndpointError)) throw error;
+    const message = error.message.toLowerCase();
+    const providerEventIdMissing =
+      message.includes("unknown field name: \"provider event id\"") ||
+      message.includes("unknown field names: provider event id");
+    if (!providerEventIdMissing) throw error;
   }
 
-  const body = (await response.json()) as { records?: AirtableRecord[] };
-  const first = body.records?.[0];
-  if (!first) return null;
-  const fields = first.fields ?? {};
-
-  return {
-    recordId: first.id,
-    provider: readString(fields.Provider),
-    providerEventId: readString(fields["Provider Event ID"]),
-    direction: asDirection(fields.Direction),
-    orderExternalId: readFirstLinkedId(fields["Order External"]),
-    invoiceExternalId: readFirstLinkedId(fields["Invoice External"]),
-    actionType: asActionType(fields["Action Type"]),
-    status: asStatus(fields.Status),
-    attemptNumber: readNumber(fields["Attempt Number"]),
-  };
+  // Backward-compatible fallback for bases that have not added Provider Event ID yet.
+  const rawPayloadFormula = `AND({Direction}='Inbound', {Provider}='${escapedProvider}', FIND('${escapedEventId}', {Raw Provider Payload})${accountClause})`;
+  try {
+    return await tryFormula(rawPayloadFormula);
+  } catch (error) {
+    if (!(error instanceof SyncEndpointError)) throw error;
+    const message = error.message.toLowerCase();
+    const rawPayloadMissing =
+      message.includes("unknown field name: \"raw provider payload\"") ||
+      message.includes("unknown field names: raw provider payload");
+    if (rawPayloadMissing) return null;
+    throw error;
+  }
 }
 
 export async function getOrgIntegrationRecord(recordId: string): Promise<OrgIntegrationRecord> {
@@ -364,7 +402,10 @@ export async function getOrgIntegrationRecord(recordId: string): Promise<OrgInte
       readFirstLinkedId(fields["Provider Account"]) ??
       readString(fields["Provider Account"]) ??
       readString(fields["Provider Account ID"]),
-    accessToken: readString(fields["Access Token"]),
+    accessToken:
+      readString(fields["Access Token"]) ??
+      readString(fields["API Credential Alias"]) ??
+      readString(fields["Access Token Alias"]),
     externalLocationId: readString(fields["External Location ID"]),
   };
 }

@@ -48,7 +48,7 @@ export function resolveSquareContext(clientExternal: ClientExternalRecord): Squa
 
   const alias = clientExternal.providerAccessTokenAlias;
   if (!alias) {
-    throw new SyncEndpointError("Provider account missing Access Token alias.", 422);
+    throw new SyncEndpointError("Provider account missing API Credential Alias.", 422);
   }
 
   const aliasMap = readAliasToTokenMap();

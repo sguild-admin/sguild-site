@@ -1,4 +1,5 @@
 export {
+  handleBackfillExternalActionsFromWebhookEvents,
   handleBackfillSquareWebhooks,
   handleMetaWebhookGet,
   handleMetaWebhookPost,
@@ -6,6 +7,9 @@ export {
   handleSquareWebhookPost,
 } from "./route";
 export type {
+  BackfillExternalActionsFromWebhookEventsFailure,
+  BackfillExternalActionsFromWebhookEventsRequestDto,
+  BackfillExternalActionsFromWebhookEventsResponseDto,
   BackfillSquareWebhooksFailure,
   BackfillSquareWebhooksRequestDto,
   BackfillSquareWebhooksResponseDto,

@@ -1,4 +1,5 @@
 import {
+  handleBackfillExternalActionsFromWebhookEvents,
   handleBackfillSquareWebhooks,
   handleMetaWebhookGet,
   handleMetaWebhookPost,
@@ -7,6 +8,7 @@ import {
 } from "./service";
 
 export {
+  handleBackfillExternalActionsFromWebhookEvents,
   handleBackfillSquareWebhooks,
   handleMetaWebhookGet,
   handleMetaWebhookPost,

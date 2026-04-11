@@ -1,5 +1,22 @@
-export { handleProcessOrderBilling, methodNotAllowed } from "./route";
-export { failureFromError, runOrderBilling, runOrderBillingProcessor } from "./service";
+export {
+  handleApplyInvoicePayment,
+  handleSendInvoice,
+  handleOpenOrder,
+  handleProcessOrderBilling,
+  handleResolvePromotionRedemptions,
+  methodNotAllowed,
+} from "./route";
+export {
+  applyInvoicePaymentFailureFromError,
+  sendInvoiceFailureFromError,
+  failureFromError,
+  runApplyInvoicePayment,
+  runOpenOrder,
+  runOrderBilling,
+  runOrderBillingProcessor,
+  runResolvePromotionRedemptions,
+  runSendInvoice,
+} from "./service";
 export {
   invoicesRepo,
   ordersRepo,
@@ -14,5 +31,15 @@ export type {
   BillingProcessResponse,
   BillingProcessResult,
   BillingProcessSuccessResponse,
+  ApplyInvoicePaymentFailureResponse,
+  ApplyInvoicePaymentRequest,
+  ApplyInvoicePaymentSuccessResponse,
+  OpenOrderRequest,
+  OpenOrderResponse,
   OrderBillingRequest,
+  ResolvePromotionRedemptionsRequest,
+  ResolvePromotionRedemptionsResponse,
+  SendInvoiceFailureResponse,
+  SendInvoiceRequest,
+  SendInvoiceSuccessResponse,
 } from "./dto";

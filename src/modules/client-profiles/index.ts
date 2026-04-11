@@ -1,4 +1,5 @@
 export {
+  handleClientProfiles,
   handleBackfillLessonSummaries,
   handleEnsureLessonSummary,
   handleRecomputeAllLessonSummaries,
@@ -10,8 +11,10 @@ export {
   ensureLessonSummaryForClientProfile,
   recomputeAllClientProfileLessonSummaries,
   recomputeClientProfileLessonSummary,
+  runClientProfilesWorkflow,
 } from "./service";
 export {
+  parseClientProfilesWorkflowBody,
   parseBackfillLessonSummariesBody,
   parseEnsureLessonSummaryBody,
   parseRecomputeLessonSummariesBody,
@@ -19,11 +22,18 @@ export {
 } from "./schema";
 export type {
   BackfillLessonSummariesResponse,
+  ClientProfileRecordDto,
+  ClientProfilesWorkflowRequestDto,
+  ClientProfilesWorkflowResponseDto,
+  ClientProfileStatus,
   ClientProfilesErrorResponse,
+  CreateClientProfileDto,
   EnsureLessonSummaryRequestDto,
   EnsureLessonSummaryResponse,
+  FindClientProfileByContextDto,
   RecomputeLessonSummariesRequestDto,
   RecomputeLessonSummariesResponse,
   RecomputeSingleLessonSummaryRequestDto,
   RecomputeSingleLessonSummaryResponse,
+  UpdateClientProfileDto,
 } from "./dto";

@@ -1,5 +1,12 @@
 import { SyncEndpointError } from "@/lib/errors";
-import type { EnsureLessonSummaryRequestDto } from "./dto";
+import type {
+  ClientProfileStatus,
+  ClientProfilesWorkflowRequestDto,
+  CreateClientProfileDto,
+  EnsureLessonSummaryRequestDto,
+  FindClientProfileByContextDto,
+  UpdateClientProfileDto,
+} from "./dto";
 
 type EnsureLessonSummaryBody = {
 	profileRecordId?: unknown;
@@ -20,6 +27,33 @@ type RecomputeLessonSummariesBody = {
 	maxProfiles?: unknown;
 };
 
+type ClientProfilesWorkflowBody = {
+  operation?: unknown;
+  payload?: unknown;
+};
+
+type ClientProfileCreateBody = {
+  clientRecordId?: unknown;
+  organizationRecordId?: unknown;
+  status?: unknown;
+  notes?: unknown;
+};
+
+type ClientProfileUpdateBody = {
+  recordId?: unknown;
+  clientRecordId?: unknown;
+  organizationRecordId?: unknown;
+  status?: unknown;
+  notes?: unknown;
+};
+
+type ClientProfileFindByContextBody = {
+  clientRecordId?: unknown;
+  organizationRecordId?: unknown;
+};
+
+const PROFILE_STATUSES = new Set<ClientProfileStatus>(["Active", "Paused", "Inactive"]);
+
 function asPositiveInteger(value: unknown): number | null {
 	if (typeof value === "number" && Number.isFinite(value) && Number.isInteger(value) && value > 0) {
 		return value;
@@ -29,6 +63,99 @@ function asPositiveInteger(value: unknown): number | null {
 		if (Number.isInteger(parsed) && parsed > 0) return parsed;
 	}
 	return null;
+}
+
+function asRecord(value: unknown, message: string): Record<string, unknown> {
+  if (typeof value !== "object" || value == null || Array.isArray(value)) {
+    throw new SyncEndpointError(message, 400);
+  }
+  return value as Record<string, unknown>;
+}
+
+function readTrimmedString(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function asStatus(value: unknown): ClientProfileStatus | undefined {
+  const parsed = readTrimmedString(value);
+  if (!parsed) return undefined;
+  if (!PROFILE_STATUSES.has(parsed as ClientProfileStatus)) {
+    throw new SyncEndpointError("Invalid status.", 400);
+  }
+  return parsed as ClientProfileStatus;
+}
+
+function parseCreateClientProfilePayload(payload: unknown): CreateClientProfileDto {
+  const typed = asRecord(payload, "Invalid create payload.");
+  const clientRecordId = readTrimmedString((typed as ClientProfileCreateBody).clientRecordId);
+  const organizationRecordId = readTrimmedString(
+    (typed as ClientProfileCreateBody).organizationRecordId,
+  );
+
+  if (!clientRecordId) throw new SyncEndpointError("Missing clientRecordId.", 400);
+  if (!organizationRecordId) throw new SyncEndpointError("Missing organizationRecordId.", 400);
+
+  return {
+    clientRecordId,
+    organizationRecordId,
+    status: asStatus((typed as ClientProfileCreateBody).status),
+    notes: readTrimmedString((typed as ClientProfileCreateBody).notes),
+  };
+}
+
+function parseUpdateClientProfilePayload(payload: unknown): UpdateClientProfileDto {
+  const typed = asRecord(payload, "Invalid update payload.");
+  const recordId = readTrimmedString((typed as ClientProfileUpdateBody).recordId);
+  if (!recordId) throw new SyncEndpointError("Missing recordId.", 400);
+
+  return {
+    recordId,
+    clientRecordId: readTrimmedString((typed as ClientProfileUpdateBody).clientRecordId),
+    organizationRecordId: readTrimmedString(
+      (typed as ClientProfileUpdateBody).organizationRecordId,
+    ),
+    status: asStatus((typed as ClientProfileUpdateBody).status),
+    notes: readTrimmedString((typed as ClientProfileUpdateBody).notes),
+  };
+}
+
+function parseFindByContextPayload(payload: unknown): FindClientProfileByContextDto {
+  const typed = asRecord(payload, "Invalid find_by_context payload.");
+  const clientRecordId = readTrimmedString((typed as ClientProfileFindByContextBody).clientRecordId);
+  const organizationRecordId = readTrimmedString(
+    (typed as ClientProfileFindByContextBody).organizationRecordId,
+  );
+
+  if (!clientRecordId) throw new SyncEndpointError("Missing clientRecordId.", 400);
+  if (!organizationRecordId) throw new SyncEndpointError("Missing organizationRecordId.", 400);
+
+  return { clientRecordId, organizationRecordId };
+}
+
+export function parseClientProfilesWorkflowBody(body: unknown): ClientProfilesWorkflowRequestDto {
+  const typed = asRecord(body, "Invalid request body.") as ClientProfilesWorkflowBody;
+  const operation = readTrimmedString(typed.operation);
+  if (!operation) throw new SyncEndpointError("Missing operation.", 400);
+
+  if (operation === "create") {
+    return { operation, payload: parseCreateClientProfilePayload(typed.payload) };
+  }
+  if (operation === "update") {
+    return { operation, payload: parseUpdateClientProfilePayload(typed.payload) };
+  }
+  if (operation === "get") {
+    const payload = asRecord(typed.payload, "Invalid get payload.");
+    const recordId = readTrimmedString(payload.recordId);
+    if (!recordId) throw new SyncEndpointError("Missing recordId.", 400);
+    return { operation, payload: { recordId } };
+  }
+  if (operation === "find_by_context") {
+    return { operation, payload: parseFindByContextPayload(typed.payload) };
+  }
+
+  throw new SyncEndpointError("Unsupported operation.", 400);
 }
 
 export function parseEnsureLessonSummaryBody(body: unknown): EnsureLessonSummaryRequestDto {

@@ -10,6 +10,8 @@
     "check:airtable-boundary": "node scripts/check-airtable-boundary.mjs",
     "check:dto-boundary": "node scripts/check-dto-boundary.mjs",
     "backfill:square:24h": "node --env-file=.env.local scripts/backfill-square-events.mjs --hours=24",
+    "backfill:webhook-external-actions:dry-run": "node --env-file=.env.local scripts/backfill-webhook-external-actions.mjs",
+    "backfill:webhook-external-actions": "node --env-file=.env.local scripts/backfill-webhook-external-actions.mjs --execute",
     "backfill:external-actions:dry-run": "node --env-file=.env.local scripts/backfill-external-actions.mjs",
     "backfill:external-actions": "node --env-file=.env.local scripts/backfill-external-actions.mjs --execute"
   },

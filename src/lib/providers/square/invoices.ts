@@ -30,11 +30,32 @@ export async function createInvoiceFromOrderItems(
   input: SquareCreateInvoiceFromOrderInput,
 ): Promise<SquareCreateInvoiceFromOrderResult> {
   const currency = normalizeCurrency(input.currency);
-  const lineItems = input.orderItems.map((item, index) => ({
+  const positiveItems = input.orderItems.filter((item) => (item.netAmount ?? 0) > 0);
+  const negativeItems = input.orderItems.filter((item) => (item.netAmount ?? 0) < 0);
+
+  const lineItems = positiveItems.map((item, index) => ({
     name: toSquareLineItemName(item.description, index),
     quantity: "1",
     base_price_money: {
       amount: Math.round((item.netAmount ?? 0) * 100),
+      currency,
+    },
+  }));
+
+  if (lineItems.length === 0) {
+    throw new SyncEndpointError("Invoice creation requires at least one positive line item.", 422);
+  }
+
+  const discounts = negativeItems.map((item, index) => ({
+    uid: `promotion-discount-${index + 1}`,
+    name:
+      typeof item.description === "string" && item.description.trim().length > 0
+        ? item.description.trim()
+        : `Promotion Discount ${index + 1}`,
+    scope: "ORDER" as const,
+    type: "FIXED_AMOUNT" as const,
+    amount_money: {
+      amount: Math.round(Math.abs(item.netAmount ?? 0) * 100),
       currency,
     },
   }));
@@ -45,6 +66,7 @@ export async function createInvoiceFromOrderItems(
       location_id: input.context.externalLocationId,
       customer_id: input.externalCustomerId,
       line_items: lineItems,
+      ...(discounts.length > 0 ? { discounts } : {}),
     },
   };
 

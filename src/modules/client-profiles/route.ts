@@ -7,6 +7,7 @@ import {
   ensureLessonSummaryForClientProfile,
   recomputeAllClientProfileLessonSummaries,
   recomputeClientProfileLessonSummary,
+  runClientProfilesWorkflow,
 } from "./service";
 import {
   parseBackfillLessonSummariesBody,
@@ -50,6 +51,19 @@ export async function handleEnsureLessonSummary(request: Request): Promise<NextR
     const body = await parseJsonBody(request);
     const parsed = parseEnsureLessonSummaryBody(body);
     const response = await ensureLessonSummaryForClientProfile(parsed.profileRecordId);
+    return NextResponse.json(response, { status: 200 });
+  } catch (error) {
+    const { status, body } = mapClientProfilesError(error);
+    return NextResponse.json(body, { status });
+  }
+}
+
+export async function handleClientProfiles(request: Request): Promise<NextResponse> {
+  try {
+    clientSyncRepo.validateClientsSecret(request);
+    assertJsonRequest(request);
+    const body = await parseJsonBody(request);
+    const response = await runClientProfilesWorkflow(body);
     return NextResponse.json(response, { status: 200 });
   } catch (error) {
     const { status, body } = mapClientProfilesError(error);

@@ -5,6 +5,7 @@ import {
   getBillingProviderContext,
   updateExternalAction,
 } from "@/modules/integrations";
+import { classifyRetryability, inferErrorType } from "@/modules/external-actions";
 import { invoicesRepo } from "./repo";
 import type {
   InvoiceReconcileResultDto,
@@ -494,6 +495,11 @@ export async function sendInvoice(body: unknown): Promise<SendInvoiceResponseDto
     const message = error instanceof Error ? error.message : "Unexpected server error.";
     const statusCode = error instanceof SyncEndpointError ? error.status : 500;
     const rawPayload = error instanceof SyncEndpointError ? error.rawPayload : undefined;
+    const classification = classifyRetryability({
+      stage: "provider",
+      httpStatus: statusCode,
+      errorType: inferErrorType(message),
+    });
 
     try {
       await updateExternalAction(outboundExternalActionRecordId, {
@@ -503,7 +509,8 @@ export async function sendInvoice(body: unknown): Promise<SendInvoiceResponseDto
         errorSummary: message,
         rawProviderPayload: rawPayload,
         httpStatusCode: statusCode,
-        retryable: true,
+        retryable: classification.retryable,
+        retryClassification: classification.classification,
         writebackStatus: "Failed",
         writebackError: message,
         writebackRetryCount: outboundAttemptNumber,
