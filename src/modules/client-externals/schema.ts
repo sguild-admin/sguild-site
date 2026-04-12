@@ -5,6 +5,7 @@ import type {
   ClientExternalsRequestDto,
   CreateClientExternalDto,
   FindClientExternalByContextDto,
+  SyncAllClientExternalsDto,
   UpdateClientExternalDto,
 } from "./dto";
 
@@ -115,6 +116,20 @@ function parseFindByContextPayload(payload: unknown): FindClientExternalByContex
   return { clientRecordId, providerAccountRecordId };
 }
 
+function parseSyncAllPayload(payload: unknown): SyncAllClientExternalsDto {
+  if (payload == null) return {};
+  const typed = asRecord(payload, "Invalid sync_all payload.");
+  const dryRun =
+    typeof typed.dryRun === "boolean"
+      ? typed.dryRun
+      : typeof typed.dryRun === "string"
+        ? typed.dryRun.trim().toLowerCase() === "true"
+        : undefined;
+  return {
+    ...(typeof dryRun === "boolean" ? { dryRun } : {}),
+  };
+}
+
 export function parseClientExternalsRequestBody(body: unknown): ClientExternalsRequestDto {
   const typed = asRecord(body, "Invalid request body.");
   const operation = readTrimmedString(typed.operation);
@@ -131,6 +146,9 @@ export function parseClientExternalsRequestBody(body: unknown): ClientExternalsR
   }
   if (operation === "find_by_context") {
     return { operation, payload: parseFindByContextPayload(typed.payload) };
+  }
+  if (operation === "sync_all") {
+    return { operation, payload: parseSyncAllPayload(typed.payload) };
   }
 
   throw new SyncEndpointError("Unsupported operation.", 400);

@@ -49,6 +49,11 @@ export async function runClientExternalsWorkflow(body: unknown): Promise<ClientE
     return { ok: true, operation: "get", record };
   }
 
+  if (parsed.operation === "sync_all") {
+    const result = await clientExternalsRepo.syncAllClientExternalPhoneSnapshots(parsed.payload);
+    return { ok: true, operation: "sync_all", result, dryRun: parsed.payload.dryRun === true };
+  }
+
   const record = await clientExternalsRepo.findClientExternalByContext(parsed.payload);
   return { ok: true, operation: "find_by_context", record };
 }

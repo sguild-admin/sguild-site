@@ -109,6 +109,9 @@ export async function runClientExternalSync(recordId: string): Promise<SyncSucce
   if (!clientExternal.nameSnapshot && effectiveNameSnapshot) {
     snapshotPatch["Name Snapshot"] = effectiveNameSnapshot;
   }
+  if (!clientExternal.phoneSnapshot && effectivePhoneSnapshot) {
+    snapshotPatch["Phone Snapshot"] = effectivePhoneSnapshot;
+  }
 
   const syncInput = {
     ...clientExternal,

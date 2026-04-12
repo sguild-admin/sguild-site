@@ -16,6 +16,11 @@ import {
 import { classifyRetryability, inferErrorType } from "@/modules/external-actions";
 import { appendPurchaseCreditEntriesForOrder } from "@/modules/credit-ledger-entries";
 import type { BillingAction } from "@/lib/types/billing";
+import {
+  getSquareCustomerContactIdentity,
+  syncSquareCustomer,
+} from "@/lib/providers/square/customers";
+import { clientSyncRepo } from "@/modules/clients";
 import type {
   BillingProcessExternalIds,
   BillingProcessErrorResponse,
@@ -1529,9 +1534,12 @@ export async function runResolvePromotionRedemptions(
 
 export async function runOpenOrder(body: unknown): Promise<OpenOrderResponse> {
   const parsed = parseOpenOrderBody(body);
+  console.log(`[OPEN_ORDER] Opening order: ${parsed.recordId}`);
   const order = await ordersRepo.getOrderOpenRecord(parsed.recordId);
+  console.log(`[OPEN_ORDER] Order status: ${order.status}, readyToOpen: ${order.readyToOpen}, openingRequested: ${order.openingRequested}`);
 
   if (order.status === "Open") {
+    console.log(`[OPEN_ORDER] Order already Open`);
     return {
       result: "success",
       activatedItemCount: 0,
@@ -1543,13 +1551,16 @@ export async function runOpenOrder(body: unknown): Promise<OpenOrderResponse> {
     throw new SyncEndpointError("Order must be Draft to open.", 422);
   }
 
-  if (!parsed.force && !order.readyToOpen) {
+  if (!parsed.force && !order.readyToOpen && !order.openingRequested) {
+    console.log(`[OPEN_ORDER] Rejecting: force=${parsed.force}, readyToOpen=${order.readyToOpen}, openingRequested=${order.openingRequested}`);
     throw new SyncEndpointError("Order is not Ready To Open.", 422);
   }
+  console.log(`[OPEN_ORDER] Ready to proceed: force=${parsed.force}, readyToOpen=${order.readyToOpen}, openingRequested=${order.openingRequested}`);
 
   const validOrderItemStatuses = new Set(["Draft", "Active", "Canceled", "Refunded"]);
   const validRedemptionStatuses = new Set(["Draft", "Applied", "Removed"]);
   const orderItems = await ordersRepo.listOrderItemsForOpen(parsed.recordId);
+  console.log(`[OPEN_ORDER] Found ${orderItems.length} order items`);
 
   for (const item of orderItems) {
     if (!item.status || !validOrderItemStatuses.has(item.status)) {
@@ -1577,20 +1588,25 @@ export async function runOpenOrder(body: unknown): Promise<OpenOrderResponse> {
     }
   }
 
+  console.log(`[OPEN_ORDER] All validations passed, updating order status to Open`);
   await ordersRepo.updateOrderStatus(parsed.recordId, "Open");
 
   let activatedItemCount = 0;
   let skippedItemCount = 0;
 
   for (const item of orderItems) {
+    console.log(`[OPEN_ORDER] Item ${item.recordId}: status=${item.status}, readyToActivate=${item.readyToActivate}`);
     if (item.status === "Draft" && item.readyToActivate) {
+      console.log(`[OPEN_ORDER] Activating item ${item.recordId}`);
       await ordersRepo.updateOrderItemStatus(item.recordId, "Active");
       activatedItemCount += 1;
     } else {
+      console.log(`[OPEN_ORDER] Skipping item ${item.recordId}`);
       skippedItemCount += 1;
     }
   }
 
+  console.log(`[OPEN_ORDER] Complete: activated=${activatedItemCount}, skipped=${skippedItemCount}`);
   return {
     result: "success",
     activatedItemCount,
@@ -1612,6 +1628,22 @@ function normalizeProviderInvoiceStatus(status: string | null): string {
 function isSentLikeInvoiceStatus(status: string | null): boolean {
   const normalized = (status ?? "").trim().toUpperCase();
   return normalized === "UNPAID" || normalized === "PARTIALLY_PAID" || normalized === "PAID";
+}
+
+function hasUsablePayerPhone(phoneNumber: string | null): boolean {
+  if (!phoneNumber) return false;
+  const digits = phoneNumber.replace(/\D/g, "");
+  return digits.length >= 10;
+}
+
+function hasUsablePayerEmail(emailAddress: string | null): boolean {
+  if (!emailAddress) return false;
+  const trimmed = emailAddress.trim();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+}
+
+function isSquarePayerContactRequiredError(message: string): boolean {
+  return message.toLowerCase().includes("payer email or phone number is required");
 }
 
 function buildDefaultSendInvoiceIdempotencyKey(input: {
@@ -2395,16 +2427,22 @@ export async function runSendInvoice(body: unknown): Promise<SendInvoiceSuccessR
 
   let orderExternal = linkedOrderExternals[0] ?? null;
 
-  let orgIntegrationId = orderExternal?.orgIntegrationId ?? null;
-  if (!orgIntegrationId) {
-    const linkedOrgIntegrations = await providerContextRepo.listOrgIntegrationsLinkedToOrganization(
-      order.organizationId as string,
-    );
-    const orgIntegrations =
-      linkedOrgIntegrations.length > 0
-        ? linkedOrgIntegrations
-        : await providerContextRepo.listOrgIntegrationsByOrganization(order.organizationId as string);
+  const linkedOrgIntegrations = await providerContextRepo.listOrgIntegrationsLinkedToOrganization(
+    order.organizationId as string,
+  );
+  const orgIntegrations =
+    linkedOrgIntegrations.length > 0
+      ? linkedOrgIntegrations
+      : await providerContextRepo.listOrgIntegrationsByOrganization(order.organizationId as string);
 
+  let orgIntegrationId = orderExternal?.orgIntegrationId ?? null;
+  if (orgIntegrationId) {
+    const matchesOrganization = orgIntegrations.some((row) => row.recordId === orgIntegrationId);
+    if (!matchesOrganization) {
+      orgIntegrationId = null;
+    }
+  }
+  if (!orgIntegrationId) {
     const pickedOrgIntegrationId = pickDeterministicOrgIntegration({
       rows: orgIntegrations,
       preferredProviderAccountId: orderExternal?.providerAccountId ?? null,
@@ -2422,7 +2460,7 @@ export async function runSendInvoice(body: unknown): Promise<SendInvoiceSuccessR
   const orgIntegrationRecordId = orgIntegrationId as string;
 
   const orgIntegration = await providerContextRepo.getOrgIntegrationRecord(orgIntegrationRecordId);
-  const providerAccountId = orderExternal?.providerAccountId ?? orgIntegration.providerAccountId;
+  const providerAccountId = orgIntegration.providerAccountId;
   if (!providerAccountId) {
     fail({ message: "Provider Account context is missing.", status: 409, stage: "ambiguity" });
   }
@@ -2458,6 +2496,40 @@ export async function runSendInvoice(body: unknown): Promise<SendInvoiceSuccessR
       "Sync Status": "Pending",
       "Writeback Status": "Pending",
     });
+  } else {
+    if (
+      orderExternal.orgIntegrationId &&
+      orderExternal.orgIntegrationId !== orgIntegrationRecordId
+    ) {
+      fail({
+        message:
+          "Order External Org Integration does not match Organization-resolved Org Integration.",
+        status: 409,
+        stage: "ambiguity",
+      });
+    }
+    if (
+      orderExternal.providerAccountId &&
+      orderExternal.providerAccountId !== providerAccountRecordId
+    ) {
+      fail({
+        message:
+          "Order External Provider Account does not match Organization-resolved Org Integration Provider Account.",
+        status: 409,
+        stage: "ambiguity",
+      });
+    }
+    if (!orderExternal.orgIntegrationId || !orderExternal.providerAccountId) {
+      await ordersRepo.updateOrderExternal(orderExternal.recordId, {
+        "Org Integration": [orgIntegrationRecordId],
+        "Global Provider Account": [providerAccountRecordId],
+      });
+      orderExternal = {
+        ...orderExternal,
+        orgIntegrationId: orgIntegrationRecordId,
+        providerAccountId: providerAccountRecordId,
+      };
+    }
   }
 
   const idempotencyKey =
@@ -2542,36 +2614,71 @@ export async function runSendInvoice(body: unknown): Promise<SendInvoiceSuccessR
 
   const resolvedClientRecordId = resolvedClientId as string;
   let externalCustomerId = "";
+  let resolvedClientExternal: Awaited<
+    ReturnType<typeof ordersRepo.listClientExternalsByClient>
+  >[number] | null = null;
   let providerOrderItems: Array<{ description: string | null; netAmount: number | null }> = [];
   try {
-    const scopedClientExternals = await ordersRepo.listClientExternalsByContext(
-      resolvedClientRecordId,
-      providerAccountRecordId,
-    );
-    const allClientExternals =
-      scopedClientExternals.length > 0
-        ? scopedClientExternals
-        : await ordersRepo.listClientExternalsByClient(resolvedClientRecordId);
-    const pickedClientExternalId = pickDeterministicClientExternal({
-      rows: allClientExternals,
-      preferredProviderAccountId: providerAccountRecordId,
-      customerIdSnapshot: orderExternal.customerIdSnapshot,
-    });
-    if (!pickedClientExternalId) {
-      const debug = buildClientExternalResolutionDebug({
+    let customerExternal: Awaited<
+      ReturnType<typeof ordersRepo.listClientExternalsByClient>
+    >[number] | null = null;
+
+    if (orderExternal.clientExternalId) {
+      const linkedClientExternal = await ordersRepo.getClientExternalRecord(orderExternal.clientExternalId);
+      if (linkedClientExternal.providerAccountId !== providerAccountRecordId) {
+        throw new SyncEndpointError(
+          "Order External linked Client External is not in the same provider account context.",
+          422,
+        );
+      }
+      customerExternal = linkedClientExternal;
+    }
+
+    const customerIdSnapshot = orderExternal.customerIdSnapshot?.trim() ?? "";
+    if (!customerExternal && customerIdSnapshot) {
+      customerExternal = await ordersRepo.findClientExternalByProviderAndExternalCustomerId(
+        providerAccountRecordId,
+        customerIdSnapshot,
+      );
+    }
+
+    if (!customerExternal) {
+      const scopedClientExternals = await ordersRepo.listClientExternalsByContext(
+        resolvedClientRecordId,
+        providerAccountRecordId,
+      );
+      const allClientExternals =
+        scopedClientExternals.length > 0
+          ? scopedClientExternals
+          : await ordersRepo.listClientExternalsByClient(resolvedClientRecordId);
+      const pickedClientExternalId = pickDeterministicClientExternal({
         rows: allClientExternals,
         preferredProviderAccountId: providerAccountRecordId,
         customerIdSnapshot: orderExternal.customerIdSnapshot,
       });
-      throw new SyncEndpointError(
-        `Unable to deterministically resolve Client External from Order -> Client -> Client External. ${debug}`,
-        409,
-      );
+      if (!pickedClientExternalId) {
+        const debug = buildClientExternalResolutionDebug({
+          rows: allClientExternals,
+          preferredProviderAccountId: providerAccountRecordId,
+          customerIdSnapshot: orderExternal.customerIdSnapshot,
+        });
+        throw new SyncEndpointError(
+          `Unable to deterministically resolve Client External from Order -> Client -> Client External. ${debug}`,
+          409,
+        );
+      }
+      customerExternal = allClientExternals.find((row) => row.recordId === pickedClientExternalId) ?? null;
     }
-    const customerExternal = allClientExternals.find((row) => row.recordId === pickedClientExternalId);
+
+    resolvedClientExternal = customerExternal ?? null;
     externalCustomerId = customerExternal?.externalCustomerId?.trim() ?? "";
     if (!externalCustomerId) {
       throw new SyncEndpointError("Resolved Client External is missing External Customer ID.", 422);
+    }
+    if (!orderExternal.clientExternalId && customerExternal?.recordId) {
+      await ordersRepo.updateOrderExternal(orderExternal.recordId, {
+        "Client External": [customerExternal.recordId],
+      });
     }
 
     const detailedOrderItems: Array<{ description: string; baseAmount: number; discountLines: Array<{ name: string; amount: number }> }> = [];
@@ -2714,6 +2821,65 @@ export async function runSendInvoice(body: unknown): Promise<SendInvoiceSuccessR
     let providerStatusRaw: string | null = null;
     let invoiceVersion: number | null = null;
 
+    // Square publish requires payer contact on the linked customer.
+    // Always preflight-sync customer identity from Client External to repair stale provider data.
+    if (resolvedClientExternal) {
+      const richClientExternal = await clientSyncRepo.loadClientExternal(
+        resolvedClientExternal.recordId,
+      );
+      const canonicalJoinedName = [
+        richClientExternal.clientCanonicalFirstName,
+        richClientExternal.clientCanonicalLastName,
+      ]
+        .filter((part): part is string => Boolean(part))
+        .join(" ")
+        .trim();
+      const effectiveNameSnapshot =
+        resolvedClientExternal.nameSnapshot ??
+        richClientExternal.nameSnapshot ??
+        richClientExternal.clientCanonicalName ??
+        (canonicalJoinedName || null);
+      const effectivePhoneSnapshot =
+        resolvedClientExternal.phoneSnapshot ??
+        richClientExternal.phoneSnapshot ??
+        richClientExternal.latestPhoneNormalized ??
+        richClientExternal.clientCanonicalPhone ??
+        resolvedClientExternal.matchPhoneNormalized;
+      if (
+        !resolvedClientExternal.nameSnapshot &&
+        effectiveNameSnapshot &&
+        resolvedClientExternal.recordId
+      ) {
+        await clientSyncRepo.persistClientExternalSnapshots(resolvedClientExternal.recordId, {
+          "Name Snapshot": effectiveNameSnapshot,
+          ...(effectivePhoneSnapshot ? { "Phone Snapshot": effectivePhoneSnapshot } : {}),
+        });
+      }
+      const syncResult = await syncSquareCustomer(
+        {
+          recordReferenceId: resolvedClientExternal.recordId,
+          externalCustomerId,
+          canonicalFirstName: richClientExternal.clientCanonicalFirstName,
+          canonicalLastName: richClientExternal.clientCanonicalLastName,
+          nameSnapshot: effectiveNameSnapshot,
+          phoneSnapshot: effectivePhoneSnapshot,
+          matchPhoneNormalized: resolvedClientExternal.matchPhoneNormalized,
+          emailSnapshot: resolvedClientExternal.emailSnapshot ?? richClientExternal.emailSnapshot,
+        },
+        providerContext,
+      );
+      externalCustomerId = syncResult.externalCustomerId;
+    }
+    const payerContact = await getSquareCustomerContactIdentity(externalCustomerId, providerContext);
+    const hasUsableContact =
+      hasUsablePayerEmail(payerContact.emailAddress) || hasUsablePayerPhone(payerContact.phoneNumber);
+    if (!hasUsableContact) {
+      throw new SyncEndpointError(
+        "Square customer is missing payer email/phone. Add client email or phone and re-sync client external before sending invoice.",
+        422,
+      );
+    }
+
     if (!externalInvoiceId) {
       const createdInvoice = await providerBillingRepo.createInvoiceFromOrderItems({
         context: providerContext,
@@ -2747,6 +2913,7 @@ export async function runSendInvoice(body: unknown): Promise<SendInvoiceSuccessR
         version: invoiceVersion,
         deliveryMethod: "Link",
         saveCard: true,
+        externalCustomerId,
       });
       providerPayload = settingsResult.rawPayload || providerPayload;
       providerStatusRaw = settingsResult.externalStatus ?? providerStatusRaw;
@@ -2766,16 +2933,86 @@ export async function runSendInvoice(body: unknown): Promise<SendInvoiceSuccessR
           externalActionId: externalActionId ?? undefined,
         });
       }
-      const published = await providerBillingRepo.publishInvoice({
-        context: providerContext,
-        externalInvoiceId: externalInvoiceId as string,
-        version: invoiceVersion as number,
-        idempotencyKey,
-      });
-      providerPayload = published.rawPayload || providerPayload;
-      providerStatusRaw = published.externalStatus ?? providerStatusRaw;
-      externalInvoiceUrl = published.hostedInvoiceUrl ?? externalInvoiceUrl;
-      providerResult = "succeeded";
+      try {
+        const published = await providerBillingRepo.publishInvoice({
+          context: providerContext,
+          externalInvoiceId: externalInvoiceId as string,
+          version: invoiceVersion as number,
+          idempotencyKey,
+        });
+        providerPayload = published.rawPayload || providerPayload;
+        providerStatusRaw = published.externalStatus ?? providerStatusRaw;
+        externalInvoiceUrl = published.hostedInvoiceUrl ?? externalInvoiceUrl;
+        providerResult = "succeeded";
+      } catch (publishError) {
+        const publishMessage =
+          publishError instanceof Error ? publishError.message : "Provider publish failed.";
+        if (!isSquarePayerContactRequiredError(publishMessage)) {
+          throw publishError;
+        }
+
+        const recreatedInvoice = await providerBillingRepo.createInvoiceFromOrderItems({
+          context: providerContext,
+          orderIdempotencyKey: `${idempotencyKey}:repair:order`,
+          invoiceIdempotencyKey: `${idempotencyKey}:repair:invoice`,
+          externalCustomerId,
+          orderItems: providerOrderItems,
+          currency: order.currency as string,
+          deliveryMethod: "Link",
+          saveCard: true,
+        });
+        providerPayload = recreatedInvoice.rawPayload || providerPayload;
+        externalInvoiceId = recreatedInvoice.externalInvoiceId;
+        externalOrderId = recreatedInvoice.externalOrderId ?? externalOrderId;
+        externalInvoiceUrl = recreatedInvoice.externalInvoiceUrl ?? externalInvoiceUrl;
+
+        const replacementDetails = await providerBillingRepo.getInvoiceDetails({
+          context: providerContext,
+          externalInvoiceId: externalInvoiceId as string,
+        });
+        providerStatusRaw = replacementDetails.status ?? providerStatusRaw;
+        invoiceVersion = replacementDetails.version;
+        externalOrderId = replacementDetails.externalOrderId ?? externalOrderId;
+        externalInvoiceUrl = replacementDetails.publicUrl ?? externalInvoiceUrl;
+
+        if (invoiceVersion == null) {
+          throw new SyncEndpointError(
+            "Provider returned replacement invoice without publishable version.",
+            409,
+          );
+        }
+
+        const replacementSettings = await providerBillingRepo.updateInvoiceSettings({
+          context: providerContext,
+          externalInvoiceId: externalInvoiceId as string,
+          version: invoiceVersion,
+          deliveryMethod: "Link",
+          saveCard: true,
+          externalCustomerId,
+        });
+        providerPayload = replacementSettings.rawPayload || providerPayload;
+        providerStatusRaw = replacementSettings.externalStatus ?? providerStatusRaw;
+        externalInvoiceUrl = replacementSettings.hostedInvoiceUrl ?? externalInvoiceUrl;
+        invoiceVersion = replacementSettings.version ?? invoiceVersion;
+
+        if (invoiceVersion == null) {
+          throw new SyncEndpointError(
+            "Provider returned replacement invoice without publishable version after settings update.",
+            409,
+          );
+        }
+
+        const republished = await providerBillingRepo.publishInvoice({
+          context: providerContext,
+          externalInvoiceId: externalInvoiceId as string,
+          version: invoiceVersion,
+          idempotencyKey: `${idempotencyKey}:repair`,
+        });
+        providerPayload = republished.rawPayload || providerPayload;
+        providerStatusRaw = republished.externalStatus ?? providerStatusRaw;
+        externalInvoiceUrl = republished.hostedInvoiceUrl ?? externalInvoiceUrl;
+        providerResult = "succeeded";
+      }
     }
 
     const normalizedStatus = normalizeProviderInvoiceStatus(providerStatusRaw);
@@ -2911,5 +3148,3 @@ export async function runSendInvoice(body: unknown): Promise<SendInvoiceSuccessR
 export function assertAuthorizedOrderBillingRequest(request: Request): void {
   ordersWorkflowRepo.validateOrdersSecret(request);
 }
-
-

@@ -1,3 +1,14 @@
-export { handleLessonsNotImplemented, methodNotAllowed } from "./route";
-export { getLessonsNotImplementedResponse } from "./service";
-export type { LessonsNotImplementedResponse } from "./dto";
+export { methodNotAllowed } from "./route";
+export {
+  completeLesson,
+  cancelLesson,
+  recordNoShow,
+  toLessonOutcomeFailureResponse,
+} from "./service";
+export { getLessonForOutcome } from "./repo";
+export type {
+  LessonCancellationReason,
+  LessonRequestedOutcome,
+  LessonOutcomeFailureResponseDto,
+  LessonProcessOutcomeSuccessResponseDto,
+} from "./dto";

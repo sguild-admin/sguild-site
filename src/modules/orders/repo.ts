@@ -50,6 +50,7 @@ type AirtableRecord = {
 export type OrderExternalRecord = {
   recordId: string;
   orderId: string | null;
+  clientExternalId: string | null;
   orgIntegrationId: string | null;
   providerAccountId: string | null;
   externalActionIds: string[];
@@ -127,6 +128,10 @@ export type ClientExternalRecord = {
   clientId: string | null;
   providerAccountId: string | null;
   externalCustomerId: string | null;
+  nameSnapshot: string | null;
+  phoneSnapshot: string | null;
+  emailSnapshot: string | null;
+  matchPhoneNormalized: string | null;
   activeCardCount: number | null;
   status: string | null;
   syncStatus: string | null;
@@ -364,6 +369,10 @@ function toClientExternalRecord(record: AirtableRecord): ClientExternalRecord {
     clientId: readFirstLinkedId(fields.Client) ?? readFirstLinkedId(fields["Client Profile"]),
     providerAccountId: providerAccountValue,
     externalCustomerId: readString(fields[CLIENT_EXTERNAL_FIELDS.externalCustomerId]),
+    nameSnapshot: readString(fields[CLIENT_EXTERNAL_FIELDS.nameSnapshot]),
+    phoneSnapshot: readString(fields[CLIENT_EXTERNAL_FIELDS.phoneSnapshot]),
+    emailSnapshot: readString(fields[CLIENT_EXTERNAL_FIELDS.emailSnapshot]),
+    matchPhoneNormalized: readString(fields[CLIENT_EXTERNAL_FIELDS.matchPhoneNormalized]),
     activeCardCount: readNumber(fields["Active Card Count"]),
     status: readString(fields[CLIENT_EXTERNAL_FIELDS.status]),
     syncStatus: readString(fields[CLIENT_EXTERNAL_FIELDS.syncStatus]),
@@ -458,6 +467,9 @@ function toOrderExternalRecord(record: AirtableRecord): OrderExternalRecord {
       readFirstLinkedId(fields.Order) ??
       readFirstLinkedId(fields.Orders) ??
       readFirstLinkedId(fields["Parent Order"]),
+    clientExternalId:
+      readFirstLinkedId(fields[ORDER_EXTERNAL_FIELDS.clientExternal]) ??
+      readFirstLinkedId(fields["Client External"]),
     orgIntegrationId:
       readFirstLinkedId(fields[ORDER_EXTERNAL_FIELDS.orgIntegration]) ??
       readFirstLinkedId(fields["Org Integration"]),
@@ -826,11 +838,16 @@ async function getOrderOpenRecord(recordId: string): Promise<OrderOpenRecord> {
   const record = await getRecord(ORDERS_TABLE, recordId, "Order");
   const fields = record.fields ?? {};
 
+  const readyToOpen = readFlag(fields[ORDER_FIELDS.readyToOpen]);
+  const openingRequested = readFlag(fields[ORDER_FIELDS.openingRequested]);
+  console.log(`[GET_ORDER_OPEN_RECORD] Order ${recordId}: readyToOpen field value = ${fields[ORDER_FIELDS.readyToOpen]}, parsed = ${readyToOpen}`);
+  console.log(`[GET_ORDER_OPEN_RECORD] Order ${recordId}: openingRequested field value = ${fields[ORDER_FIELDS.openingRequested]}, parsed = ${openingRequested}`);
+
   return {
     recordId: record.id,
     status: readString(fields[ORDER_FIELDS.status]),
-    readyToOpen: readFlag(fields[ORDER_FIELDS.readyToOpen]),
-    openingRequested: readFlag(fields[ORDER_FIELDS.openingRequested]),
+    readyToOpen,
+    openingRequested,
   };
 }
 
@@ -1369,6 +1386,46 @@ async function listClientExternalsByContext(
 
   const allRows = await listClientExternalsByClient(clientId);
   return allRows.filter((row) => row.providerAccountId === providerAccountId);
+}
+
+async function getClientExternalRecord(recordId: string): Promise<ClientExternalRecord> {
+  const record = await getRecord(CLIENT_EXTERNALS_TABLE, recordId, "Client External");
+  return toClientExternalRecord(record);
+}
+
+async function findClientExternalByProviderAndExternalCustomerId(
+  providerAccountId: string,
+  externalCustomerId: string,
+): Promise<ClientExternalRecord | null> {
+  const escapedProviderAccountId = escapeAirtableFormulaString(providerAccountId);
+  const escapedExternalCustomerId = escapeAirtableFormulaString(externalCustomerId);
+  const formula =
+    `AND(` +
+    `FIND('${escapedProviderAccountId}', ARRAYJOIN({${CLIENT_EXTERNAL_FIELDS.providerAccount}})),` +
+    `{${CLIENT_EXTERNAL_FIELDS.externalCustomerId}}='${escapedExternalCustomerId}'` +
+    `)`;
+
+  const params = new URLSearchParams({
+    maxRecords: "2",
+    filterByFormula: formula,
+  });
+
+  const response = await airtableRequest(
+    `${encodeURIComponent(CLIENT_EXTERNALS_TABLE)}?${params.toString()}`,
+    { method: "GET" },
+  );
+
+  if (!response.ok) {
+    const message = await parseAirtableError(response);
+    throw new SyncEndpointError(
+      `Failed to resolve Client External by customer snapshot: ${message}`,
+      502,
+    );
+  }
+
+  const body = (await response.json()) as { records?: AirtableRecord[] };
+  const records = (body.records ?? []).map((record) => toClientExternalRecord(record));
+  return records[0] ?? null;
 }
 
 async function listClientExternalsByClient(
@@ -2029,6 +2086,7 @@ async function updateOrderItemStatus(
   orderItemRecordId: string,
   status: "Active",
 ): Promise<void> {
+  console.log(`[UPDATE_ORDER_ITEM_STATUS] Setting item ${orderItemRecordId} to status: ${status}`);
   const response = await airtableRequest(
     `${encodeURIComponent(ORDER_ITEMS_TABLE)}/${encodeURIComponent(orderItemRecordId)}`,
     {
@@ -2043,8 +2101,11 @@ async function updateOrderItemStatus(
 
   if (!response.ok) {
     const message = await parseAirtableError(response);
+    console.error(`[UPDATE_ORDER_ITEM_STATUS] Failed to update: ${message}`);
     throw new SyncEndpointError(`Failed to update Order Item status: ${message}`, 502);
   }
+  
+  console.log(`[UPDATE_ORDER_ITEM_STATUS] Successfully updated item ${orderItemRecordId} to ${status}`);
 }
 
 function toInvoiceExternalRecord(record: AirtableRecord): InvoiceExternalRecord {
@@ -2373,6 +2434,9 @@ async function listOrderExternalsByInvoice(
 }
 
 type OrderExternalWritebackFields = {
+  "Org Integration"?: string[];
+  "Global Provider Account"?: string[];
+  "Client External"?: string[];
   "External Actions"?: string[];
   "Sync Status"?: "Pending" | "Synced" | "Failed" | "Ignored";
   "Sync Error"?: string;
@@ -2456,6 +2520,9 @@ async function updateOrderExternal(
 ): Promise<void> {
   const path = `${encodeURIComponent(ORDER_EXTERNALS_TABLE)}/${encodeURIComponent(orderExternalRecordId)}`;
   const optionalFields = new Set([
+    "Org Integration",
+    "Global Provider Account",
+    "Client External",
     "External Actions",
     "Sync Status",
     "Sync Error",
@@ -2691,11 +2758,13 @@ export const ordersRepo = {
   findInboundExternalActionByProviderReference,
   getProviderAccountRecord,
   getClientIdFromClientProfile,
+  getClientExternalRecord,
   findOrderExternalByExternalInvoiceId,
   findOrderExternalByExternalOrderId,
   findClientExternalByContext,
   listClientExternalsByContext,
   listClientExternalsByClient,
+  findClientExternalByProviderAndExternalCustomerId,
   findActiveCardExternalsByClientExternal,
   listOrderExternalsByOrder,
   listOrderExternalsByInvoice,

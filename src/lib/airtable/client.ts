@@ -14,11 +14,13 @@ function readString(value: unknown): string | null {
   return null;
 }
 
-export function getAirtableConfig(): { token: string; baseId: string } {
-  const token =
-    readString(process.env.AIRTABLE_OPERATIONS_TOKEN) ?? readString(process.env.AIRTABLE_TOKEN);
-  const baseId =
-    readString(process.env.AIRTABLE_OPERATIONS_BASE_ID) ?? readString(process.env.AIRTABLE_BASE_ID);
+export function getAirtableConfig(scope: "operations" | "core" = "operations"): { token: string; baseId: string } {
+  const token = scope === "core"
+    ? (readString(process.env.AIRTABLE_TOKEN) ?? readString(process.env.AIRTABLE_OPERATIONS_TOKEN))
+    : (readString(process.env.AIRTABLE_OPERATIONS_TOKEN) ?? readString(process.env.AIRTABLE_TOKEN));
+  const baseId = scope === "core"
+    ? (readString(process.env.AIRTABLE_BASE_ID) ?? readString(process.env.AIRTABLE_OPERATIONS_BASE_ID))
+    : (readString(process.env.AIRTABLE_OPERATIONS_BASE_ID) ?? readString(process.env.AIRTABLE_BASE_ID));
 
   if (!token || !baseId) {
     throw new SyncEndpointError("Airtable configuration is missing.", 500, {
@@ -32,8 +34,8 @@ export function getAirtableConfig(): { token: string; baseId: string } {
 export { parseAirtableError };
 
 export async function airtableRequest(path: string, init?: AirtableRequestInit): Promise<Response> {
-  const { token, baseId } = getAirtableConfig();
   const typedInit = (init ?? {}) as AirtableRequestInit;
+  const { token, baseId } = getAirtableConfig(typedInit.__scope ?? "operations");
   const requestInit: RequestInit = { ...typedInit };
   delete (requestInit as Record<string, unknown>).__scope;
   const maxAttempts = 3;

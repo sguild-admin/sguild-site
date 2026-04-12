@@ -9,11 +9,15 @@ import type {
   ClientExternalRecordDto,
   CreateClientExternalDto,
   FindClientExternalByContextDto,
+  SyncAllClientExternalsDto,
+  SyncAllClientExternalsResultDto,
   UpdateClientExternalDto,
 } from "./dto";
 
 const CLIENT_EXTERNALS_TABLE = airtableSchema.operations.tables.clientExternals;
+const CLIENTS_TABLE = airtableSchema.operations.tables.clients;
 const CLIENT_EXTERNAL_FIELDS = airtableSchema.operations.fields.clientExternals;
+const CLIENT_FIELDS = airtableSchema.operations.fields.clients;
 
 type AirtableRecord = {
   id: string;
@@ -47,6 +51,14 @@ function readLinkedIds(value: unknown): string[] {
 function readFirstLinkedId(value: unknown): string | null {
   const ids = readLinkedIds(value);
   return ids[0] ?? null;
+}
+
+function readFirstStringFromFields(fields: Record<string, unknown>, keys: string[]): string | null {
+  for (const key of keys) {
+    const value = readString(fields[key]);
+    if (value) return value;
+  }
+  return null;
 }
 
 function asStatus(value: string | null): ClientExternalRecordDto["status"] {
@@ -232,9 +244,119 @@ async function findClientExternalByContext(
   return toRecord(records[0]);
 }
 
+async function getClientCanonicalPhone(clientRecordId: string): Promise<string | null> {
+  const response = await airtableRequest(
+    `${encodeURIComponent(CLIENTS_TABLE)}/${encodeURIComponent(clientRecordId)}`,
+    { method: "GET" },
+  );
+
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    const message = await parseAirtableError(response);
+    throw new SyncEndpointError(`Failed to load Client for phone snapshot sync: ${message}`, 502);
+  }
+
+  const record = (await response.json()) as AirtableRecord;
+  const fields = record.fields ?? {};
+  return readFirstStringFromFields(fields, [
+    CLIENT_FIELDS.latestPhoneNormalized,
+    CLIENT_FIELDS.latestPhoneNormalizedLegacy,
+    "Phone",
+    "Phone Number",
+    "Client Phone",
+  ]);
+}
+
+async function listAllClientExternals(): Promise<AirtableRecord[]> {
+  let offset: string | undefined;
+  const rows: AirtableRecord[] = [];
+
+  do {
+    const params = new URLSearchParams({ pageSize: "100" });
+    if (offset) params.set("offset", offset);
+    const response = await airtableRequest(
+      `${encodeURIComponent(CLIENT_EXTERNALS_TABLE)}?${params.toString()}`,
+      { method: "GET" },
+    );
+    if (!response.ok) {
+      const message = await parseAirtableError(response);
+      throw new SyncEndpointError(`Failed to list Client Externals: ${message}`, 502);
+    }
+    const body = (await response.json()) as { records?: AirtableRecord[]; offset?: string };
+    for (const record of body.records ?? []) rows.push(record);
+    offset = body.offset;
+  } while (offset);
+
+  return rows;
+}
+
+async function syncAllClientExternalPhoneSnapshots(
+  input: SyncAllClientExternalsDto,
+): Promise<SyncAllClientExternalsResultDto> {
+  const dryRun = input.dryRun === true;
+  const result: SyncAllClientExternalsResultDto = {
+    scanned: 0,
+    updated: 0,
+    skippedNoClient: 0,
+    skippedNoPhoneOnClient: 0,
+    skippedHasPhoneSnapshot: 0,
+  };
+
+  const clientPhoneCache = new Map<string, string | null>();
+  const rows = await listAllClientExternals();
+  for (const row of rows) {
+    result.scanned += 1;
+    const fields = row.fields ?? {};
+    const clientRecordId = readFirstLinkedId(fields[CLIENT_EXTERNAL_FIELDS.client]);
+    const existingPhoneSnapshot = readString(fields[CLIENT_EXTERNAL_FIELDS.phoneSnapshot]);
+    if (!clientRecordId) {
+      result.skippedNoClient += 1;
+      continue;
+    }
+    if (existingPhoneSnapshot) {
+      result.skippedHasPhoneSnapshot += 1;
+      continue;
+    }
+    let canonicalPhone: string | null;
+    if (clientPhoneCache.has(clientRecordId)) {
+      canonicalPhone = clientPhoneCache.get(clientRecordId) ?? null;
+    } else {
+      canonicalPhone = await getClientCanonicalPhone(clientRecordId);
+      clientPhoneCache.set(clientRecordId, canonicalPhone);
+    }
+
+    if (!canonicalPhone) {
+      result.skippedNoPhoneOnClient += 1;
+      continue;
+    }
+
+    if (!dryRun) {
+      const patchResponse = await airtableRequest(
+        `${encodeURIComponent(CLIENT_EXTERNALS_TABLE)}/${encodeURIComponent(row.id)}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            fields: {
+              [CLIENT_EXTERNAL_FIELDS.phoneSnapshot]: canonicalPhone,
+            },
+          }),
+        },
+      );
+      if (!patchResponse.ok) {
+        const message = await parseAirtableError(patchResponse);
+        throw new SyncEndpointError(`Failed to update Client External phone snapshot: ${message}`, 502);
+      }
+    }
+    result.updated += 1;
+  }
+
+  return result;
+}
+
 export const clientExternalsRepo = {
   createClientExternal,
   updateClientExternal,
   getClientExternal,
   findClientExternalByContext,
+  syncAllClientExternalPhoneSnapshots,
 };

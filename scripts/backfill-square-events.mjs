@@ -126,12 +126,12 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   const body = buildBody(args);
 
-  const secret =
-    readString(process.env.SQUARE_WEBHOOK_BACKFILL_SECRET) ||
-    readString(process.env.AIRTABLE_SYNC_SECRET);
+  const secretAlias =
+    readString(process.env.SQUARE_WEBHOOK_BACKFILL_SECRET_ALIAS) ||
+    readString(process.env.AIRTABLE_SYNC_SECRET_ALIAS);
 
-  if (!secret) {
-    throw new Error("Missing SQUARE_WEBHOOK_BACKFILL_SECRET (or AIRTABLE_SYNC_SECRET).");
+  if (!secretAlias) {
+    throw new Error("Missing SQUARE_WEBHOOK_BACKFILL_SECRET_ALIAS (or AIRTABLE_SYNC_SECRET_ALIAS).");
   }
 
   console.log("Triggering Square webhook backfill", {
@@ -144,7 +144,7 @@ async function main() {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-airtable-secret": secret,
+      "x-airtable-secret": secretAlias,
     },
     body: JSON.stringify(body),
   });

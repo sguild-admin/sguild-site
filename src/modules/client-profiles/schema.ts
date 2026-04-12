@@ -10,10 +10,12 @@ import type {
 
 type EnsureLessonSummaryBody = {
 	profileRecordId?: unknown;
+	recordId?: unknown;
 };
 
 type RecomputeSingleLessonSummaryBody = {
 	profileRecordId?: unknown;
+	recordId?: unknown;
 	lessonSummaryRecordId?: unknown;
 };
 
@@ -165,7 +167,9 @@ export function parseEnsureLessonSummaryBody(body: unknown): EnsureLessonSummary
 
 	const typed = body as EnsureLessonSummaryBody;
 	const profileRecordId =
-		typeof typed.profileRecordId === "string" ? typed.profileRecordId.trim() : "";
+		(typeof typed.profileRecordId === "string"
+			? typed.profileRecordId
+			: (typeof typed.recordId === "string" ? typed.recordId : "")).trim();
 
 	if (!profileRecordId) {
 		throw new SyncEndpointError("Missing profileRecordId.", 400);
@@ -238,7 +242,9 @@ export function parseRecomputeSingleLessonSummaryBody(body: unknown): {
 
 	const typed = body as RecomputeSingleLessonSummaryBody;
 	const profileRecordId =
-		typeof typed.profileRecordId === "string" ? typed.profileRecordId.trim() : "";
+		(typeof typed.profileRecordId === "string"
+			? typed.profileRecordId
+			: (typeof typed.recordId === "string" ? typed.recordId : "")).trim();
 	const lessonSummaryRecordId =
 		typeof typed.lessonSummaryRecordId === "string"
 			? typed.lessonSummaryRecordId.trim()

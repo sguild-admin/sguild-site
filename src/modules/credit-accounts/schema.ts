@@ -3,6 +3,7 @@ import type { EnsureCreditAccountRequestDto } from "./dto";
 
 type EnsureCreditAccountBody = {
   clientProfileRecordId?: unknown;
+  recordId?: unknown;
 };
 
 export function parseEnsureCreditAccountBody(body: unknown): EnsureCreditAccountRequestDto {
@@ -11,8 +12,11 @@ export function parseEnsureCreditAccountBody(body: unknown): EnsureCreditAccount
   }
 
   const typed = body as EnsureCreditAccountBody;
-  const clientProfileRecordId =
-    typeof typed.clientProfileRecordId === "string" ? typed.clientProfileRecordId.trim() : "";
+  const rawRecordId =
+    typeof typed.clientProfileRecordId === "string"
+      ? typed.clientProfileRecordId
+      : (typeof typed.recordId === "string" ? typed.recordId : "");
+  const clientProfileRecordId = rawRecordId.trim();
 
   if (!clientProfileRecordId) {
     throw new SyncEndpointError("Missing clientProfileRecordId.", 400);

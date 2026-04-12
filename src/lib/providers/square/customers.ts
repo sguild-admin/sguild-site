@@ -193,6 +193,20 @@ async function retrieveSquareCustomer(
   return (data as SquareRetrieveCustomerResponse).customer as SquareCustomer;
 }
 
+export async function getSquareCustomerContactIdentity(
+  externalCustomerId: string,
+  context: SquareAuthContext,
+): Promise<{
+  emailAddress: string | null;
+  phoneNumber: string | null;
+}> {
+  const customer = await retrieveSquareCustomer(externalCustomerId, context);
+  return {
+    emailAddress: customer.email_address?.trim() || null,
+    phoneNumber: normalizePhone(customer.phone_number ?? null),
+  };
+}
+
 function applyConservativeChanges(
   existing: SquareCustomer,
   desired: {

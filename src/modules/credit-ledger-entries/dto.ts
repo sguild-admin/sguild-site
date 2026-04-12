@@ -2,6 +2,7 @@ export type CreditLedgerEntryType =
   | "Purchase Credit"
   | "Lesson Debit"
   | "Refund Debit"
+  | "Reservation Lock Debit"
   | "Adjustment";
 
 export type AppendCreditLedgerEntryRequestDto = {
@@ -10,9 +11,11 @@ export type AppendCreditLedgerEntryRequestDto = {
   entryType: CreditLedgerEntryType;
   occurredAt?: string;
   notes?: string;
+  createdVia?: string;
   orderItemRecordId?: string;
   lessonRecordId?: string;
   refundItemRecordId?: string;
+  creditReservationRecordId?: string;
 };
 
 export type AppendCreditLedgerEntryResponseDto = {

@@ -27,6 +27,7 @@ export type CreditLedgerEntryRecord = {
   orderItemId: string | null;
   lessonId: string | null;
   refundItemId: string | null;
+  creditReservationId: string | null;
 };
 
 export type CreateCreditLedgerEntryInput = {
@@ -39,6 +40,9 @@ export type CreateCreditLedgerEntryInput = {
   orderItemRecordId?: string;
   lessonRecordId?: string;
   refundItemRecordId?: string;
+  creditReservationRecordId?: string;
+  reversesCreditLedgerEntryRecordId?: string;
+  reversalReason?: string;
 };
 
 export type OrderItemCreditsRecord = {
@@ -51,6 +55,11 @@ export type LessonCreditsRecord = {
   status: string | null;
   clientProfileId: string | null;
   creditsCost: number | null;
+};
+
+export type SimpleLedgerEntryRecord = {
+  recordId: string;
+  deltaCredits: number | null;
 };
 
 function readString(value: unknown): string | null {
@@ -114,6 +123,7 @@ function toEntryType(value: unknown): CreditLedgerEntryType | null {
     parsed === "Purchase Credit" ||
     parsed === "Lesson Debit" ||
     parsed === "Refund Debit" ||
+    parsed === "Reservation Lock Debit" ||
     parsed === "Adjustment"
   ) {
     return parsed;
@@ -132,6 +142,7 @@ function toCreditLedgerEntryRecord(record: AirtableRecord): CreditLedgerEntryRec
     orderItemId: readFirstLinkedId(fields["Order Item"]),
     lessonId: readFirstLinkedId(fields.Lesson),
     refundItemId: readFirstLinkedId(fields["Refund Item"]),
+    creditReservationId: readFirstLinkedId(fields["Credit Reservation"]),
   };
 }
 
@@ -178,6 +189,15 @@ export async function createCreditLedgerEntry(
   if (input.orderItemRecordId) fields["Order Item"] = [input.orderItemRecordId];
   if (input.lessonRecordId) fields.Lesson = [input.lessonRecordId];
   if (input.refundItemRecordId) fields["Refund Item"] = [input.refundItemRecordId];
+  if (input.creditReservationRecordId) {
+    fields["Credit Reservation"] = [input.creditReservationRecordId];
+  }
+  if (input.reversesCreditLedgerEntryRecordId) {
+    fields["Reverses Credit Ledger Entry"] = [input.reversesCreditLedgerEntryRecordId];
+  }
+  if (input.reversalReason) {
+    fields["Reversal Reason"] = input.reversalReason;
+  }
 
   const optionalFields = new Set(Object.keys(fields));
   while (true) {
@@ -210,9 +230,10 @@ export async function createCreditLedgerEntry(
 }
 
 export async function findLedgerEntryBySource(input: {
-  entryType: "Purchase Credit" | "Lesson Debit";
+  entryType: "Purchase Credit" | "Lesson Debit" | "Reservation Lock Debit";
   orderItemRecordId?: string;
   lessonRecordId?: string;
+  creditReservationRecordId?: string;
 }): Promise<CreditLedgerEntryRecord | null> {
   let formula = "";
   if (input.entryType === "Purchase Credit" && input.orderItemRecordId) {
@@ -221,6 +242,16 @@ export async function findLedgerEntryBySource(input: {
   } else if (input.entryType === "Lesson Debit" && input.lessonRecordId) {
     const escaped = escapeAirtableFormulaString(input.lessonRecordId);
     formula = `AND({Entry Type}='Lesson Debit', FIND('${escaped}', ARRAYJOIN({Lesson})))`;
+  } else if (
+    input.entryType === "Reservation Lock Debit" &&
+    input.creditReservationRecordId
+  ) {
+    const escaped = escapeAirtableFormulaString(input.creditReservationRecordId);
+    formula =
+      "AND(" +
+      "{Entry Type}='Reservation Lock Debit', " +
+      `FIND('${escaped}', ARRAYJOIN({Credit Reservation}))` +
+      ")";
   } else {
     return null;
   }
@@ -344,4 +375,95 @@ export async function getLessonCreditsRecord(
       "Credit Cost",
     ]),
   };
+}
+
+export async function listLessonDebitEntriesForLesson(
+  lessonRecordId: string,
+): Promise<SimpleLedgerEntryRecord[]> {
+  const escaped = escapeAirtableFormulaString(lessonRecordId);
+  const params = new URLSearchParams({
+    pageSize: "10",
+    filterByFormula: `AND({Entry Type}='Lesson Debit', FIND('${escaped}', ARRAYJOIN({Lesson})))`,
+  });
+
+  const response = await airtableRequest(
+    `${encodeURIComponent(CREDIT_LEDGER_ENTRIES_TABLE)}?${params.toString()}`,
+    { method: "GET" },
+  );
+  if (!response.ok) {
+    const message = await parseAirtableError(response);
+    throw new SyncEndpointError(`Failed to list Lesson Debit entries for lesson: ${message}`, 502);
+  }
+
+  const body = (await response.json()) as { records?: AirtableRecord[] };
+  return (body.records ?? []).map((record) => ({
+    recordId: record.id,
+    deltaCredits: readNumber(record.fields?.["Delta Credits"]),
+  }));
+}
+
+export async function findReversalByTargetLedgerEntry(
+  targetLedgerEntryId: string,
+): Promise<{ recordId: string } | null> {
+  const escaped = escapeAirtableFormulaString(targetLedgerEntryId);
+  const params = new URLSearchParams({
+    maxRecords: "2",
+    filterByFormula: `FIND('${escaped}', ARRAYJOIN({Reverses Credit Ledger Entry}))`,
+  });
+  const response = await airtableRequest(
+    `${encodeURIComponent(CREDIT_LEDGER_ENTRIES_TABLE)}?${params.toString()}`,
+    { method: "GET" },
+  );
+  if (!response.ok) {
+    const message = await parseAirtableError(response);
+    throw new SyncEndpointError(
+      `Failed to find reversal by target ledger entry: ${message}`,
+      502,
+    );
+  }
+
+  const body = (await response.json()) as { records?: AirtableRecord[] };
+  const rows = body.records ?? [];
+  if (rows.length === 0) return null;
+  if (rows.length > 1) {
+    throw new SyncEndpointError(
+      "Multiple reversal entries found for the same target ledger entry.",
+      409,
+    );
+  }
+  return { recordId: rows[0].id };
+}
+
+export async function createLockDebitReversal(input: {
+  creditAccountRecordId: string;
+  lockDebitEntryId: string;
+  reservedCredits: number;
+  reversalReason: string;
+}): Promise<{ recordId: string }> {
+  const created = await createCreditLedgerEntry({
+    creditAccountRecordId: input.creditAccountRecordId,
+    reversesCreditLedgerEntryRecordId: input.lockDebitEntryId,
+    reversalReason: input.reversalReason,
+    deltaCredits: input.reservedCredits,
+    entryType: "Adjustment",
+    occurredAt: new Date().toISOString(),
+    createdVia: "Reservation Job",
+  });
+  return { recordId: created.recordId };
+}
+
+export async function createLessonDebit(input: {
+  creditAccountRecordId: string;
+  lessonRecordId: string;
+  deltaCredits: number;
+}): Promise<{ recordId: string; deltaCredits: number | null }> {
+  const created = await createCreditLedgerEntry({
+    creditAccountRecordId: input.creditAccountRecordId,
+    deltaCredits: input.deltaCredits,
+    entryType: "Lesson Debit",
+    lessonRecordId: input.lessonRecordId,
+    occurredAt: new Date().toISOString(),
+    createdVia: "Lesson Completion Job",
+  });
+  return { recordId: created.recordId, deltaCredits: created.deltaCredits };
 }

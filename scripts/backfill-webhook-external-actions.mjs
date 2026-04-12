@@ -48,9 +48,11 @@ async function readResponseBody(response) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const secret = readString(process.env.AIRTABLE_SYNC_SECRET);
-  if (!secret) {
-    throw new Error("Missing AIRTABLE_SYNC_SECRET.");
+  const secretAlias =
+    readString(process.env.AIRTABLE_SYNC_SECRET_ALIAS) ??
+    readString(process.env.AIRTABLE_BACKFILL_SECRET_ALIAS);
+  if (!secretAlias) {
+    throw new Error("Missing AIRTABLE_SYNC_SECRET_ALIAS.");
   }
 
   const body = {
@@ -70,7 +72,7 @@ async function main() {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-airtable-secret": secret,
+      "x-airtable-secret": secretAlias,
     },
     body: JSON.stringify(body),
   });

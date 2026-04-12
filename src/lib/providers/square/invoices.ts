@@ -247,6 +247,7 @@ export async function updateInvoiceSettings(input: {
   version: number;
   deliveryMethod?: string | null;
   saveCard: boolean;
+  externalCustomerId?: string | null;
 }): Promise<{
   externalStatus: string | null;
   hostedInvoiceUrl: string | null;
@@ -260,6 +261,13 @@ export async function updateInvoiceSettings(input: {
         version: input.version,
         delivery_method: toSquareDeliveryMethod(input.deliveryMethod),
         store_payment_method_enabled: input.saveCard,
+        ...(input.externalCustomerId
+          ? {
+              primary_recipient: {
+                customer_id: input.externalCustomerId,
+              },
+            }
+          : {}),
         accepted_payment_methods: {
           card: true,
         },

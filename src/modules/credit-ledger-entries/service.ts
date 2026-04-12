@@ -38,13 +38,15 @@ function assertSourceShape(input: {
   orderItemRecordId?: string;
   lessonRecordId?: string;
   refundItemRecordId?: string;
+  creditReservationRecordId?: string;
 }): void {
   const hasOrderItem = Boolean(input.orderItemRecordId);
   const hasLesson = Boolean(input.lessonRecordId);
   const hasRefundItem = Boolean(input.refundItemRecordId);
+  const hasCreditReservation = Boolean(input.creditReservationRecordId);
 
   if (input.entryType === "Purchase Credit") {
-    if (!hasOrderItem || hasLesson || hasRefundItem) {
+    if (!hasOrderItem || hasLesson || hasRefundItem || hasCreditReservation) {
       throw new SyncEndpointError(
         "Purchase Credit requires orderItemRecordId only.",
         422,
@@ -54,7 +56,7 @@ function assertSourceShape(input: {
   }
 
   if (input.entryType === "Lesson Debit") {
-    if (!hasLesson || hasOrderItem || hasRefundItem) {
+    if (!hasLesson || hasOrderItem || hasRefundItem || hasCreditReservation) {
       throw new SyncEndpointError(
         "Lesson Debit requires lessonRecordId only.",
         422,
@@ -64,7 +66,7 @@ function assertSourceShape(input: {
   }
 
   if (input.entryType === "Refund Debit") {
-    if (!hasRefundItem || hasOrderItem || hasLesson) {
+    if (!hasRefundItem || hasOrderItem || hasLesson || hasCreditReservation) {
       throw new SyncEndpointError(
         "Refund Debit requires refundItemRecordId only.",
         422,
@@ -73,9 +75,22 @@ function assertSourceShape(input: {
     return;
   }
 
-  if (input.entryType === "Adjustment" && (hasOrderItem || hasLesson || hasRefundItem)) {
+  if (input.entryType === "Reservation Lock Debit") {
+    if (!hasCreditReservation || hasOrderItem || hasLesson || hasRefundItem) {
+      throw new SyncEndpointError(
+        "Reservation Lock Debit requires creditReservationRecordId only.",
+        422,
+      );
+    }
+    return;
+  }
+
+  if (
+    input.entryType === "Adjustment" &&
+    (hasOrderItem || hasLesson || hasRefundItem || hasCreditReservation)
+  ) {
     throw new SyncEndpointError(
-      "Adjustment cannot include Order Item, Lesson, or Refund Item links.",
+      "Adjustment cannot include source links.",
       422,
     );
   }
@@ -170,6 +185,20 @@ export async function appendCreditLedgerEntry(
     }
   }
 
+  if (input.entryType === "Reservation Lock Debit" && input.creditReservationRecordId) {
+    const existing = await findLedgerEntryBySource({
+      entryType: "Reservation Lock Debit",
+      creditReservationRecordId: input.creditReservationRecordId,
+    });
+    if (existing) {
+      return {
+        ok: true,
+        creditLedgerEntryRecordId: existing.recordId,
+        created: false,
+      };
+    }
+  }
+
   const occurredAt = input.occurredAt ?? new Date().toISOString();
   const created = await createCreditLedgerEntry({
     creditAccountRecordId: input.creditAccountRecordId,
@@ -177,9 +206,11 @@ export async function appendCreditLedgerEntry(
     entryType: input.entryType,
     occurredAt,
     notes: input.notes,
+    createdVia: input.createdVia,
     orderItemRecordId: input.orderItemRecordId,
     lessonRecordId: input.lessonRecordId,
     refundItemRecordId: input.refundItemRecordId,
+    creditReservationRecordId: input.creditReservationRecordId,
   });
 
   return {

@@ -8,6 +8,13 @@ export {
   appendLessonDebitEntry,
   appendPurchaseCreditEntriesForOrder,
 } from "./service";
+export {
+  createCreditLedgerEntry,
+  createLessonDebit,
+  createLockDebitReversal,
+  listLessonDebitEntriesForLesson,
+  findReversalByTargetLedgerEntry,
+} from "./repo";
 export type {
   AppendCreditLedgerEntryRequestDto,
   AppendCreditLedgerEntryResponseDto,

@@ -56,17 +56,31 @@ export type FindClientExternalByContextDto = {
   providerAccountRecordId: string;
 };
 
+export type SyncAllClientExternalsDto = {
+  dryRun?: boolean;
+};
+
+export type SyncAllClientExternalsResultDto = {
+  scanned: number;
+  updated: number;
+  skippedNoClient: number;
+  skippedNoPhoneOnClient: number;
+  skippedHasPhoneSnapshot: number;
+};
+
 export type ClientExternalsRequestDto =
   | { operation: "create"; payload: CreateClientExternalDto }
   | { operation: "update"; payload: UpdateClientExternalDto }
   | { operation: "get"; payload: { recordId: string } }
-  | { operation: "find_by_context"; payload: FindClientExternalByContextDto };
+  | { operation: "find_by_context"; payload: FindClientExternalByContextDto }
+  | { operation: "sync_all"; payload: SyncAllClientExternalsDto };
 
 export type ClientExternalsResponseDto =
   | { ok: true; operation: "create"; record: ClientExternalRecordDto }
   | { ok: true; operation: "update"; record: ClientExternalRecordDto }
   | { ok: true; operation: "get"; record: ClientExternalRecordDto }
-  | { ok: true; operation: "find_by_context"; record: ClientExternalRecordDto | null };
+  | { ok: true; operation: "find_by_context"; record: ClientExternalRecordDto | null }
+  | { ok: true; operation: "sync_all"; result: SyncAllClientExternalsResultDto; dryRun: boolean };
 
 export type ClientExternalsErrorResponseDto = {
   ok: false;

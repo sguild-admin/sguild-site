@@ -3,6 +3,7 @@ import type { RecomputeLessonSummaryInputDto } from "./dto";
 
 type RecomputeLessonSummaryBody = {
   profileRecordId?: unknown;
+  recordId?: unknown;
   lessonSummaryRecordId?: unknown;
   lessonRecordIds?: unknown;
 };
@@ -16,7 +17,9 @@ export function parseRecomputeLessonSummaryBody(
 
   const typed = body as RecomputeLessonSummaryBody;
   const profileRecordId =
-    typeof typed.profileRecordId === "string" ? typed.profileRecordId.trim() : "";
+    (typeof typed.profileRecordId === "string"
+      ? typed.profileRecordId
+      : (typeof typed.recordId === "string" ? typed.recordId : "")).trim();
   const lessonSummaryRecordId =
     typeof typed.lessonSummaryRecordId === "string"
       ? typed.lessonSummaryRecordId.trim()

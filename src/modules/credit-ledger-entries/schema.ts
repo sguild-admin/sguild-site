@@ -14,10 +14,12 @@ type AppendCreditLedgerEntryBody = {
   orderItemRecordId?: unknown;
   lessonRecordId?: unknown;
   refundItemRecordId?: unknown;
+  creditReservationRecordId?: unknown;
 };
 
 type AppendLessonDebitBody = {
   lessonRecordId?: unknown;
+  recordId?: unknown;
   creditAccountRecordId?: unknown;
   clientProfileRecordId?: unknown;
   occurredAt?: unknown;
@@ -28,6 +30,7 @@ const ENTRY_TYPES = new Set<CreditLedgerEntryType>([
   "Purchase Credit",
   "Lesson Debit",
   "Refund Debit",
+  "Reservation Lock Debit",
   "Adjustment",
 ]);
 
@@ -91,6 +94,7 @@ export function parseAppendCreditLedgerEntryBody(
     orderItemRecordId: readOptionalTrimmedString(typed.orderItemRecordId),
     lessonRecordId: readOptionalTrimmedString(typed.lessonRecordId),
     refundItemRecordId: readOptionalTrimmedString(typed.refundItemRecordId),
+    creditReservationRecordId: readOptionalTrimmedString(typed.creditReservationRecordId),
   };
 }
 
@@ -100,7 +104,10 @@ export function parseAppendLessonDebitBody(body: unknown): AppendLessonDebitRequ
   }
 
   const typed = body as AppendLessonDebitBody;
-  const lessonRecordId = readOptionalTrimmedString(typed.lessonRecordId) ?? "";
+  const lessonRecordId =
+    readOptionalTrimmedString(typed.lessonRecordId) ??
+    readOptionalTrimmedString(typed.recordId) ??
+    "";
   if (!lessonRecordId) {
     throw new SyncEndpointError("Missing lessonRecordId.", 400);
   }

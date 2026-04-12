@@ -1,5 +1,4 @@
 import crypto from "crypto";
-
 import { SyncEndpointError } from "@/lib/errors";
 import { airtableSchema } from "@/config/airtable-schema";
 import {
@@ -8,6 +7,7 @@ import {
 } from "@/lib/airtable/client";
 import { syncSquareCustomer } from "@/lib/providers/square/customers";
 import type { SquareAuthContext, SquareCustomerSyncInput } from "@/lib/providers/square/types";
+import { readAirtableSyncSecretAliasMap } from "@/modules/app-config";
 
 const CLIENT_EXTERNALS_TABLE = airtableSchema.operations.tables.clientExternals;
 const PROVIDER_ACCOUNTS_TABLE = airtableSchema.operations.tables.providerAccounts;
@@ -38,13 +38,6 @@ export type ClientExternalRecord = {
   providerAccessTokenAlias: string | null;
   externalActionIds: string[];
 };
-
-function timingSafeEqual(a: string, b: string): boolean {
-  const ab = Buffer.from(a);
-  const bb = Buffer.from(b);
-  if (ab.length !== bb.length) return false;
-  return crypto.timingSafeEqual(ab, bb);
-}
 
 function readString(value: unknown): string | null {
   if (typeof value !== "string") return null;
@@ -121,18 +114,49 @@ function readFirstStringFromFields(fields: Record<string, unknown>, keys: string
   return null;
 }
 
+function timingSafeEqual(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ab.length !== bb.length) return false;
+  return crypto.timingSafeEqual(ab, bb);
+}
+
 function validateAirtableSecret(request: Request): void {
-  const configuredSecret = process.env.AIRTABLE_SYNC_SECRET;
-  if (!configuredSecret) {
-    throw new SyncEndpointError("Airtable sync secret is not configured.", 500, {
-      exposeMessage: false,
-    });
+  const legacySecret = process.env.AIRTABLE_SYNC_SECRET?.trim() ?? "";
+  const providedAlias = request.headers.get("x-airtable-secret-alias")?.trim() ?? "";
+  const providedSecret = request.headers.get("x-airtable-secret")?.trim() ?? "";
+
+  if (providedAlias) {
+    const aliasMap = readAirtableSyncSecretAliasMap();
+    const aliasedSecret = aliasMap[providedAlias];
+    if (!aliasedSecret) {
+      throw new SyncEndpointError("Unauthorized", 401);
+    }
+
+    if (!legacySecret) {
+      throw new SyncEndpointError("Airtable sync secret is not configured.", 500, {
+        exposeMessage: false,
+      });
+    }
+
+    if (!timingSafeEqual(aliasedSecret, legacySecret)) {
+      throw new SyncEndpointError("Airtable sync secret alias map is misconfigured.", 500, {
+        exposeMessage: false,
+      });
+    }
+
+    if (providedSecret && !timingSafeEqual(aliasedSecret, providedSecret)) {
+      throw new SyncEndpointError("Unauthorized", 401);
+    }
+
+    return;
   }
 
-  const providedSecret = request.headers.get("x-airtable-secret") ?? "";
-  if (!providedSecret || !timingSafeEqual(configuredSecret, providedSecret)) {
-    throw new SyncEndpointError("Unauthorized", 401);
+  if (providedSecret && legacySecret && timingSafeEqual(legacySecret, providedSecret)) {
+    return;
   }
+
+  throw new SyncEndpointError("Unauthorized", 401);
 }
 
 async function loadClientExternal(recordId: string): Promise<ClientExternalRecord> {
