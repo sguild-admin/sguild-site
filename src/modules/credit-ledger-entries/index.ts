@@ -11,8 +11,10 @@ export {
 export {
   createCreditLedgerEntry,
   createLessonDebit,
+  createCreditForfeit,
   createLockDebitReversal,
   listLessonDebitEntriesForLesson,
+  listCreditForfeitEntriesForLesson,
   findReversalByTargetLedgerEntry,
 } from "./repo";
 export type {

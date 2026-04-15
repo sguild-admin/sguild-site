@@ -21,7 +21,18 @@ export async function POST(request: Request) {
     const response = await recordNoShow(recordId, body.notes?.trim() || undefined, {
       idempotencyKey: body.idempotencyKey?.trim() || undefined,
     });
-    return Response.json(response, { status: 200 });
+    return Response.json(
+      {
+        ok: response.ok,
+        endpoint: response.endpoint,
+        recordId: response.recordId,
+        result: response.result,
+        reservationResolved: response.reservationResolved,
+        reservationResolution: response.reservationResolution,
+        writebackStatus: response.writebackStatus,
+      },
+      { status: 200 },
+    );
   } catch (error) {
     const { status, body } = toLessonOutcomeFailureResponse(
       "/api/lessons/no-show",

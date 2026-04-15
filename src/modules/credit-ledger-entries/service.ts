@@ -65,6 +65,16 @@ function assertSourceShape(input: {
     return;
   }
 
+  if (input.entryType === "Credit Forfeit") {
+    if (!hasLesson || hasOrderItem || hasRefundItem || hasCreditReservation) {
+      throw new SyncEndpointError(
+        "Credit Forfeit requires lessonRecordId only.",
+        422,
+      );
+    }
+    return;
+  }
+
   if (input.entryType === "Refund Debit") {
     if (!hasRefundItem || hasOrderItem || hasLesson || hasCreditReservation) {
       throw new SyncEndpointError(
@@ -135,6 +145,23 @@ async function assertAmountMatches(input: AppendCreditLedgerEntryRequestDto): Pr
       );
     }
   }
+
+  if (input.entryType === "Credit Forfeit" && input.lessonRecordId) {
+    const lesson = await getLessonCreditsRecord(input.lessonRecordId);
+    if (lesson.creditsCost == null) {
+      throw new SyncEndpointError("Lesson is missing Credits Cost.", 422);
+    }
+    if (!Number.isInteger(lesson.creditsCost)) {
+      throw new SyncEndpointError("Lesson Credits Cost must be an integer.", 422);
+    }
+    const expectedDelta = -1 * lesson.creditsCost;
+    if (input.deltaCredits !== expectedDelta) {
+      throw new SyncEndpointError(
+        "Credit Forfeit delta does not match -1 * Lesson Credits Cost.",
+        422,
+      );
+    }
+  }
 }
 
 function assertAccountAcceptsEntries(status: string | null): void {
@@ -174,6 +201,20 @@ export async function appendCreditLedgerEntry(
   if (input.entryType === "Lesson Debit" && input.lessonRecordId) {
     const existing = await findLedgerEntryBySource({
       entryType: "Lesson Debit",
+      lessonRecordId: input.lessonRecordId,
+    });
+    if (existing) {
+      return {
+        ok: true,
+        creditLedgerEntryRecordId: existing.recordId,
+        created: false,
+      };
+    }
+  }
+
+  if (input.entryType === "Credit Forfeit" && input.lessonRecordId) {
+    const existing = await findLedgerEntryBySource({
+      entryType: "Credit Forfeit",
       lessonRecordId: input.lessonRecordId,
     });
     if (existing) {

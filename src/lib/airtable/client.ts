@@ -16,10 +16,18 @@ function readString(value: unknown): string | null {
 
 export function getAirtableConfig(scope: "operations" | "core" = "operations"): { token: string; baseId: string } {
   const token = scope === "core"
-    ? (readString(process.env.AIRTABLE_TOKEN) ?? readString(process.env.AIRTABLE_OPERATIONS_TOKEN))
+    ? (
+      readString(process.env.AIRTABLE_LEADS_TOKEN) ??
+      readString(process.env.AIRTABLE_TOKEN) ??
+      readString(process.env.AIRTABLE_OPERATIONS_TOKEN)
+    )
     : (readString(process.env.AIRTABLE_OPERATIONS_TOKEN) ?? readString(process.env.AIRTABLE_TOKEN));
   const baseId = scope === "core"
-    ? (readString(process.env.AIRTABLE_BASE_ID) ?? readString(process.env.AIRTABLE_OPERATIONS_BASE_ID))
+    ? (
+      readString(process.env.AIRTABLE_LEADS_BASE_ID) ??
+      readString(process.env.AIRTABLE_BASE_ID) ??
+      readString(process.env.AIRTABLE_OPERATIONS_BASE_ID)
+    )
     : (readString(process.env.AIRTABLE_OPERATIONS_BASE_ID) ?? readString(process.env.AIRTABLE_BASE_ID));
 
   if (!token || !baseId) {

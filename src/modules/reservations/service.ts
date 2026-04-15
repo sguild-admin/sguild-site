@@ -1,6 +1,5 @@
 import {
   runReservationLock,
-  runReservationRelease,
   runReservationVoid,
 } from "@/modules/credit-reservations/service";
 
@@ -9,20 +8,6 @@ export async function lockReservation(
   opts?: { idempotencyKey?: string },
 ) {
   return runReservationLock({ recordId, idempotencyKey: opts?.idempotencyKey });
-}
-
-export async function releaseReservation(
-  recordId: string,
-  resolutionReason: "Lesson Canceled" | "Policy Release",
-  notes?: string,
-  opts?: { idempotencyKey?: string },
-) {
-  return runReservationRelease({
-    recordId,
-    resolutionReason,
-    notes,
-    idempotencyKey: opts?.idempotencyKey,
-  });
 }
 
 export async function voidReservation(

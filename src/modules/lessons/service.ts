@@ -1,9 +1,11 @@
 import { SyncEndpointError } from "@/lib/errors";
 import { getCreditAccountById } from "@/modules/credit-accounts";
 import {
+  createCreditForfeit,
   createLessonDebit,
   createLockDebitReversal,
   findReversalByTargetLedgerEntry,
+  listCreditForfeitEntriesForLesson,
   listLessonDebitEntriesForLesson,
 } from "@/modules/credit-ledger-entries";
 import { allocateDebitAcrossOpenLots } from "@/modules/lesson-debit/repo";
@@ -28,6 +30,18 @@ type LessonEndpoint =
   | "/api/lessons/cancel"
   | "/api/lessons/no-show"
   | "/api/lessons/process-outcome";
+
+type ActiveReservationRecord = Awaited<
+  ReturnType<typeof reservationsRepo.listReservationsForLesson>
+>[number];
+
+type LockedReservationContext = {
+  reservation: ActiveReservationRecord;
+  creditAccountId: string;
+  lockEntryId: string;
+  reservedCredits: number;
+  existingReversalId: string | null;
+};
 
 class LessonOutcomeError extends SyncEndpointError {
   readonly stage: LessonOutcomeFailureStage;
@@ -84,19 +98,126 @@ function deriveReversalCredits(recordId: string, reservedCredits: number | null,
   const absoluteFromLock = Math.abs(lockDelta);
   if (reservedCredits == null || !Number.isInteger(reservedCredits) || reservedCredits <= 0) {
     console.warn(
-      `[LESSON_CANCEL] Reserved Credits missing/invalid for lesson ${recordId}; using lock debit delta (${absoluteFromLock}) for reversal.`,
+      `[LESSON_OUTCOME] Reserved Credits missing/invalid for lesson ${recordId}; using lock debit delta (${absoluteFromLock}) for settlement.`,
     );
     return absoluteFromLock;
   }
 
   if (lockDelta !== -1 * reservedCredits) {
     console.warn(
-      `[LESSON_CANCEL] Reserved Credits (${reservedCredits}) mismatch lock debit (${lockDelta}) for lesson ${recordId}; using lock debit delta (${absoluteFromLock}) for reversal.`,
+      `[LESSON_OUTCOME] Reserved Credits (${reservedCredits}) mismatch lock debit (${lockDelta}) for lesson ${recordId}; using lock debit delta (${absoluteFromLock}) for settlement.`,
     );
     return absoluteFromLock;
   }
 
   return reservedCredits;
+}
+
+async function getActiveReservationForLesson(
+  endpoint: LessonEndpoint,
+  recordId: string,
+): Promise<ActiveReservationRecord | null> {
+  const reservations = await reservationsRepo.listReservationsForLesson(recordId);
+  const activeReservations = reservations.filter((row) => isActiveReservationStatus(row.status));
+  if (activeReservations.length > 1) {
+    fail(endpoint, "ambiguity", recordId, "Multiple active reservations found for Lesson.", 409);
+  }
+  return activeReservations[0] ?? null;
+}
+
+async function getLockedReservationContext(
+  endpoint: LessonEndpoint,
+  recordId: string,
+  reservation: ActiveReservationRecord | null,
+  fallbackCreditAccountId: string | null,
+): Promise<LockedReservationContext | null> {
+  if (!reservation) return null;
+  if (normalizeStatus(reservation.status) !== "locked") return null;
+
+  const lockEntries = await reservationsRepo.listLockDebitEntries(reservation.recordId);
+  if (lockEntries.length > 1) {
+    fail(endpoint, "ambiguity", recordId, "Multiple Reservation Lock Debit entries found for reservation.", 409);
+  }
+  if (lockEntries.length === 0) {
+    fail(endpoint, "validation", recordId, "Locked reservation is missing lock debit entry.");
+  }
+
+  const lockEntry = lockEntries[0];
+  if (lockEntry.deltaCredits == null) {
+    fail(endpoint, "validation", recordId, "Reservation Lock Debit is missing Delta Credits.");
+  }
+  const reservedCredits = deriveReversalCredits(recordId, reservation.reservedCredits, lockEntry.deltaCredits);
+  const creditAccountId = reservation.creditAccountId ?? fallbackCreditAccountId;
+  if (!creditAccountId) {
+    fail(endpoint, "validation", recordId, "Locked reservation is missing Credit Account link.");
+  }
+  const existingReversalId = (await findReversalByTargetLedgerEntry(lockEntry.recordId))?.recordId ?? null;
+
+  return {
+    reservation,
+    creditAccountId,
+    lockEntryId: lockEntry.recordId,
+    reservedCredits,
+    existingReversalId,
+  };
+}
+
+async function ensureSingleLessonDebit(
+  endpoint: LessonEndpoint,
+  recordId: string,
+  input: {
+    creditAccountRecordId: string;
+    lessonRecordId: string;
+    deltaCredits: number;
+  },
+): Promise<string> {
+  const existingLessonDebits = await listLessonDebitEntriesForLesson(recordId);
+  if (existingLessonDebits.length > 1) {
+    fail(endpoint, "ambiguity", recordId, "Multiple Lesson Debit entries already exist for lesson.", 409);
+  }
+  if (existingLessonDebits.length === 1) {
+    const existing = existingLessonDebits[0];
+    if (existing.deltaCredits == null || existing.deltaCredits !== input.deltaCredits) {
+      fail(
+        endpoint,
+        "validation",
+        recordId,
+        "Existing Lesson Debit amount does not match expected locked settlement delta.",
+      );
+    }
+    return existing.recordId;
+  }
+  const created = await createLessonDebit(input);
+  return created.recordId;
+}
+
+async function ensureSingleCreditForfeit(
+  endpoint: LessonEndpoint,
+  recordId: string,
+  input: {
+    creditAccountRecordId: string;
+    lessonRecordId: string;
+    deltaCredits: number;
+  },
+): Promise<string> {
+  const existingForfeits = await listCreditForfeitEntriesForLesson(recordId);
+  if (existingForfeits.length > 1) {
+    fail(endpoint, "ambiguity", recordId, "Multiple Credit Forfeit entries already exist for lesson.", 409);
+  }
+  if (existingForfeits.length === 1) {
+    const existing = existingForfeits[0];
+    if (existing.deltaCredits == null || existing.deltaCredits !== input.deltaCredits) {
+      fail(
+        endpoint,
+        "validation",
+        recordId,
+        "Existing Credit Forfeit amount does not match expected locked settlement delta.",
+      );
+    }
+    return existing.recordId;
+  }
+  const created = await createCreditForfeit(input);
+  return created.recordId;
 }
 
 export function toLessonOutcomeFailureResponse(
@@ -158,7 +279,9 @@ export async function completeLesson(
       result: "noop",
       reservationResolved: false,
       writebackStatus: "Succeeded",
-    };
+      reversalCreated: false,
+      reservationResolution: null,
+    } as LessonCompleteSuccessResponseDto;
   }
   if (status === "canceled" || status === "cancelled") {
     fail(endpoint, "validation", recordId, "Lesson is already Canceled.");
@@ -198,18 +321,22 @@ export async function completeLesson(
     fail(endpoint, "validation", recordId, "Credit Account Status must be Active.");
   }
 
-  const reservations = await reservationsRepo.listReservationsForLesson(recordId);
-  const activeReservations = reservations.filter((row) => isActiveReservationStatus(row.status));
-  if (activeReservations.length > 1) {
-    fail(endpoint, "ambiguity", recordId, "Multiple active reservations found for Lesson.", 409);
-  }
+  const reservation = await getActiveReservationForLesson(endpoint, recordId);
+  const lockContext = await getLockedReservationContext(
+    endpoint,
+    recordId,
+    reservation,
+    lesson.payingCreditAccountId,
+  );
 
+  // Ordering requirement: write Lesson terminal status + Resolution Status first.
   await updateLessonToCompleted({
     lessonRecordId: recordId,
     outcomeNotes: lesson.outcomeNotes ? undefined : opts?.outcomeNotes,
+    resolutionStatus: "Consumed",
   });
 
-  if (activeReservations.length === 0) {
+  if (!reservation) {
     return {
       ok: true,
       endpoint,
@@ -217,15 +344,46 @@ export async function completeLesson(
       result: "succeeded",
       reservationResolved: false,
       writebackStatus: "Succeeded",
-    };
+      reversalCreated: false,
+      reservationResolution: null,
+    } as LessonCompleteSuccessResponseDto;
   }
 
   try {
+    let reversalCreated = false;
+
+    if (lockContext) {
+      if (!lockContext.existingReversalId) {
+        await createLockDebitReversal({
+          creditAccountRecordId: lockContext.creditAccountId,
+          lockDebitEntryId: lockContext.lockEntryId,
+          reservedCredits: lockContext.reservedCredits,
+          reversalReason: "Lock Debit Reversal - Credits Consumed",
+        });
+        reversalCreated = true;
+      }
+
+      const expectedDelta = -1 * lockContext.reservedCredits;
+      const lessonDebitId = await ensureSingleLessonDebit(endpoint, recordId, {
+        creditAccountRecordId: lockContext.creditAccountId,
+        lessonRecordId: recordId,
+        deltaCredits: expectedDelta,
+      });
+
+      await allocateDebitAcrossOpenLots({
+        lessonRecordId: recordId,
+        creditAccountRecordId: lockContext.creditAccountId,
+        ledgerEntryRecordId: lessonDebitId,
+        debitCredits: Math.abs(expectedDelta),
+      });
+    }
+
     await reservationsRepo.consumeReservation(
-      activeReservations[0].recordId,
+      reservation.recordId,
       "Lesson Completed",
       new Date().toISOString(),
     );
+
     return {
       ok: true,
       endpoint,
@@ -233,9 +391,11 @@ export async function completeLesson(
       result: "succeeded",
       reservationResolved: true,
       writebackStatus: "Succeeded",
-    };
+      reversalCreated: reversalCreated || Boolean(lockContext?.existingReversalId),
+      reservationResolution: "Consumed",
+    } as LessonCompleteSuccessResponseDto;
   } catch (error) {
-    console.error("[LESSON_COMPLETE] Reservation writeback failed:", error);
+    console.error("[LESSON_COMPLETE] Reservation/ledger writeback failed:", error);
     return {
       ok: true,
       endpoint,
@@ -243,7 +403,9 @@ export async function completeLesson(
       result: "succeeded",
       reservationResolved: false,
       writebackStatus: "Failed",
-    };
+      reversalCreated: false,
+      reservationResolution: null,
+    } as LessonCompleteSuccessResponseDto;
   }
 }
 
@@ -254,186 +416,61 @@ export async function cancelLesson(
   _opts?: { idempotencyKey?: string },
 ): Promise<LessonCancelSuccessResponseDto> {
   const endpoint: LessonEndpoint = "/api/lessons/cancel";
-  console.info(
-    `[LESSON_CANCEL] Start lesson=${recordId} cancellationReason="${cancellationReason}"`,
-  );
   const lesson = await getLessonForOutcome(recordId);
   const status = normalizeStatus(lesson.status);
   const alreadyCanceled = status === "canceled" || status === "cancelled";
-  console.info(
-    `[LESSON_CANCEL] Current lesson status=${lesson.status ?? "null"} alreadyCanceled=${alreadyCanceled}`,
-  );
 
   if (alreadyCanceled) {
     if ((lesson.cancellationReason ?? "").trim() !== cancellationReason) {
       fail(endpoint, "validation", recordId, "Lesson already canceled with a different Cancellation Reason.");
     }
-  }
-
-  if (!alreadyCanceled) {
-    if (status === "completed") fail(endpoint, "validation", recordId, "Lesson is already Completed.");
-    if (status === "no-show" || status === "no show" || status === "noshow") {
-      fail(endpoint, "validation", recordId, "Lesson is already No-Show.");
-    }
-    if (lesson.isTerminalLesson === true) {
-      fail(endpoint, "validation", recordId, "Lesson is already terminal.");
-    }
-    if (!(status === "draft" || status === "scheduled")) {
-      fail(endpoint, "validation", recordId, "Only Draft or Scheduled lessons can be canceled.");
-    }
-  }
-
-  const isClientCanceled = isClientCanceledReason(cancellationReason);
-  const reservations = await reservationsRepo.listReservationsForLesson(recordId);
-  const activeReservations = reservations.filter((row) => isActiveReservationStatus(row.status));
-  console.info(
-    `[LESSON_CANCEL] Reservations found lesson=${recordId} total=${reservations.length} active=${activeReservations.length} statuses=[${reservations.map((r) => r.status ?? "null").join(", ")}]`,
-  );
-  
-  // Log detailed status information for each reservation
-  for (const res of reservations) {
-    const normalized = normalizeStatus(res.status);
-    const isActive = normalized === "reserved" || normalized === "locked";
-    console.info(`[LESSON_CANCEL] Reservation ${res.recordId}: status=${res.status} normalized=${normalized} isActive=${isActive}`);
-  }
-  
-  if (activeReservations.length > 1) {
-    fail(endpoint, "ambiguity", recordId, "Multiple active reservations found for Lesson.", 409);
-  }
-
-  const reservation = activeReservations[0] ?? null;
-  let lockContext:
-    | {
-        creditAccountId: string;
-        lockEntryId: string;
-        reservedCredits: number;
-        existingReversalId: string | null;
-      }
-    | null = null;
-
-  if (reservation) {
-    const lockEntries = await reservationsRepo.listLockDebitEntries(reservation.recordId);
-    if (lockEntries.length > 1) {
-      fail(endpoint, "ambiguity", recordId, "Multiple Reservation Lock Debit entries found for reservation.", 409);
-    }
-    const reservationStatus = normalizeStatus(reservation.status);
-    if (reservationStatus === "locked" && lockEntries.length === 0) {
-      fail(endpoint, "validation", recordId, "Missing Reservation Lock Debit entry for locked reservation.");
-    }
-    if (lockEntries.length === 1) {
-      const lockEntry = lockEntries[0];
-      if (lockEntry.deltaCredits == null) {
-        fail(endpoint, "validation", recordId, "Reservation Lock Debit is missing Delta Credits.");
-      }
-      const reversalCredits = deriveReversalCredits(
-        recordId,
-        reservation.reservedCredits,
-        lockEntry.deltaCredits,
-      );
-      const creditAccountId = reservation.creditAccountId ?? lesson.payingCreditAccountId;
-      if (!creditAccountId) {
-        fail(endpoint, "validation", recordId, "Locked reservation is missing Credit Account link.");
-      }
-      lockContext = {
-        creditAccountId,
-        lockEntryId: lockEntry.recordId,
-        reservedCredits: reversalCredits,
-        existingReversalId: (await findReversalByTargetLedgerEntry(lockEntry.recordId))?.recordId ?? null,
-      };
-    }
-  }
-
-  if (!alreadyCanceled) {
-    console.info(`[LESSON_CANCEL] Writing lesson status=Canceled lesson=${recordId}`);
-    await updateLessonToCanceled({
-      lessonRecordId: recordId,
-      cancellationReason,
-      notes,
-    });
-    console.info(`[LESSON_CANCEL] Lesson canceled write complete lesson=${recordId}`);
-  }
-
-  if (!reservation) {
-    let repairedAny = false;
-    let repairedResolution: "Consumed" | "Released" | null = null;
-    let repairedReversal = false;
-
-    console.info(
-      `[LESSON_CANCEL] No active reservation detected lesson=${recordId}; running lock/reversal repair scan`,
-    );
-    for (const candidate of reservations) {
-      const lockEntries = await reservationsRepo.listLockDebitEntries(candidate.recordId);
-      if (lockEntries.length > 1) {
-        fail(endpoint, "ambiguity", recordId, "Multiple Reservation Lock Debit entries found for reservation.", 409);
-      }
-      if (lockEntries.length === 0) continue;
-
-      const lockEntry = lockEntries[0];
-      if (lockEntry.deltaCredits == null) {
-        fail(endpoint, "validation", recordId, "Reservation Lock Debit is missing Delta Credits.");
-      }
-      const reversalCredits = deriveReversalCredits(
-        recordId,
-        candidate.reservedCredits,
-        lockEntry.deltaCredits,
-      );
-
-      const creditAccountId = candidate.creditAccountId ?? lesson.payingCreditAccountId;
-      if (!creditAccountId) {
-        fail(endpoint, "validation", recordId, "Reservation with lock debit is missing Credit Account link.");
-      }
-
-      const existingReversal = await findReversalByTargetLedgerEntry(lockEntry.recordId);
-      if (!existingReversal) {
-        console.info(
-          `[LESSON_CANCEL] Repair creating reversal reservation=${candidate.recordId} lockEntry=${lockEntry.recordId} lesson=${recordId}`,
-        );
-        await createLockDebitReversal({
-          creditAccountRecordId: creditAccountId,
-          lockDebitEntryId: lockEntry.recordId,
-          reservedCredits: reversalCredits,
-          reversalReason: "Lock Debit Reversal - Lesson Canceled",
-        });
-        repairedAny = true;
-        repairedReversal = true;
-      }
-
-      if (normalizeStatus(candidate.status) === "locked") {
-        console.info(
-          `[LESSON_CANCEL] Repair release reservation=${candidate.recordId} lesson=${recordId}`,
-        );
-        await reservationsRepo.releaseReservation(
-          candidate.recordId,
-          "Lesson Canceled",
-          new Date().toISOString(),
-          notes,
-        );
-        console.info(
-          `[LESSON_CANCEL] Repair release complete reservation=${candidate.recordId} lesson=${recordId}`,
-        );
-        repairedAny = true;
-        repairedResolution = "Released";
-      }
-    }
-
-    if (repairedAny) {
-      return {
-        ok: true,
-        endpoint,
-        recordId,
-        result: "succeeded",
-        reservationResolved: repairedResolution !== null,
-        reservationResolution: repairedResolution,
-        reversalCreated: repairedReversal,
-        writebackStatus: "Succeeded",
-      };
-    }
-
     return {
       ok: true,
       endpoint,
       recordId,
-      result: alreadyCanceled ? "noop" : "succeeded",
+      result: "noop",
+      reservationResolved: false,
+      reservationResolution: null,
+      reversalCreated: false,
+      writebackStatus: "Succeeded",
+    };
+  }
+
+  if (status === "completed") fail(endpoint, "validation", recordId, "Lesson is already Completed.");
+  if (status === "no-show" || status === "no show" || status === "noshow") {
+    fail(endpoint, "validation", recordId, "Lesson is already No-Show.");
+  }
+  if (lesson.isTerminalLesson === true) {
+    fail(endpoint, "validation", recordId, "Lesson is already terminal.");
+  }
+  if (!(status === "draft" || status === "scheduled")) {
+    fail(endpoint, "validation", recordId, "Only Draft or Scheduled lessons can be canceled.");
+  }
+
+  const reservation = await getActiveReservationForLesson(endpoint, recordId);
+  const lockContext = await getLockedReservationContext(
+    endpoint,
+    recordId,
+    reservation,
+    lesson.payingCreditAccountId,
+  );
+  const isClientCanceled = isClientCanceledReason(cancellationReason);
+  const resolutionStatus = lockContext && isClientCanceled ? "Forfeited" : "Released";
+
+  // Ordering requirement: write Lesson terminal status + Resolution Status first.
+  await updateLessonToCanceled({
+    lessonRecordId: recordId,
+    cancellationReason,
+    notes,
+    resolutionStatus,
+  });
+
+  if (!reservation) {
+    return {
+      ok: true,
+      endpoint,
+      recordId,
+      result: "succeeded",
       reservationResolved: false,
       reservationResolution: null,
       reversalCreated: false,
@@ -442,82 +479,42 @@ export async function cancelLesson(
   }
 
   try {
-    if (!lockContext) {
-      console.info(
-        `[LESSON_CANCEL] Releasing reservation=${reservation.recordId} lesson=${recordId} (no lock debit context)`,
-      );
-      await reservationsRepo.releaseReservation(reservation.recordId, "Lesson Canceled", new Date().toISOString(), notes);
-      console.info(
-        `[LESSON_CANCEL] Release complete reservation=${reservation.recordId} lesson=${recordId}`,
-      );
-      return {
-        ok: true,
-        endpoint,
-        recordId,
-        result: "succeeded",
-        reservationResolved: true,
-        reservationResolution: "Released",
-        reversalCreated: false,
-        writebackStatus: "Succeeded",
-      };
-    }
-
     let reversalCreated = false;
-    if (!lockContext.existingReversalId) {
-      console.info(
-        `[LESSON_CANCEL] Creating lock reversal reservation=${reservation.recordId} lockEntry=${lockContext.lockEntryId} lesson=${recordId}`,
-      );
-      await createLockDebitReversal({
-        creditAccountRecordId: lockContext.creditAccountId,
-        lockDebitEntryId: lockContext.lockEntryId,
-        reservedCredits: lockContext.reservedCredits,
-        reversalReason: "Lock Debit Reversal - Lesson Canceled",
-      });
-      console.info(
-        `[LESSON_CANCEL] Lock reversal created reservation=${reservation.recordId} lesson=${recordId}`,
-      );
-      reversalCreated = true;
-    }
-
-    console.info(
-      `[LESSON_CANCEL] Releasing locked reservation=${reservation.recordId} lesson=${recordId}`,
-    );
-    await reservationsRepo.releaseReservation(reservation.recordId, "Lesson Canceled", new Date().toISOString(), notes);
-    console.info(
-      `[LESSON_CANCEL] Locked reservation released reservation=${reservation.recordId} lesson=${recordId}`,
-    );
-
-    if (isClientCanceled) {
-      const expectedDelta = -1 * lockContext.reservedCredits;
-      const existingLessonDebits = await listLessonDebitEntriesForLesson(recordId);
-      if (existingLessonDebits.length > 1) {
-        fail(endpoint, "ambiguity", recordId, "Multiple Lesson Debit entries already exist for lesson.", 409);
+    if (lockContext) {
+      const reversalReason = isClientCanceled
+        ? "Lock Debit Reversal - Credits Forfeited"
+        : "Lock Debit Reversal - Credits Released";
+      if (!lockContext.existingReversalId) {
+        await createLockDebitReversal({
+          creditAccountRecordId: lockContext.creditAccountId,
+          lockDebitEntryId: lockContext.lockEntryId,
+          reservedCredits: lockContext.reservedCredits,
+          reversalReason,
+        });
+        reversalCreated = true;
       }
-      let lessonDebitId: string | null = null;
-      if (existingLessonDebits.length === 1) {
-        const existing = existingLessonDebits[0];
-        if (existing.deltaCredits == null || existing.deltaCredits !== expectedDelta) {
-          fail(endpoint, "validation", recordId, "Existing Lesson Debit amount does not match -1 * Reserved Credits.");
-        }
-        lessonDebitId = existing.recordId;
-      } else {
-        const created = await createLessonDebit({
+
+      if (isClientCanceled) {
+        const expectedDelta = -1 * lockContext.reservedCredits;
+        const forfeitEntryId = await ensureSingleCreditForfeit(endpoint, recordId, {
           creditAccountRecordId: lockContext.creditAccountId,
           lessonRecordId: recordId,
           deltaCredits: expectedDelta,
         });
-        lessonDebitId = created.recordId;
-      }
-
-      if (lessonDebitId) {
         await allocateDebitAcrossOpenLots({
           lessonRecordId: recordId,
           creditAccountRecordId: lockContext.creditAccountId,
-          ledgerEntryRecordId: lessonDebitId,
+          ledgerEntryRecordId: forfeitEntryId,
           debitCredits: Math.abs(expectedDelta),
         });
       }
     }
+
+    await reservationsRepo.releaseReservation(
+      reservation.recordId,
+      "Lesson Canceled",
+      new Date().toISOString(),
+    );
 
     return {
       ok: true,
@@ -526,7 +523,7 @@ export async function cancelLesson(
       result: "succeeded",
       reservationResolved: true,
       reservationResolution: "Released",
-      reversalCreated: reversalCreated || Boolean(lockContext.existingReversalId),
+      reversalCreated: reversalCreated || Boolean(lockContext?.existingReversalId),
       writebackStatus: "Succeeded",
     };
   } catch (error) {
@@ -562,7 +559,8 @@ export async function recordNoShow(
       reservationResolved: false,
       reservationResolution: null,
       writebackStatus: "Succeeded",
-    };
+      reversalCreated: false,
+    } as LessonNoShowSuccessResponseDto;
   }
   if (status === "completed") fail(endpoint, "validation", recordId, "Lesson is already Completed.");
   if (status === "canceled" || status === "cancelled") fail(endpoint, "validation", recordId, "Lesson is already Canceled.");
@@ -571,15 +569,18 @@ export async function recordNoShow(
   if (status !== "scheduled") fail(endpoint, "validation", recordId, "Lesson Status must be Scheduled.");
   if (lesson.futureStartAt === true) fail(endpoint, "validation", recordId, "Lesson must be past-due.");
 
-  const reservations = await reservationsRepo.listReservationsForLesson(recordId);
-  const activeReservations = reservations.filter((row) => isActiveReservationStatus(row.status));
-  if (activeReservations.length > 1) {
-    fail(endpoint, "ambiguity", recordId, "Multiple active reservations found for Lesson.", 409);
-  }
+  const reservation = await getActiveReservationForLesson(endpoint, recordId);
+  const lockContext = await getLockedReservationContext(
+    endpoint,
+    recordId,
+    reservation,
+    lesson.payingCreditAccountId,
+  );
+  const resolutionStatus = lockContext ? "Forfeited" : "Released";
 
-  await updateLessonToNoShow({ lessonRecordId: recordId, notes });
+  // Ordering requirement: write Lesson terminal status + Resolution Status first.
+  await updateLessonToNoShow({ lessonRecordId: recordId, notes, resolutionStatus });
 
-  const reservation = activeReservations[0] ?? null;
   if (!reservation) {
     return {
       ok: true,
@@ -589,28 +590,43 @@ export async function recordNoShow(
       reservationResolved: false,
       reservationResolution: null,
       writebackStatus: "Succeeded",
-    };
+      reversalCreated: false,
+    } as LessonNoShowSuccessResponseDto;
   }
 
   try {
-    const lockEntries = await reservationsRepo.listLockDebitEntries(reservation.recordId);
-    if (lockEntries.length > 1) {
-      fail(endpoint, "ambiguity", recordId, "Multiple Reservation Lock Debit entries found for reservation.", 409);
-    }
-    if (lockEntries.length === 1) {
-      await reservationsRepo.consumeReservation(reservation.recordId, "Lesson No-Show", new Date().toISOString());
-      return {
-        ok: true,
-        endpoint,
-        recordId,
-        result: "succeeded",
-        reservationResolved: true,
-        reservationResolution: "Consumed",
-        writebackStatus: "Succeeded",
-      };
+    let reversalCreated = false;
+    if (lockContext) {
+      if (!lockContext.existingReversalId) {
+        await createLockDebitReversal({
+          creditAccountRecordId: lockContext.creditAccountId,
+          lockDebitEntryId: lockContext.lockEntryId,
+          reservedCredits: lockContext.reservedCredits,
+          reversalReason: "Lock Debit Reversal - Credits Forfeited",
+        });
+        reversalCreated = true;
+      }
+
+      const expectedDelta = -1 * lockContext.reservedCredits;
+      const forfeitEntryId = await ensureSingleCreditForfeit(endpoint, recordId, {
+        creditAccountRecordId: lockContext.creditAccountId,
+        lessonRecordId: recordId,
+        deltaCredits: expectedDelta,
+      });
+      await allocateDebitAcrossOpenLots({
+        lessonRecordId: recordId,
+        creditAccountRecordId: lockContext.creditAccountId,
+        ledgerEntryRecordId: forfeitEntryId,
+        debitCredits: Math.abs(expectedDelta),
+      });
     }
 
-    await reservationsRepo.releaseReservation(reservation.recordId, "Lesson No-Show", new Date().toISOString(), notes);
+    await reservationsRepo.releaseReservation(
+      reservation.recordId,
+      "Lesson No-Show",
+      new Date().toISOString(),
+    );
+
     return {
       ok: true,
       endpoint,
@@ -619,9 +635,10 @@ export async function recordNoShow(
       reservationResolved: true,
       reservationResolution: "Released",
       writebackStatus: "Succeeded",
-    };
+      reversalCreated: reversalCreated || Boolean(lockContext?.existingReversalId),
+    } as LessonNoShowSuccessResponseDto;
   } catch (error) {
-    console.error("[LESSON_NO_SHOW] Reservation writeback failed:", error);
+    console.error("[LESSON_NO_SHOW] Reservation/ledger writeback failed:", error);
     return {
       ok: true,
       endpoint,
@@ -630,6 +647,7 @@ export async function recordNoShow(
       reservationResolved: false,
       reservationResolution: null,
       writebackStatus: "Failed",
-    };
+      reversalCreated: false,
+    } as LessonNoShowSuccessResponseDto;
   }
 }

@@ -118,9 +118,11 @@ export async function getLessonForOutcome(recordId: string): Promise<LessonOutco
 export async function updateLessonToCompleted(input: {
   lessonRecordId: string;
   outcomeNotes?: string;
+  resolutionStatus?: "Consumed" | "Released" | "Forfeited" | "Active";
 }): Promise<void> {
   const fields: Record<string, unknown> = { Status: "Completed" };
   if (input.outcomeNotes) fields["Outcome Notes"] = input.outcomeNotes;
+  if (input.resolutionStatus) fields["Resolution Status"] = input.resolutionStatus;
 
   const response = await airtableRequest(
     `${encodeURIComponent(LESSONS_TABLE)}/${encodeURIComponent(input.lessonRecordId)}`,
@@ -136,6 +138,7 @@ export async function updateLessonToCanceled(input: {
   lessonRecordId: string;
   cancellationReason: LessonCancellationReason;
   notes?: string;
+  resolutionStatus?: "Consumed" | "Released" | "Forfeited" | "Active";
 }): Promise<void> {
   const fields: Record<string, unknown> = {
     Status: "Canceled",
@@ -143,6 +146,7 @@ export async function updateLessonToCanceled(input: {
     "Canceled At": new Date().toISOString(),
   };
   if (input.notes) fields.Notes = input.notes;
+  if (input.resolutionStatus) fields["Resolution Status"] = input.resolutionStatus;
 
   const response = await airtableRequest(
     `${encodeURIComponent(LESSONS_TABLE)}/${encodeURIComponent(input.lessonRecordId)}`,
@@ -157,9 +161,11 @@ export async function updateLessonToCanceled(input: {
 export async function updateLessonToNoShow(input: {
   lessonRecordId: string;
   notes?: string;
+  resolutionStatus?: "Consumed" | "Released" | "Forfeited" | "Active";
 }): Promise<void> {
   const fields: Record<string, unknown> = { Status: "No-Show" };
   if (input.notes) fields.Notes = input.notes;
+  if (input.resolutionStatus) fields["Resolution Status"] = input.resolutionStatus;
 
   const response = await airtableRequest(
     `${encodeURIComponent(LESSONS_TABLE)}/${encodeURIComponent(input.lessonRecordId)}`,

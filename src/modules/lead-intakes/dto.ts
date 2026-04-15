@@ -21,4 +21,3 @@ export type LeadSubmissionResponse = {
   ok: true;
   leadId: string;
 };
-

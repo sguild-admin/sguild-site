@@ -24,20 +24,11 @@ export const reservationsRepo = {
     reservationId: string,
     resolutionReason: "Lesson Canceled" | "Lesson No-Show" | "Policy Release",
     resolvedAt?: string,
-    notes?: string,
-  ) => {
-    console.info(
-      `[RESERVATION_RELEASE] Start reservation=${reservationId} resolutionReason="${resolutionReason}"`,
-    );
-    await resolveReservationStatus({
+  ) =>
+    resolveReservationStatus({
       creditReservationRecordId: reservationId,
       status: "Released",
       resolutionReason,
       resolvedAt,
-      notes,
-    });
-    console.info(
-      `[RESERVATION_RELEASE] Success reservation=${reservationId} resolutionReason="${resolutionReason}"`,
-    );
-  },
+    }),
 };

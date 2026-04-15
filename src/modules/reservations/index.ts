@@ -1,2 +1,2 @@
 export { reservationsRepo } from "./repo";
-export { lockReservation, releaseReservation, voidReservation } from "./service";
+export { lockReservation, voidReservation } from "./service";

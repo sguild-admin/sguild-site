@@ -1,6 +1,7 @@
 export type CreditLedgerEntryType =
   | "Purchase Credit"
   | "Lesson Debit"
+  | "Credit Forfeit"
   | "Refund Debit"
   | "Reservation Lock Debit"
   | "Adjustment";

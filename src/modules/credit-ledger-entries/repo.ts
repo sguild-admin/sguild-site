@@ -122,6 +122,7 @@ function toEntryType(value: unknown): CreditLedgerEntryType | null {
   if (
     parsed === "Purchase Credit" ||
     parsed === "Lesson Debit" ||
+    parsed === "Credit Forfeit" ||
     parsed === "Refund Debit" ||
     parsed === "Reservation Lock Debit" ||
     parsed === "Adjustment"
@@ -230,7 +231,7 @@ export async function createCreditLedgerEntry(
 }
 
 export async function findLedgerEntryBySource(input: {
-  entryType: "Purchase Credit" | "Lesson Debit" | "Reservation Lock Debit";
+  entryType: "Purchase Credit" | "Lesson Debit" | "Credit Forfeit" | "Reservation Lock Debit";
   orderItemRecordId?: string;
   lessonRecordId?: string;
   creditReservationRecordId?: string;
@@ -242,6 +243,9 @@ export async function findLedgerEntryBySource(input: {
   } else if (input.entryType === "Lesson Debit" && input.lessonRecordId) {
     const escaped = escapeAirtableFormulaString(input.lessonRecordId);
     formula = `AND({Entry Type}='Lesson Debit', FIND('${escaped}', ARRAYJOIN({Lesson})))`;
+  } else if (input.entryType === "Credit Forfeit" && input.lessonRecordId) {
+    const escaped = escapeAirtableFormulaString(input.lessonRecordId);
+    formula = `AND({Entry Type}='Credit Forfeit', FIND('${escaped}', ARRAYJOIN({Lesson})))`;
   } else if (
     input.entryType === "Reservation Lock Debit" &&
     input.creditReservationRecordId
@@ -402,6 +406,31 @@ export async function listLessonDebitEntriesForLesson(
   }));
 }
 
+export async function listCreditForfeitEntriesForLesson(
+  lessonRecordId: string,
+): Promise<SimpleLedgerEntryRecord[]> {
+  const escaped = escapeAirtableFormulaString(lessonRecordId);
+  const params = new URLSearchParams({
+    pageSize: "10",
+    filterByFormula: `AND({Entry Type}='Credit Forfeit', FIND('${escaped}', ARRAYJOIN({Lesson})))`,
+  });
+
+  const response = await airtableRequest(
+    `${encodeURIComponent(CREDIT_LEDGER_ENTRIES_TABLE)}?${params.toString()}`,
+    { method: "GET" },
+  );
+  if (!response.ok) {
+    const message = await parseAirtableError(response);
+    throw new SyncEndpointError(`Failed to list Credit Forfeit entries for lesson: ${message}`, 502);
+  }
+
+  const body = (await response.json()) as { records?: AirtableRecord[] };
+  return (body.records ?? []).map((record) => ({
+    recordId: record.id,
+    deltaCredits: readNumber(record.fields?.["Delta Credits"]),
+  }));
+}
+
 export async function findReversalByTargetLedgerEntry(
   targetLedgerEntryId: string,
 ): Promise<{ recordId: string } | null> {
@@ -464,6 +493,22 @@ export async function createLessonDebit(input: {
     lessonRecordId: input.lessonRecordId,
     occurredAt: new Date().toISOString(),
     createdVia: "Lesson Completion Job",
+  });
+  return { recordId: created.recordId, deltaCredits: created.deltaCredits };
+}
+
+export async function createCreditForfeit(input: {
+  creditAccountRecordId: string;
+  lessonRecordId: string;
+  deltaCredits: number;
+}): Promise<{ recordId: string; deltaCredits: number | null }> {
+  const created = await createCreditLedgerEntry({
+    creditAccountRecordId: input.creditAccountRecordId,
+    deltaCredits: input.deltaCredits,
+    entryType: "Credit Forfeit",
+    lessonRecordId: input.lessonRecordId,
+    occurredAt: new Date().toISOString(),
+    createdVia: "Forfeit Job",
   });
   return { recordId: created.recordId, deltaCredits: created.deltaCredits };
 }

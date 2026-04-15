@@ -195,7 +195,7 @@ export default function LessonRequestPage() {
 
     setIsSubmitting(true);
     try {
-      const response = await fetch("/api/leads", {
+      const response = await fetch("/api/lead-intakes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

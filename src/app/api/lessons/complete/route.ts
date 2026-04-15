@@ -22,7 +22,17 @@ export async function POST(request: Request) {
       outcomeNotes: body.outcomeNotes?.trim() || undefined,
       idempotencyKey: body.idempotencyKey?.trim() || undefined,
     });
-    return Response.json(response, { status: 200 });
+    return Response.json(
+      {
+        ok: response.ok,
+        endpoint: response.endpoint,
+        recordId: response.recordId,
+        result: response.result,
+        reservationResolved: response.reservationResolved,
+        writebackStatus: response.writebackStatus,
+      },
+      { status: 200 },
+    );
   } catch (error) {
     const { status, body } = toLessonOutcomeFailureResponse(
       "/api/lessons/complete",

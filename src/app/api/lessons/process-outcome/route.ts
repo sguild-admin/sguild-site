@@ -40,6 +40,10 @@ export async function POST(request: Request) {
         outcomeNotes: lesson.outcomeNotes ?? undefined,
         idempotencyKey: body.idempotencyKey?.trim() || undefined,
       });
+      const completeResult = result as typeof result & {
+        reversalCreated?: boolean;
+        reservationResolution?: "Consumed" | "Released" | null;
+      };
       response = {
         ok: true,
         endpoint: "/api/lessons/process-outcome",
@@ -47,8 +51,10 @@ export async function POST(request: Request) {
         result: result.result,
         requestedOutcome,
         reservationResolved: result.reservationResolved,
-        reservationResolution: result.reservationResolved ? "Consumed" : null,
-        reversalCreated: false,
+        reservationResolution:
+          completeResult.reservationResolution ??
+          (result.reservationResolved ? "Consumed" : null),
+        reversalCreated: completeResult.reversalCreated === true,
         writebackStatus: result.writebackStatus,
       };
     } else if (requestedOutcome === "Canceled") {
@@ -80,6 +86,7 @@ export async function POST(request: Request) {
       const result = await recordNoShow(recordId, lesson.notes ?? undefined, {
         idempotencyKey: body.idempotencyKey?.trim() || undefined,
       });
+      const noShowResult = result as typeof result & { reversalCreated?: boolean };
       response = {
         ok: true,
         endpoint: "/api/lessons/process-outcome",
@@ -88,7 +95,7 @@ export async function POST(request: Request) {
         requestedOutcome,
         reservationResolved: result.reservationResolved,
         reservationResolution: result.reservationResolution,
-        reversalCreated: false,
+        reversalCreated: noShowResult.reversalCreated === true,
         writebackStatus: result.writebackStatus,
       };
     } else {

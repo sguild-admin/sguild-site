@@ -83,7 +83,8 @@ function shouldAutoLockReservation(startAt: string | null): boolean {
   const parsed = new Date(startAt);
   if (Number.isNaN(parsed.getTime())) return false;
   const msUntilStart = parsed.getTime() - Date.now();
-  return msUntilStart >= 0 && msUntilStart <= AUTO_LOCK_WINDOW_MS;
+  // Lock anything within the 48-hour threshold, including start time or past-due.
+  return msUntilStart <= AUTO_LOCK_WINDOW_MS;
 }
 
 function toCreateFailureResponse(
@@ -447,7 +448,7 @@ export async function runReservationLock(
   }
   const msUntilStart = lessonStartAt.getTime() - Date.now();
   const hoursUntilStart = msUntilStart / (1000 * 60 * 60);
-  if (hoursUntilStart > 48 || hoursUntilStart < 0) {
+  if (hoursUntilStart > 48) {
     fail("validation", input.recordId, "Lesson is outside the 48-hour lock window.");
   }
 
@@ -457,8 +458,30 @@ export async function runReservationLock(
   if (!reservation.creditAccountId) {
     fail("validation", input.recordId, "Reservation is missing Credit Account link.");
   }
+  if (reservation.lockDebitCount > 1 || existingLockEntries.length > 1) {
+    fail("ambiguity", input.recordId, "Reservation has multiple lock debits.", 409);
+  }
   if (reservation.lockDebitCount > 0 || existingLockEntries.length > 0) {
-    fail("validation", input.recordId, "Reservation already has a lock debit.");
+    const existing = existingLockEntries[0];
+    if (existing && existing.deltaCredits != null && existing.deltaCredits !== expectedDelta) {
+      fail(
+        "validation",
+        input.recordId,
+        "Existing Reservation Lock Debit amount does not match Reserved Credits.",
+      );
+    }
+
+    // Reconcile drift: lock debit exists but reservation status is still Reserved.
+    await updateReservationStatusLocked(input.recordId);
+    return {
+      ok: true,
+      endpoint: LOCK_ENDPOINT,
+      recordId: input.recordId,
+      result: "succeeded",
+      ledgerEntryId: existing?.recordId,
+      deltaCredits: existing?.deltaCredits ?? expectedDelta,
+      writebackStatus: "Succeeded",
+    };
   }
 
   let reservationLocked = false;
@@ -711,16 +734,9 @@ export async function runReservationVoid(
     };
   }
 
-  let reservationVoided = false;
   let reversalCreated = false;
   let reversalEntryId: string | null = reversalInput?.existing ?? null;
   try {
-    await updateReservationVoided({
-      creditReservationRecordId: input.recordId,
-      notes: input.notes,
-    });
-    reservationVoided = true;
-
     if (reversalInput && !reversalInput.existing) {
       const created = await createReservationLockReversal({
         creditAccountRecordId: reversalInput.creditAccountId,
@@ -731,6 +747,11 @@ export async function runReservationVoid(
       reversalCreated = true;
       reversalEntryId = created.recordId;
     }
+
+    await updateReservationVoided({
+      creditReservationRecordId: input.recordId,
+      notes: input.notes,
+    });
 
     return {
       ok: true,
@@ -743,19 +764,7 @@ export async function runReservationVoid(
       writebackStatus: "Succeeded",
     };
   } catch (error) {
-    if (reservationVoided) {
-      console.error("[RESERVATION_VOID] Reversal writeback failed:", error);
-      return {
-        ok: true,
-        endpoint: VOID_ENDPOINT,
-        recordId: input.recordId,
-        result: "succeeded",
-        priorStatus,
-        reversalCreated: false,
-        reversalEntryId,
-        writebackStatus: "Failed",
-      };
-    }
+    console.error("[RESERVATION_VOID] Void writeback failed:", error);
     fail(
       "execution",
       input.recordId,
