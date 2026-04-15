@@ -31,7 +31,7 @@ export const PRICING: Record<string, CityPricing> = {
 export const DALLAS_LESSON_LENGTH_PRICING: Record<DallasLessonLength, CityPricing> = {
   standard: PRICING.dallas,
   compact: {
-    trial: '$35',
+    trial: '$30',
     single: '$40',
     pack4: '$150',
     pack8: '$280',
