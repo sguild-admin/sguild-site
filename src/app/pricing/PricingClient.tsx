@@ -7,6 +7,8 @@ import PricingSection from '../../components/Packages'
 import PricingToggle from '../../components/PricingToggle'
 import PaymentsPanel from '../../components/PaymentsPanel'
 import { CONTACTS } from '../../config/contact'
+import { DALLAS_LESSON_LENGTH_PRICING } from '../../config/pricing'
+import type { CityPricing, DallasLessonLength } from '../../config/pricing'
 
 type City = 'dallas' | 'oahu'
 
@@ -18,6 +20,7 @@ export default function PricingClient() {
   const defaultCity: City = qCity === 'oahu' ? 'oahu' : 'dallas'
 
   const [city, setCity] = useState<City>(defaultCity)
+  const [dallasLessonLength, setDallasLessonLength] = useState<DallasLessonLength>('standard')
 
   useEffect(() => {
     if (qCity === 'oahu' && city !== 'oahu') setCity('oahu')
@@ -33,6 +36,9 @@ export default function PricingClient() {
   const telHref = `tel:${contact.phoneTel}`
   const smsHref = `sms:${contact.phoneTel}`
   const cityLabel = city === 'oahu' ? 'O\'ahu' : 'Dallas'
+  const lessonMinutes = city === 'dallas' && dallasLessonLength === 'compact' ? 20 : 30
+  const pricingOverride: CityPricing | undefined =
+    city === 'dallas' ? DALLAS_LESSON_LENGTH_PRICING[dallasLessonLength] : undefined
 
   return (
     <PageContainer>
@@ -45,7 +51,7 @@ export default function PricingClient() {
                 Pricing
               </h1>
               <p className="mt-4 font-sf-pro text-lg leading-relaxed text-slate-700">
-                Private or small-group, 30-minute lessons at your pool.
+                Private or small-group, {lessonMinutes}-minute lessons at your pool.
               </p>
               <p className="mt-2 inline-flex rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sm font-semibold text-sky-800">
                 No fees - Simple packages
@@ -71,13 +77,49 @@ export default function PricingClient() {
         <div>
           <h2 className="text-2xl font-bold text-slate-900 md:text-3xl">Lessons and Packages</h2>
           <p className="mt-1 font-sf-pro text-base text-slate-600">
-            30-minute private or shared lessons at your location, add students at no extra charge.
+            {lessonMinutes}-minute private or shared lessons at your location, add students at no extra charge.
           </p>
         </div>
+        {city === 'dallas' ? (
+          <div className="inline-flex items-center gap-1 rounded-lg bg-slate-100 p-1">
+            <button
+              type="button"
+              onClick={() => setDallasLessonLength('standard')}
+              aria-pressed={dallasLessonLength === 'standard'}
+              className={[
+                'rounded-md px-2.5 py-2 text-[0.9rem] font-semibold transition',
+                dallasLessonLength === 'standard'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-800',
+              ].join(' ')}
+            >
+              Standard
+            </button>
+            <button
+              type="button"
+              onClick={() => setDallasLessonLength('compact')}
+              aria-pressed={dallasLessonLength === 'compact'}
+              className={[
+                'rounded-md px-2.5 py-2 text-[0.9rem] font-semibold transition',
+                dallasLessonLength === 'compact'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-800',
+              ].join(' ')}
+            >
+              Compact
+            </button>
+          </div>
+        ) : null}
       </div>
 
       <div className="mt-6">
-        <PricingSection city={city} />
+        <PricingSection
+          key={`pricing-cards-${city}-${dallasLessonLength}`}
+          city={city}
+          dallasLessonLength={city === 'dallas' ? dallasLessonLength : undefined}
+          pricingOverride={pricingOverride}
+          lessonMinutesOverride={city === 'dallas' ? lessonMinutes : undefined}
+        />
       </div>
 
       <PaymentsPanel />
