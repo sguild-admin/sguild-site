@@ -328,11 +328,25 @@ async function runRefundWebhookWriteback(input: {
 
   // Canonical write: set Refund Status to Completed on terminal success.
   let writebackErrorMessage: string | null = null;
-  if (isTerminalSuccess && refundExternal.refundId) {
-    try {
-      await updateRefundStatusCompleted(refundExternal.refundId);
-    } catch (err) {
-      writebackErrorMessage = err instanceof Error ? err.message : "Failed to set Refund Completed.";
+  if (isTerminalSuccess) {
+    // Prefer the direct link; fall back to reverse lookup if the Refund External
+    // doesn't carry the "Refund" field (e.g. schema drift or missing backlink).
+    let refundId = refundExternal.refundId;
+    if (!refundId) {
+      try {
+        refundId = await refundExternalsRepo.findRefundRecordIdByRefundExternalId(refundExternal.recordId);
+      } catch {
+        // best effort — failure here is captured in writebackErrorMessage below
+      }
+    }
+    if (refundId) {
+      try {
+        await updateRefundStatusCompleted(refundId);
+      } catch (err) {
+        writebackErrorMessage = err instanceof Error ? err.message : "Failed to set Refund Completed.";
+      }
+    } else {
+      writebackErrorMessage = "Refund record could not be resolved from Refund External — canonical status not updated.";
     }
   }
 
@@ -450,9 +464,11 @@ async function upsertSquareInboundExternalAction(input: {
     readAtPath(input.payload, ["data", "object", "invoice", "order_id"]) ??
     readAtPath(input.payload, ["data", "object", "order", "id"]);
   const providerReferenceId = externalInvoiceId ?? externalOrderId ?? input.providerEventId;
-  // Compatibility: some bases do not include "Invoice" as an allowed option for External Entity Type.
-  // Invoice webhook events in this app are applied through Order Externals, so normalize to "Order".
-  const externalEntityType = "Order" as const;
+  // Refund events own a Refund External, not an Order External, so use "Refund" for those.
+  // Invoice/payment events are applied through Order Externals so they stay "Order".
+  const externalEntityType = (
+    input.eventType === "refund.updated" || input.eventType === "invoice.refunded"
+  ) ? "Refund" as const : "Order" as const;
 
   if (existing) {
     const attemptNumber = (existing.attemptNumber ?? 1) + 1;
