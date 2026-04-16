@@ -435,7 +435,7 @@ export default function LessonRequestPage() {
                                 <span className="block text-[1.05rem] font-semibold tracking-tight text-slate-900">
                                   {option.value}
                                 </span>
-                                <span className="block max-w-[15rem] text-sm leading-5 text-slate-500">{option.hint}</span>
+                                <span className="hidden max-w-[15rem] text-sm leading-5 text-slate-500 sm:block">{option.hint}</span>
                               </span>
                             </div>
                           </label>
