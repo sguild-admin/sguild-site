@@ -571,7 +571,7 @@ export default function LessonRequestPage() {
                           onChange={(e) => onFieldChange("firstName", e.target.value)}
                           onBlur={() => markTouched("firstName")}
                           placeholder="e.g. Sarah"
-                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.04)] focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
+                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.04)] autofill:shadow-[inset_0_0_0px_1000px_white] focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
                         />
                         {getFieldError("firstName") ? (
                           <span className="mt-1 block text-sm text-red-600">{getFieldError("firstName")}</span>
@@ -586,7 +586,7 @@ export default function LessonRequestPage() {
                           onChange={(e) => onFieldChange("lastName", e.target.value)}
                           onBlur={() => markTouched("lastName")}
                           placeholder="Optional"
-                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.04)] focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
+                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.04)] autofill:shadow-[inset_0_0_0px_1000px_white] focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
                         />
                         {getFieldError("lastName") ? (
                           <span className="mt-1 block text-sm text-red-600">{getFieldError("lastName")}</span>
@@ -607,7 +607,7 @@ export default function LessonRequestPage() {
                         autoComplete="tel-national"
                         maxLength={14}
                         placeholder="(808) 555-1234"
-                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.04)] focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
+                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.04)] autofill:shadow-[inset_0_0_0px_1000px_white] focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
                       />
                       <span className="mt-1 block text-xs text-slate-400">
                         We&apos;ll text you to schedule your lesson.
@@ -627,7 +627,7 @@ export default function LessonRequestPage() {
                         inputMode="numeric"
                         maxLength={ZIP_DIGITS_REQUIRED}
                         placeholder="96816"
-                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.04)] focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
+                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.04)] autofill:shadow-[inset_0_0_0px_1000px_white] focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
                       />
                       {getFieldError("zipCode") ? (
                         <span className="mt-1 block text-sm text-red-600">{getFieldError("zipCode")}</span>
