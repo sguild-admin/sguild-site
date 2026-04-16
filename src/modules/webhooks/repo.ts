@@ -136,7 +136,7 @@ function toWebhookEventRecord(record: AirtableRecord): WebhookEventRecord {
     payloadJson: readString(fields["Payload JSON"]),
     occurredAt: readString(fields["Occurred At"]),
     lastError: readString(fields["Last Error"]),
-    status: readStatus(fields.Status),
+    status: readStatus(fields["Processing Status"] ?? fields.Status),
   };
 }
 
@@ -236,6 +236,7 @@ async function createWebhookEvent(
     "Event Type": input.eventType,
     "Payload JSON": input.payloadJson,
     Status: toAirtableStatus(input.status ?? "received"),
+    "Processing Status": toAirtableStatus(input.status ?? "received"),
   };
 
   if (input.merchantId) fields["Merchant ID"] = input.merchantId;
@@ -248,6 +249,7 @@ async function createWebhookEvent(
     "Event Type",
     "Payload JSON",
     "Status",
+    "Processing Status",
     "Merchant ID",
     "Occurred At",
   ]);
@@ -308,7 +310,10 @@ async function updateWebhookEvent(
   if (input.payloadJson !== undefined) fields["Payload JSON"] = input.payloadJson;
   if (input.occurredAt !== undefined) fields["Occurred At"] = input.occurredAt;
   if (input.merchantId !== undefined) fields["Merchant ID"] = input.merchantId;
-  if (input.status) fields.Status = toAirtableStatus(input.status);
+  if (input.status) {
+    fields.Status = toAirtableStatus(input.status);
+    fields["Processing Status"] = toAirtableStatus(input.status);
+  }
   if (input.processedAt !== undefined) fields["Processed At"] = input.processedAt;
   if (input.lastError !== undefined) fields["Last Error"] = input.lastError;
 
@@ -323,6 +328,7 @@ async function updateWebhookEvent(
     "Occurred At",
     "Merchant ID",
     "Status",
+    "Processing Status",
     "Processed At",
     "Last Error",
   ]);

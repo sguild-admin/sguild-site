@@ -195,6 +195,7 @@ function parseSquareRefundSignalFromPayload(input: {
   externalPaymentId: string | null;
   externalOrderId: string | null;
   externalInvoiceId: string | null;
+  failureReason: string | null;
   activityAt: string;
 } {
   const externalRefundId =
@@ -217,12 +218,19 @@ function parseSquareRefundSignalFromPayload(input: {
     readAtPath(input.payload, ["data", "object", "refund", "invoice_id"]) ??
     readAtPath(input.payload, ["data", "object", "invoice_id"]) ??
     readAtPath(input.payload, ["data", "object", "invoice", "id"]);
+  const failureReason =
+    readAtPath(input.payload, ["data", "object", "refund", "failure_reason"]) ??
+    readAtPath(input.payload, ["data", "object", "refund", "reason"]) ??
+    readAtPath(input.payload, ["data", "object", "refund", "failure_reason_detail"]) ??
+    readAtPath(input.payload, ["data", "object", "failure_reason"]) ??
+    readAtPath(input.payload, ["data", "object", "reason"]);
 
   const activityAt =
-    parseIso(readAtPath(input.payload, ["data", "object", "refund", "updated_at"])) ??
-    parseIso(readAtPath(input.payload, ["data", "object", "refund", "created_at"])) ??
-    parseIso(readAtPath(input.payload, ["data", "object", "updated_at"])) ??
     parseIso(input.occurredAt) ??
+    parseIso(readAtPath(input.payload, ["data", "object", "refund", "created_at"])) ??
+    parseIso(readAtPath(input.payload, ["data", "object", "refund", "updated_at"])) ??
+    parseIso(readAtPath(input.payload, ["data", "object", "created_at"])) ??
+    parseIso(readAtPath(input.payload, ["data", "object", "updated_at"])) ??
     new Date().toISOString();
 
   return {
@@ -231,6 +239,7 @@ function parseSquareRefundSignalFromPayload(input: {
     externalPaymentId,
     externalOrderId,
     externalInvoiceId,
+    failureReason,
     activityAt,
   };
 }
@@ -322,6 +331,7 @@ async function runRefundWebhookWriteback(input: {
   if (isTerminalFailure) {
     refundExternalUpdate[airtableSchema.operations.fields.refundExternals.syncStatus] = "Failed";
     refundExternalUpdate[airtableSchema.operations.fields.refundExternals.syncError] =
+      signal.failureReason ??
       `Refund ${signal.externalStatus ?? "failed"} at provider.`;
   }
   await refundExternalsRepo.updateRefundExternalRecord(refundExternal.recordId, refundExternalUpdate);
@@ -470,7 +480,11 @@ async function upsertSquareInboundExternalAction(input: {
   const externalOrderId =
     readAtPath(input.payload, ["data", "object", "invoice", "order_id"]) ??
     readAtPath(input.payload, ["data", "object", "order", "id"]);
-  const providerReferenceId = externalInvoiceId ?? externalOrderId ?? input.providerEventId;
+  const providerReferenceId = (
+    input.eventType === "refund.updated" || input.eventType === "invoice.refunded"
+  )
+    ? input.providerEventId
+    : (externalInvoiceId ?? externalOrderId ?? input.providerEventId);
   // Refund events own a Refund External, not an Order External, so use "Refund" for those.
   // Invoice/payment events are applied through Order Externals so they stay "Order".
   const externalEntityType = (
