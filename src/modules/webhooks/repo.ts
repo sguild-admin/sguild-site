@@ -477,6 +477,10 @@ async function listWebhookEvents(input?: {
   const webhookEventsTable = getWebhookEventsTableName();
   const params = new URLSearchParams({
     pageSize: String(input?.pageSize ?? 100),
+    "sort[0][field]": "Occurred At",
+    "sort[0][direction]": "asc",
+    "sort[1][field]": "Created At",
+    "sort[1][direction]": "asc",
   });
   if (input?.offset) params.set("offset", input.offset);
 

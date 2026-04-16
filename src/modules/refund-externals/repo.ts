@@ -26,6 +26,7 @@ export type RefundExternalProcessRecord = {
   writebackStatus: string | null;
   externalRefundId: string | null;
   currentExternalStatus: string | null;
+  lastProviderActivityAt: string | null;
   syncError: string | null;
   hasException: boolean;
   canonicalOrgMismatch: boolean;
@@ -247,6 +248,7 @@ function toRefundExternalProcessRecord(record: AirtableRecord): RefundExternalPr
     writebackStatus: readString(fields[REFUND_EXTERNAL_FIELDS.writebackStatus]),
     externalRefundId: readString(fields[REFUND_EXTERNAL_FIELDS.externalRefundId]),
     currentExternalStatus: readString(fields[REFUND_EXTERNAL_FIELDS.currentExternalStatus]),
+    lastProviderActivityAt: readString(fields[REFUND_EXTERNAL_FIELDS.lastProviderActivityAt]),
     syncError: readString(fields[REFUND_EXTERNAL_FIELDS.syncError]),
     hasException: readFlag(fields[REFUND_EXTERNAL_FIELDS.hasException]),
     canonicalOrgMismatch: readFlag(fields[REFUND_EXTERNAL_FIELDS.canonicalOrgMismatch]),

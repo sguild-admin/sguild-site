@@ -198,10 +198,20 @@ function parseSquareRefundSignalFromPayload(input: {
   failureReason: string | null;
   activityAt: string;
 } {
+  const payloadType = readAtPath(input.payload, ["type"]) ?? "";
+  const dataType = readAtPath(input.payload, ["data", "type"]) ?? "";
+  const looksLikeRefundObject =
+    payloadType === "refund.updated" ||
+    dataType === "refund" ||
+    readAtPath(input.payload, ["data", "object", "refund", "id"]) != null;
   const externalRefundId =
     readAtPath(input.payload, ["data", "object", "refund", "id"]) ??
-    readAtPath(input.payload, ["data", "object", "id"]) ??
-    readAtPath(input.payload, ["data", "id"]);
+    (looksLikeRefundObject
+      ? (
+          readAtPath(input.payload, ["data", "object", "id"]) ??
+          readAtPath(input.payload, ["data", "id"])
+        )
+      : null);
 
   const externalStatus =
     readAtPath(input.payload, ["data", "object", "refund", "status"]) ??
@@ -244,6 +254,15 @@ function parseSquareRefundSignalFromPayload(input: {
   };
 }
 
+function isIsoAtOrAfter(left: string | null, right: string | null): boolean {
+  if (!left) return false;
+  if (!right) return true;
+  const leftTime = new Date(left).getTime();
+  const rightTime = new Date(right).getTime();
+  if (Number.isNaN(leftTime) || Number.isNaN(rightTime)) return true;
+  return leftTime >= rightTime;
+}
+
 async function runRefundWebhookWriteback(input: {
   payload: unknown;
   occurredAt: string | null;
@@ -253,16 +272,12 @@ async function runRefundWebhookWriteback(input: {
     payload: input.payload,
     occurredAt: input.occurredAt,
   });
-  if (!signal.externalRefundId) {
-    throw new SyncEndpointError(
-      "Refund webhook payload is missing External Refund ID. Cannot run refund writeback.",
-      422,
-    );
-  }
-
   let refundExternal = await refundExternalsRepo.findRefundExternalByExternalRefundId(
-    signal.externalRefundId,
+    signal.externalRefundId ?? "",
   );
+  if (!signal.externalRefundId) {
+    refundExternal = null;
+  }
   if (!refundExternal) {
     let matchedOrderExternalId = await resolveOrderExternalLinkFromSquareWebhook(input.payload);
     if (!matchedOrderExternalId && signal.externalPaymentId) {
@@ -288,28 +303,38 @@ async function runRefundWebhookWriteback(input: {
       const orderExternal = await ordersRepo.getOrderExternalRecord(matchedOrderExternalId);
       if (orderExternal.orderId) {
         const candidates = await refundExternalsRepo.listRefundExternalsByOrder(orderExternal.orderId);
-        const runnableCandidates = candidates.filter((row) => {
-          const syncStatus = (row.syncStatus ?? "").trim().toLowerCase();
-          const refundStatus = (row.refundStatus ?? "").trim().toLowerCase();
-          if (row.externalRefundId) return false;
-          if (syncStatus && syncStatus !== "pending" && syncStatus !== "failed") return false;
-          if (refundStatus && refundStatus !== "approved" && refundStatus !== "completed") return false;
-          return true;
-        });
-        if (runnableCandidates.length > 1) {
+        const candidatePool = signal.externalRefundId
+          ? candidates.filter((row) => {
+              const syncStatus = (row.syncStatus ?? "").trim().toLowerCase();
+              const refundStatus = (row.refundStatus ?? "").trim().toLowerCase();
+              if (row.externalRefundId) return false;
+              if (syncStatus && syncStatus !== "pending" && syncStatus !== "failed") return false;
+              if (refundStatus && refundStatus !== "approved" && refundStatus !== "completed") return false;
+              return true;
+            })
+          : candidates;
+        const canonicalCandidates =
+          candidatePool.length === 1
+            ? candidatePool
+            : candidatePool.filter((row) => (row.refundStatus ?? "").trim().toLowerCase() === "approved");
+        const resolvedCandidates =
+          canonicalCandidates.length === 1 ? canonicalCandidates : candidatePool;
+        if (resolvedCandidates.length > 1) {
           throw new SyncEndpointError(
-            `Multiple Refund Externals matched webhook context for External Refund ID ${signal.externalRefundId}.`,
+            `Multiple Refund Externals matched webhook context for ${signal.externalRefundId ?? signal.externalInvoiceId ?? signal.externalOrderId ?? "refund webhook"}.`,
             409,
           );
         }
-        refundExternal = runnableCandidates[0] ?? null;
+        refundExternal = resolvedCandidates[0] ?? null;
       }
     }
   }
 
   if (!refundExternal) {
     throw new SyncEndpointError(
-      `No Refund External found for External Refund ID ${signal.externalRefundId}.`,
+      signal.externalRefundId
+        ? `No Refund External found for External Refund ID ${signal.externalRefundId}.`
+        : "No Refund External found for refund webhook context.",
       409,
     );
   }
@@ -323,18 +348,32 @@ async function runRefundWebhookWriteback(input: {
     resolvedExternalStatus === "failed" ||
     resolvedExternalStatus === "canceled" ||
     resolvedExternalStatus === "rejected";
+  const isNewerOrSameSignal = isIsoAtOrAfter(
+    signal.activityAt,
+    refundExternal.lastProviderActivityAt,
+  );
 
-  const refundExternalUpdate: Record<string, unknown> = {
-    [airtableSchema.operations.fields.refundExternals.currentExternalStatus]: signal.externalStatus ?? "",
-    [airtableSchema.operations.fields.refundExternals.lastProviderActivityAt]: signal.activityAt,
-  };
-  if (isTerminalFailure) {
-    refundExternalUpdate[airtableSchema.operations.fields.refundExternals.syncStatus] = "Failed";
-    refundExternalUpdate[airtableSchema.operations.fields.refundExternals.syncError] =
-      signal.failureReason ??
-      `Refund ${signal.externalStatus ?? "failed"} at provider.`;
+  const refundExternalUpdate: Record<string, unknown> = {};
+  if (isNewerOrSameSignal) {
+    refundExternalUpdate[airtableSchema.operations.fields.refundExternals.currentExternalStatus] =
+      signal.externalStatus ?? "";
+    refundExternalUpdate[airtableSchema.operations.fields.refundExternals.lastProviderActivityAt] =
+      signal.activityAt;
+    if (isTerminalFailure) {
+      refundExternalUpdate[airtableSchema.operations.fields.refundExternals.syncStatus] = "Failed";
+      refundExternalUpdate[airtableSchema.operations.fields.refundExternals.syncError] =
+        signal.failureReason ??
+        `Refund ${signal.externalStatus ?? "failed"} at provider.`;
+    }
+  } else if (isTerminalSuccess) {
+    // Allow an older terminal-success replay to complete the canonical Refund write
+    // without downgrading current external state on the Refund External.
+    refundExternalUpdate[airtableSchema.operations.fields.refundExternals.lastProviderActivityAt] =
+      refundExternal.lastProviderActivityAt ?? signal.activityAt;
   }
-  await refundExternalsRepo.updateRefundExternalRecord(refundExternal.recordId, refundExternalUpdate);
+  if (Object.keys(refundExternalUpdate).length > 0) {
+    await refundExternalsRepo.updateRefundExternalRecord(refundExternal.recordId, refundExternalUpdate);
+  }
 
   // Canonical write: set Refund Status to Completed on terminal success.
   let writebackErrorMessage: string | null = null;
@@ -412,7 +451,7 @@ async function runRefundWebhookWriteback(input: {
 
   return {
     refundExternalRecordId: refundExternal.recordId,
-    externalRefundId: signal.externalRefundId,
+    externalRefundId: signal.externalRefundId ?? refundExternal.externalRefundId ?? "",
   };
 }
 
