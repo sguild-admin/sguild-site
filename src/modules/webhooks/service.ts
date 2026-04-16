@@ -339,6 +339,13 @@ async function runRefundWebhookWriteback(input: {
         // best effort — failure here is captured in writebackErrorMessage below
       }
     }
+    if (!refundId) {
+      try {
+        refundId = await refundExternalsRepo.getRefundIdFromRefundExternalRecord(refundExternal.recordId);
+      } catch {
+        // best effort — diagnostic logging is inside getRefundIdFromRefundExternalRecord
+      }
+    }
     if (refundId) {
       try {
         await updateRefundStatusCompleted(refundId);

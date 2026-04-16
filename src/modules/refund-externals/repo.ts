@@ -604,6 +604,40 @@ async function listRefundExternalsByOrder(orderId: string): Promise<RefundExtern
   return [];
 }
 
+async function getRefundIdFromRefundExternalRecord(recordId: string): Promise<string | null> {
+  const response = await airtableRequest(
+    `${encodeURIComponent(REFUND_EXTERNALS_TABLE)}/${encodeURIComponent(recordId)}`,
+    { method: "GET" },
+  );
+  if (!response.ok) return null;
+
+  const record = (await response.json()) as AirtableRecord;
+  const fields = record.fields ?? {};
+
+  const refundId =
+    readFirstLinkedId(fields[REFUND_EXTERNAL_FIELDS.refund]) ??
+    readFirstLinkedId(fields["Refund"]) ??
+    readFirstLinkedId(fields["Refunds"]);
+
+  if (!refundId) {
+    // Diagnostic: log every field the API returned so we can identify the correct field name.
+    const fieldSummary: Record<string, string> = {};
+    for (const [key, value] of Object.entries(fields)) {
+      if (Array.isArray(value)) {
+        fieldSummary[key] = `array(${value.length}): ${JSON.stringify(value.slice(0, 2))}`;
+      } else if (value != null) {
+        fieldSummary[key] = `${typeof value}: ${JSON.stringify(value).slice(0, 80)}`;
+      }
+    }
+    console.error("getRefundIdFromRefundExternalRecord: no refundId found in fresh GET", {
+      recordId,
+      fieldSummary,
+    });
+  }
+
+  return refundId;
+}
+
 async function updateRefundExternalRecord(recordId: string, fields: Record<string, unknown>): Promise<void> {
   const nextFields: Record<string, unknown> = { ...fields };
   const orgIntegrationValue =
@@ -643,6 +677,7 @@ export const refundExternalsRepo = {
   findRefundExternalByExternalRefundId,
   resolveRefundExternalForProcessByAnyId,
   findRefundRecordIdByRefundExternalId,
+  getRefundIdFromRefundExternalRecord,
   getRefundRecord,
   getOrderRecord,
   getOrgIntegrationRecord,
