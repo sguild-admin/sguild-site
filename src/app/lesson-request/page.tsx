@@ -357,7 +357,7 @@ export default function LessonRequestPage() {
   }
 
   return (
-    <PageContainer className="bg-white text-slate-800 sm:bg-slate-50">
+    <PageContainer className="bg-slate-100 text-slate-800 sm:bg-slate-50">
       <section className="mx-auto max-w-xl px-4 py-6 md:py-10">
         <div className="space-y-1">
           <h1 className="text-3xl font-semibold tracking-tight text-slate-700 md:text-[2.1rem]">
