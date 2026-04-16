@@ -3,7 +3,7 @@ import { SyncEndpointError } from "@/lib/errors";
 import { externalActionsRepo, classifyRetryability, inferErrorType } from "@/modules/external-actions";
 import { ordersRepo, providerContextRepo } from "@/modules/orders";
 import { parseProcessRefundExternalBody } from "./schema";
-import { createProviderRefund } from "./adapter";
+import { createProviderRefund, readProviderRefund } from "./adapter";
 import { refundExternalsRepo } from "./repo";
 import type {
   ProcessRefundExternalFailureResponseDto,
@@ -409,85 +409,73 @@ export async function runProcessRefundExternal(
     }
   }
 
-  let preloadedRefundStatus: string | null = null;
-  if (resolvedRefundIdForLink) {
-    try {
-      const preloadedRefund = await refundExternalsRepo.getRefundRecord(resolvedRefundIdForLink);
-      preloadedRefundStatus = preloadedRefund.status;
-    } catch {
-      // no-op
-    }
-  }
-
-  const preWritebackRecoveryOnly =
-    refundExternal.syncStatus === "Synced" &&
-    Boolean(refundExternal.externalRefundId) &&
-    preloadedRefundStatus != null &&
-    preloadedRefundStatus !== "Completed";
-
-  let reusableActionId: string | null = null;
-  if (preWritebackRecoveryOnly) {
-    if (parsed.retryExternalActionId) {
-      reusableActionId = parsed.retryExternalActionId;
-    } else {
-      const linkedCandidates = [...priorCreateActions]
-        .sort((a, b) => (a.attemptNumber ?? 0) - (b.attemptNumber ?? 0));
-      if (linkedCandidates.length > 0) {
-        reusableActionId = linkedCandidates[linkedCandidates.length - 1].recordId;
-      } else {
-        const noteMatched = await refundExternalsRepo.findLatestCreateActionByRefundExternalToken(
-          refundExternalRecordId,
-        );
-        reusableActionId = noteMatched?.recordId ?? null;
-      }
-    }
-  }
-
   let externalActionId: string;
-  if (reusableActionId) {
-    externalActionId = reusableActionId;
-    await externalActionsRepo.updateExternalAction({
-      recordId: externalActionId,
+  try {
+    externalActionId = await externalActionsRepo.createExternalAction({
+      externalEntityType: "Refund",
+      actionType: "Create",
+      direction: "Outbound",
+      triggerSource: "Automation",
       occurredAt: nowIso,
-      writebackLastAttemptAt: nowIso,
-      writebackStatus: "Pending",
-      writebackError: "",
-    });
-  } else {
-    try {
-      externalActionId = await externalActionsRepo.createExternalAction({
-        externalEntityType: "Refund",
-        actionType: "Create",
-        direction: "Outbound",
-        triggerSource: "Automation",
-        occurredAt: nowIso,
-        status: "Pending",
-        attemptNumber: nextAttempt,
-        retryable: true,
-        provider: refundExternal.provider ?? undefined,
-        providerEventType: "Create Refund",
-        providerReferenceId: idempotencyKey,
-        notes: `refundExternalRecordId=${refundExternalRecordId}`,
-        requestPayload: JSON.stringify({
-          recordId: parsed.recordId,
-          force: parsed.force,
-          retryExternalActionId: parsed.retryExternalActionId,
-          idempotencyKey,
-          refundExternalRecordId,
-          refundRecordId: resolvedRefundIdForLink,
-        }),
-        writebackStatus: "Pending",
-        writebackLastAttemptAt: nowIso,
-        orgIntegrationRecordId: refundExternal.orgIntegrationId ?? undefined,
+      status: "Pending",
+      attemptNumber: nextAttempt,
+      retryable: true,
+      provider: refundExternal.provider ?? undefined,
+      providerEventType: "Create Refund",
+      providerReferenceId: idempotencyKey,
+      notes: `refundExternalRecordId=${refundExternalRecordId}`,
+      requestPayload: JSON.stringify({
+        recordId: parsed.recordId,
+        force: parsed.force,
+        retryExternalActionId: parsed.retryExternalActionId,
+        idempotencyKey,
         refundExternalRecordId,
-      });
-    } catch (error) {
-      if (
-        error instanceof SyncEndpointError &&
-        isLinkedRecordTableMismatchError(error.message) &&
-        resolvedRefundIdForLink
-      ) {
-        try {
+        refundRecordId: resolvedRefundIdForLink,
+      }),
+      writebackStatus: "Pending",
+      writebackLastAttemptAt: nowIso,
+      orgIntegrationRecordId: refundExternal.orgIntegrationId ?? undefined,
+      refundExternalRecordId,
+    });
+  } catch (error) {
+    if (
+      error instanceof SyncEndpointError &&
+      isLinkedRecordTableMismatchError(error.message) &&
+      resolvedRefundIdForLink
+    ) {
+      try {
+        externalActionId = await externalActionsRepo.createExternalAction({
+          externalEntityType: "Refund",
+          actionType: "Create",
+          direction: "Outbound",
+          triggerSource: "Automation",
+          occurredAt: nowIso,
+          status: "Pending",
+          attemptNumber: nextAttempt,
+          retryable: true,
+          provider: refundExternal.provider ?? undefined,
+          providerEventType: "Create Refund",
+          providerReferenceId: idempotencyKey,
+          notes: `refundExternalRecordId=${refundExternalRecordId}; linkFallback=refundRecord`,
+          requestPayload: JSON.stringify({
+            recordId: parsed.recordId,
+            force: parsed.force,
+            retryExternalActionId: parsed.retryExternalActionId,
+            idempotencyKey,
+            refundExternalRecordId,
+            refundRecordId: resolvedRefundIdForLink,
+            warning: "refund_external_link_table_mismatch",
+          }),
+          writebackStatus: "Pending",
+          writebackLastAttemptAt: nowIso,
+          orgIntegrationRecordId: refundExternal.orgIntegrationId ?? undefined,
+          refundExternalRecordId: resolvedRefundIdForLink,
+        });
+      } catch (fallbackError) {
+        if (
+          fallbackError instanceof SyncEndpointError &&
+          isLinkedRecordTableMismatchError(fallbackError.message)
+        ) {
           externalActionId = await externalActionsRepo.createExternalAction({
             externalEntityType: "Refund",
             actionType: "Create",
@@ -500,7 +488,7 @@ export async function runProcessRefundExternal(
             provider: refundExternal.provider ?? undefined,
             providerEventType: "Create Refund",
             providerReferenceId: idempotencyKey,
-            notes: `refundExternalRecordId=${refundExternalRecordId}; linkFallback=refundRecord`,
+            notes: `refundExternalRecordId=${refundExternalRecordId}; linkFallback=none`,
             requestPayload: JSON.stringify({
               recordId: parsed.recordId,
               force: parsed.force,
@@ -508,51 +496,18 @@ export async function runProcessRefundExternal(
               idempotencyKey,
               refundExternalRecordId,
               refundRecordId: resolvedRefundIdForLink,
-              warning: "refund_external_link_table_mismatch",
+              warning: "refund_link_table_mismatch_no_link_fallback",
             }),
             writebackStatus: "Pending",
             writebackLastAttemptAt: nowIso,
             orgIntegrationRecordId: refundExternal.orgIntegrationId ?? undefined,
-            refundExternalRecordId: resolvedRefundIdForLink,
           });
-        } catch (fallbackError) {
-          if (
-            fallbackError instanceof SyncEndpointError &&
-            isLinkedRecordTableMismatchError(fallbackError.message)
-          ) {
-            externalActionId = await externalActionsRepo.createExternalAction({
-              externalEntityType: "Refund",
-              actionType: "Create",
-              direction: "Outbound",
-              triggerSource: "Automation",
-              occurredAt: nowIso,
-              status: "Pending",
-              attemptNumber: nextAttempt,
-              retryable: true,
-              provider: refundExternal.provider ?? undefined,
-              providerEventType: "Create Refund",
-              providerReferenceId: idempotencyKey,
-              notes: `refundExternalRecordId=${refundExternalRecordId}; linkFallback=none`,
-              requestPayload: JSON.stringify({
-                recordId: parsed.recordId,
-                force: parsed.force,
-                retryExternalActionId: parsed.retryExternalActionId,
-                idempotencyKey,
-                refundExternalRecordId,
-                refundRecordId: resolvedRefundIdForLink,
-                warning: "refund_link_table_mismatch_no_link_fallback",
-              }),
-              writebackStatus: "Pending",
-              writebackLastAttemptAt: nowIso,
-              orgIntegrationRecordId: refundExternal.orgIntegrationId ?? undefined,
-            });
-          } else {
-            throw fallbackError;
-          }
+        } else {
+          throw fallbackError;
         }
-      } else {
-        throw error;
       }
+    } else {
+      throw error;
     }
   }
 
@@ -651,16 +606,11 @@ export async function runProcessRefundExternal(
       provider: orgIntegration.provider ?? refundExternal.provider ?? undefined,
     });
 
-    const writebackRecoveryOnly =
+    const alreadySynced =
       refundExternal.syncStatus === "Synced" &&
-      Boolean(refundExternal.externalRefundId) &&
-      refund.status !== "Completed";
-    const alreadySyncedCompleted =
-      refundExternal.syncStatus === "Synced" &&
-      Boolean(refundExternal.externalRefundId) &&
-      refund.status === "Completed";
+      Boolean(refundExternal.externalRefundId);
 
-    if (!writebackRecoveryOnly && !alreadySyncedCompleted) {
+    if (!alreadySynced) {
       if (refund.status !== "Approved") {
         fail({
           message: "Refund Status must be Approved to process provider refund.",
@@ -734,29 +684,53 @@ export async function runProcessRefundExternal(
     }
 
     const priorSucceededCreate = priorCreateActions.find((row) => row.status === "Succeeded");
-    if (priorSucceededCreate && !writebackRecoveryOnly && !parsed.force) {
+    if (priorSucceededCreate && !alreadySynced && !parsed.force) {
       fail({
         message:
-          "A prior successful Create External Action already exists for this Refund External. Run writeback recovery instead of a new provider call.",
+          "A prior successful Create External Action already exists for this Refund External.",
         status: 409,
         stage: "writeback",
         externalActionId,
       });
     }
 
-    if (alreadySyncedCompleted) {
+    if (alreadySynced && !parsed.force) {
+      const now = new Date().toISOString();
+      let responsePayload = JSON.stringify({ mode: "already_synced" });
+      let httpStatusCode = 200;
+      try {
+        const refreshed = await readProviderRefund({
+          provider: orgIntegration.provider ?? refundExternal.provider ?? "",
+          apiCredentialAlias: providerAccount.apiCredentialAlias as string,
+          externalRefundId: refundExternal.externalRefundId as string,
+        });
+        responsePayload = refreshed.responsePayload;
+        httpStatusCode = refreshed.httpStatusCode;
+        await refundExternalsRepo.updateRefundExternalRecord(refundExternalRecordId, {
+          [airtableSchema.operations.fields.refundExternals.syncStatus]: "Synced",
+          [airtableSchema.operations.fields.refundExternals.externalRefundId]: refreshed.externalRefundId,
+          [airtableSchema.operations.fields.refundExternals.currentExternalStatus]: refreshed.externalStatus,
+          [airtableSchema.operations.fields.refundExternals.lastSyncedAt]: now,
+          [airtableSchema.operations.fields.refundExternals.lastProviderActivityAt]:
+            refreshed.activityAt ?? now,
+          [airtableSchema.operations.fields.refundExternals.syncError]: "",
+        });
+      } catch {
+        // best effort refresh; noop behavior still stands when the external is already synced
+      }
+
       await externalActionsRepo.updateExternalAction({
         recordId: externalActionId,
         status: "Ignored",
-        occurredAt: new Date().toISOString(),
+        occurredAt: now,
         providerReferenceId: refundExternal.externalRefundId ?? undefined,
-        responsePayload: JSON.stringify({ mode: "already_synced_completed" }),
-        httpStatusCode: 200,
+        responsePayload,
+        httpStatusCode,
         errorSummary: "",
         writebackStatus: "Succeeded",
-        writebackSucceededAt: new Date().toISOString(),
+        writebackSucceededAt: now,
         writebackError: "",
-        writebackLastAttemptAt: new Date().toISOString(),
+        writebackLastAttemptAt: now,
         retryable: false,
       });
       return successResponse({
@@ -768,61 +742,6 @@ export async function runProcessRefundExternal(
         writebackStatus: "Succeeded",
         idempotencyKey,
       });
-    }
-
-    if (writebackRecoveryOnly) {
-      try {
-        await refundExternalsRepo.updateRefundExternalRecord(refundExternalRecordId, {
-          [airtableSchema.operations.fields.refundExternals.writebackStatus]: "Succeeded",
-          [airtableSchema.operations.fields.refundExternals.writebackError]: "",
-          [airtableSchema.operations.fields.refundExternals.writebackAt]: new Date().toISOString(),
-        });
-        await externalActionsRepo.updateExternalAction({
-          recordId: externalActionId,
-          status: "Ignored",
-          occurredAt: new Date().toISOString(),
-          providerReferenceId: refundExternal.externalRefundId ?? undefined,
-          responsePayload: JSON.stringify({ mode: "writeback_recovery" }),
-          httpStatusCode: 200,
-          errorSummary: "",
-          writebackStatus: "Succeeded",
-          writebackSucceededAt: new Date().toISOString(),
-          writebackError: "",
-          writebackLastAttemptAt: new Date().toISOString(),
-          orgIntegrationRecordId: orgIntegration.recordId,
-          providerAccountRecordId: providerAccount.recordId,
-          refundExternalRecordId: refundExternalRecordId,
-          retryable: false,
-        });
-
-        return successResponse({
-          recordId: parsed.recordId,
-          crossedProviderBoundary: false,
-          providerResult: "noop",
-          externalActionId,
-          externalRefundId: refundExternal.externalRefundId as string,
-          writebackStatus: "Succeeded",
-          idempotencyKey,
-        });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Writeback recovery failed.";
-        const status = error instanceof SyncEndpointError ? error.status : 502;
-        await updateExternalActionFailed({
-          recordId: externalActionId,
-          message,
-          statusCode: status,
-          stage: "writeback",
-          writebackStatus: "Failed",
-        });
-        actionFailurePersisted = true;
-        fail({
-          message,
-          status,
-          stage: "writeback",
-          crossedProviderBoundary: false,
-          externalActionId,
-        });
-      }
     }
 
     let orderExternal:
@@ -892,8 +811,6 @@ export async function runProcessRefundExternal(
         [airtableSchema.operations.fields.refundExternals.orgIntegration]: resolvedOrgIntegrationLink,
         [airtableSchema.operations.fields.refundExternals.syncStatus]: "Pending",
         [airtableSchema.operations.fields.refundExternals.syncError]: "",
-        [airtableSchema.operations.fields.refundExternals.writebackStatus]: "Pending",
-        [airtableSchema.operations.fields.refundExternals.writebackError]: "",
       });
     } catch (error) {
       const message =
@@ -944,9 +861,6 @@ export async function runProcessRefundExternal(
           [airtableSchema.operations.fields.refundExternals.lastSyncedAt]: writebackNow,
           [airtableSchema.operations.fields.refundExternals.lastProviderActivityAt]: writebackNow,
           [airtableSchema.operations.fields.refundExternals.syncError]: "",
-          [airtableSchema.operations.fields.refundExternals.writebackStatus]: "Succeeded",
-          [airtableSchema.operations.fields.refundExternals.writebackAt]: writebackNow,
-          [airtableSchema.operations.fields.refundExternals.writebackError]: "",
         });
 
         await externalActionsRepo.updateExternalAction({
@@ -975,16 +889,6 @@ export async function runProcessRefundExternal(
       } catch (writebackError) {
         const message = writebackError instanceof Error ? writebackError.message : "Writeback failed.";
         const status = writebackError instanceof SyncEndpointError ? writebackError.status : 502;
-        const writebackAt = new Date().toISOString();
-        try {
-          await refundExternalsRepo.updateRefundExternalRecord(refundExternalRecordId, {
-            [airtableSchema.operations.fields.refundExternals.writebackStatus]: "Failed",
-            [airtableSchema.operations.fields.refundExternals.writebackError]: message,
-            [airtableSchema.operations.fields.refundExternals.writebackAt]: writebackAt,
-          });
-        } catch {
-          // preserve original writeback failure
-        }
         await updateExternalActionFailed({
           recordId: externalActionId,
           message,
@@ -1015,8 +919,6 @@ export async function runProcessRefundExternal(
           [airtableSchema.operations.fields.refundExternals.syncStatus]: "Failed",
           [airtableSchema.operations.fields.refundExternals.syncError]: message,
           [airtableSchema.operations.fields.refundExternals.lastProviderActivityAt]: failureNow,
-          [airtableSchema.operations.fields.refundExternals.writebackStatus]: "Not Started",
-          [airtableSchema.operations.fields.refundExternals.writebackError]: "",
         });
       } catch {
         // preserve provider failure

@@ -29,6 +29,15 @@ export type CreateRefundAdapterResult = {
   responsePayload: string;
 };
 
+export type ReadRefundAdapterResult = {
+  externalRefundId: string;
+  externalStatus: string;
+  providerReferenceId: string;
+  httpStatusCode: number;
+  responsePayload: string;
+  activityAt: string | null;
+};
+
 function isAlreadyRefundedMessage(message: string): boolean {
   const normalized = message.toLowerCase();
   return (
@@ -70,6 +79,13 @@ function asNonEmptyString(value: unknown): string | null {
 
 function unique(values: Array<string | null | undefined>): string[] {
   return Array.from(new Set(values.filter((value): value is string => Boolean(value))));
+}
+
+function parseIsoString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toISOString();
 }
 
 async function findExistingSquareRefundByAmount(input: {
@@ -375,4 +391,57 @@ export async function createProviderRefund(input: CreateRefundAdapterInput): Pro
     }
     throw error;
   }
+}
+
+export async function readProviderRefund(input: {
+  provider: string;
+  apiCredentialAlias: string;
+  externalRefundId: string;
+}): Promise<ReadRefundAdapterResult> {
+  const provider = input.provider.trim().toLowerCase();
+  if (provider !== "square") {
+    throw new SyncEndpointError("Provider is not supported for refund external processing.", 422);
+  }
+
+  const authContext = resolveSquareAuthContextFromAlias(input.apiCredentialAlias);
+  const response = await squareRawRequest(
+    `/v2/refunds/${encodeURIComponent(input.externalRefundId)}`,
+    { method: "GET" },
+    authContext,
+  );
+  const parsedBody = await readJsonBody(response);
+  const responsePayload = safeStringify(parsedBody);
+  if (!response.ok) {
+    const message = parseSquareErrorMessage(parsedBody);
+    throw new SyncEndpointError(
+      `Square refund lookup failed (${response.status}): ${message}`,
+      response.status || 502,
+      { rawPayload: responsePayload },
+    );
+  }
+
+  const refund = (parsedBody as {
+    refund?: {
+      id?: unknown;
+      status?: unknown;
+      updated_at?: unknown;
+      created_at?: unknown;
+    };
+  }).refund;
+
+  const refundId = asNonEmptyString(refund?.id);
+  if (!refundId) {
+    throw new SyncEndpointError("Square refund lookup response did not include refund ID.", 502, {
+      rawPayload: responsePayload,
+    });
+  }
+
+  return {
+    externalRefundId: refundId,
+    externalStatus: asNonEmptyString(refund?.status) ?? "pending",
+    providerReferenceId: refundId,
+    httpStatusCode: response.status || 200,
+    responsePayload,
+    activityAt: parseIsoString(refund?.updated_at) ?? parseIsoString(refund?.created_at),
+  };
 }
