@@ -29,6 +29,8 @@ import type {
   BillingProcessSuccessResponse,
   ApplyInvoicePaymentFailureResponse,
   ApplyInvoicePaymentSuccessResponse,
+  ApplyRefundToOrderFailureResponse,
+  ApplyRefundToOrderSuccessResponse,
   OpenOrderResponse,
   ApplyInvoicePaymentRequest,
   OrderBillingRequest,
@@ -38,6 +40,7 @@ import type {
 } from "./dto";
 import {
   parseApplyInvoicePaymentBody,
+  parseApplyRefundToOrderBody,
   parseOpenOrderBody,
   parseProcessOrderBillingBody,
   parseResolvePromotionRedemptionsBody,
@@ -3147,4 +3150,174 @@ export async function runSendInvoice(body: unknown): Promise<SendInvoiceSuccessR
 
 export function assertAuthorizedOrderBillingRequest(request: Request): void {
   ordersWorkflowRepo.validateOrdersSecret(request);
+}
+
+class ApplyRefundToOrderEndpointError extends SyncEndpointError {
+  readonly stage: "validation" | "writeback";
+  readonly recordId: string;
+
+  constructor(input: {
+    message: string;
+    status: number;
+    stage: "validation" | "writeback";
+    recordId: string;
+  }) {
+    super(input.message, input.status);
+    this.stage = input.stage;
+    this.recordId = input.recordId;
+  }
+}
+
+export function applyRefundToOrderFailureFromError(
+  error: unknown,
+  recordId: string | null,
+): { status: number; body: ApplyRefundToOrderFailureResponse } {
+  if (error instanceof ApplyRefundToOrderEndpointError) {
+    return {
+      status: error.status,
+      body: {
+        ok: false,
+        endpoint: "/api/orders/apply-refund",
+        recordId: error.recordId,
+        stage: error.stage,
+        error: error.message,
+      },
+    };
+  }
+
+  if (error instanceof SyncEndpointError) {
+    return {
+      status: error.status,
+      body: {
+        ok: false,
+        endpoint: "/api/orders/apply-refund",
+        recordId: recordId ?? "",
+        stage: "validation",
+        error: error.message,
+      },
+    };
+  }
+
+  return {
+    status: 500,
+    body: {
+      ok: false,
+      endpoint: "/api/orders/apply-refund",
+      recordId: recordId ?? "",
+      stage: "validation",
+      error: error instanceof Error ? error.message : "Unexpected server error.",
+    },
+  };
+}
+
+export async function applyRefundToOrder(
+  body: unknown,
+): Promise<ApplyRefundToOrderSuccessResponse> {
+  const parsed = parseApplyRefundToOrderBody(body);
+
+  const fail = (input: {
+    message: string;
+    status: number;
+    stage: "validation" | "writeback";
+  }): never => {
+    throw new ApplyRefundToOrderEndpointError({
+      message: input.message,
+      status: input.status,
+      stage: input.stage,
+      recordId: parsed.recordId,
+    });
+  };
+
+  const refund = await ordersRepo.getRefundApplyRecord(parsed.recordId);
+
+  const refundStatusTrimmed = (refund.status ?? "").trim();
+  if (refundStatusTrimmed !== "Completed") {
+    fail({
+      message: `Refund Status is not Completed (got "${refundStatusTrimmed}").`,
+      status: 409,
+      stage: "validation",
+    });
+  }
+
+  if (!refund.orderId) {
+    fail({ message: "Refund is not linked to an Order.", status: 409, stage: "validation" });
+  }
+  const orderId = refund.orderId as string;
+
+  const order = await ordersRepo.getOrderApplyRefundRecord(orderId);
+
+  const allowedStatuses = new Set(["Paid", "Partially Refunded", "Refunded"]);
+  if (!order.status || !allowedStatuses.has(order.status)) {
+    fail({
+      message: `Order Status "${order.status ?? "(none)"}" is not valid for refund writeback. Expected Paid or Partially Refunded.`,
+      status: 409,
+      stage: "validation",
+    });
+  }
+
+  const completedRefundAmount = roundCurrencyAmount(order.orderItemsCompletedRefundAmount ?? 0);
+  const orderTotal = roundCurrencyAmount(order.total ?? 0);
+  const currentAmountPaid = roundCurrencyAmount(order.amountPaid ?? 0);
+  const refundAmount = roundCurrencyAmount(refund.refundAmount ?? 0);
+
+  if (completedRefundAmount === 0) {
+    fail({
+      message:
+        "Order Items Completed Refund Amount is zero — rollup may not have propagated yet. Retry.",
+      status: 409,
+      stage: "validation",
+    });
+  }
+
+  const targetStatus: "Refunded" | "Partially Refunded" =
+    completedRefundAmount + 0.0001 >= orderTotal ? "Refunded" : "Partially Refunded";
+
+  const newAmountPaid = roundCurrencyAmount(Math.max(0, currentAmountPaid - refundAmount));
+
+  // Noop: status already correct and amount paid would not change
+  if (order.status === targetStatus && newAmountPaid === currentAmountPaid) {
+    return {
+      ok: true,
+      endpoint: "/api/orders/apply-refund",
+      recordId: parsed.recordId,
+      result: "noop",
+      orderStatusBefore: order.status,
+      orderStatusAfter: order.status,
+      amountPaidBefore: currentAmountPaid,
+      amountPaidAfter: currentAmountPaid,
+      writebackStatus: "Succeeded",
+    };
+  }
+
+  const orderStatusBefore = order.status ?? "";
+
+  try {
+    await ordersRepo.updateOrderCanonicalPayment({
+      orderRecordId: orderId,
+      amountPaid: newAmountPaid,
+      status: targetStatus,
+    });
+
+    return {
+      ok: true,
+      endpoint: "/api/orders/apply-refund",
+      recordId: parsed.recordId,
+      result: "succeeded",
+      orderStatusBefore,
+      orderStatusAfter: targetStatus,
+      amountPaidBefore: currentAmountPaid,
+      amountPaidAfter: newAmountPaid,
+      writebackStatus: "Succeeded",
+    };
+  } catch (error) {
+    fail({
+      message: error instanceof Error ? error.message : "Writeback failed.",
+      status: error instanceof SyncEndpointError ? error.status : 502,
+      stage: "writeback",
+    });
+  }
+
+  throw new SyncEndpointError("Unexpected apply-refund-to-order control flow.", 500, {
+    exposeMessage: false,
+  });
 }

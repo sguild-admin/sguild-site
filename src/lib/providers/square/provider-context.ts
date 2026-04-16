@@ -41,6 +41,28 @@ function readAliasToTokenMap(): Record<string, string> {
   return normalized;
 }
 
+function resolveAccessTokenByAlias(
+  aliasMap: Record<string, string>,
+  requestedAlias: string,
+): string | null {
+  const direct = aliasMap[requestedAlias];
+  if (direct) return direct;
+
+  const normalizedRequested = requestedAlias.trim().toLowerCase();
+  if (!normalizedRequested) return null;
+
+  for (const [key, value] of Object.entries(aliasMap)) {
+    if (key.trim().toLowerCase() === normalizedRequested) return value;
+  }
+
+  const aliases = Object.keys(aliasMap);
+  if (aliases.length === 1) {
+    return aliasMap[aliases[0]];
+  }
+
+  return null;
+}
+
 export function resolveSquareProviderContext(
   orgIntegration: OrgIntegrationRecord,
   action: string,
@@ -66,7 +88,7 @@ export function resolveSquareProviderContext(
   }
 
   const aliasMap = readAliasToTokenMap();
-  const accessToken = aliasMap[orgIntegration.accessToken];
+  const accessToken = resolveAccessTokenByAlias(aliasMap, orgIntegration.accessToken);
   if (!accessToken) {
     throw new SyncEndpointError(
       `No Square token configured for alias '${orgIntegration.accessToken}'.`,
@@ -90,7 +112,7 @@ export function resolveSquareAuthContextFromAlias(accessTokenAlias: string): Squ
   }
 
   const aliasMap = readAliasToTokenMap();
-  const accessToken = aliasMap[alias];
+  const accessToken = resolveAccessTokenByAlias(aliasMap, alias);
   if (!accessToken) {
     throw new SyncEndpointError(
       `No Square token configured for alias '${alias}'.`,

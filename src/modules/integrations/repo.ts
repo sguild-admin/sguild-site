@@ -82,6 +82,7 @@ export type CreateExternalActionInput = {
   writebackLastAttemptAt?: string;
   orderExternalRecordId?: string;
   invoiceExternalRecordId?: string;
+  refundExternalRecordId?: string;
 };
 
 type UpdateExternalActionInput = Partial<CreateExternalActionInput>;
@@ -178,6 +179,7 @@ function toFields(input: CreateExternalActionInput | UpdateExternalActionInput):
   if (input.providerAccountRecordId) fields["Provider Account"] = [input.providerAccountRecordId];
   if (input.orderExternalRecordId) fields["Order External"] = [input.orderExternalRecordId];
   if (input.invoiceExternalRecordId) fields["Invoice External"] = [input.invoiceExternalRecordId];
+  if (input.refundExternalRecordId) fields["Refund External"] = [input.refundExternalRecordId];
 
   return fields;
 }

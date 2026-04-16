@@ -543,5 +543,6 @@ export const webhooksIngestRepo = {
   createExternalAction,
   updateExternalAction,
   findOrderExternalByExternalInvoiceId: ordersRepo.findOrderExternalByExternalInvoiceId,
+  findOrderExternalByExternalPaymentId: ordersRepo.findOrderExternalByExternalPaymentId,
   findOrderExternalByExternalOrderId: ordersRepo.findOrderExternalByExternalOrderId,
 };

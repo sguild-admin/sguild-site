@@ -212,7 +212,13 @@ function toSyncRecord(record: AirtableRecord): ExternalActionSyncRecord {
   const clientExternalRecordIds = readLinkedIds(fields[EXTERNAL_ACTION_FIELDS.clientExternal]);
   const cardExternalRecordIds = readLinkedIds(fields[EXTERNAL_ACTION_FIELDS.cardExternal]);
   const orderExternalRecordIds = readLinkedIds(fields[EXTERNAL_ACTION_FIELDS.orderExternal]);
-  const refundExternalRecordIds = readLinkedIds(fields[EXTERNAL_ACTION_FIELDS.refundExternal]);
+  const refundExternalRecordIds = Array.from(
+    new Set([
+      ...readLinkedIds(fields[EXTERNAL_ACTION_FIELDS.refundExternal]),
+      ...readLinkedIds(fields["Refund External"]),
+      ...readLinkedIds(fields["Refund Externals"]),
+    ]),
+  );
   const orgIntegrationProviderAccountRecordIds = readReferenceIds(
     fields[EXTERNAL_ACTION_FIELDS.orgIntegrationProviderAccount],
   );
@@ -287,7 +293,11 @@ function toFields(input: Partial<CreateExternalActionDto>): Record<string, unkno
   if (input.clientExternalRecordId) fields[EXTERNAL_ACTION_FIELDS.clientExternal] = [input.clientExternalRecordId];
   if (input.cardExternalRecordId) fields[EXTERNAL_ACTION_FIELDS.cardExternal] = [input.cardExternalRecordId];
   if (input.orderExternalRecordId) fields[EXTERNAL_ACTION_FIELDS.orderExternal] = [input.orderExternalRecordId];
-  if (input.refundExternalRecordId) fields[EXTERNAL_ACTION_FIELDS.refundExternal] = [input.refundExternalRecordId];
+  if (input.refundExternalRecordId) {
+    fields[EXTERNAL_ACTION_FIELDS.refundExternal] = [input.refundExternalRecordId];
+    fields["Refund External"] = [input.refundExternalRecordId];
+    fields["Refund Externals"] = [input.refundExternalRecordId];
+  }
 
   if (input.provider) fields[EXTERNAL_ACTION_FIELDS.provider] = input.provider;
   if (input.providerEventType) fields[EXTERNAL_ACTION_FIELDS.providerEventType] = input.providerEventType;
@@ -308,6 +318,18 @@ function toFields(input: Partial<CreateExternalActionDto>): Record<string, unkno
   return fields;
 }
 
+function getRemovableFieldFromAirtableError(message: string): string | null {
+  const missingFieldMatch = message.match(/Unknown field name: "([^"]+)"/);
+  if (missingFieldMatch?.[1]) return missingFieldMatch[1];
+
+  const computedFieldMatch = message.match(
+    /Field "([^"]+)" cannot accept a value because the field is computed/i,
+  );
+  if (computedFieldMatch?.[1]) return computedFieldMatch[1];
+
+  return null;
+}
+
 async function createExternalAction(input: CreateExternalActionDto): Promise<string> {
   const fields = toFields(input);
   const optionalFields = new Set(Object.keys(fields));
@@ -325,8 +347,7 @@ async function createExternalAction(input: CreateExternalActionDto): Promise<str
     }
 
     const message = await parseAirtableError(response);
-    const missingFieldMatch = message.match(/Unknown field name: "([^"]+)"/);
-    const missingField = missingFieldMatch?.[1];
+    const missingField = getRemovableFieldFromAirtableError(message);
 
     if (missingField && optionalFields.has(missingField) && missingField in nextFields) {
       const reduced: Record<string, unknown> = {};
@@ -359,8 +380,7 @@ async function updateExternalAction(input: UpdateExternalActionDto): Promise<voi
     if (response.ok) return;
 
     const message = await parseAirtableError(response);
-    const missingFieldMatch = message.match(/Unknown field name: "([^"]+)"/);
-    const missingField = missingFieldMatch?.[1];
+    const missingField = getRemovableFieldFromAirtableError(message);
 
     if (missingField && optionalFields.has(missingField) && missingField in nextFields) {
       const reduced: Record<string, unknown> = {};

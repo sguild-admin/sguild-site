@@ -4,6 +4,7 @@ import {
 import type { BillingAction } from "@/lib/types/billing";
 import type {
   ApplyInvoicePaymentRequest,
+  ApplyRefundToOrderRequest,
   GrantCreditsRequest,
   OpenOrderRequest,
   OrderBillingRequest,
@@ -259,4 +260,20 @@ export function parseGrantCreditsBody(body: unknown): GrantCreditsRequest {
     force: readBoolean(typed.force),
     idempotencyKey: readOptionalTrimmedString(typed.idempotencyKey),
   };
+}
+
+type ApplyRefundToOrderBody = {
+  recordId?: unknown;
+};
+
+export function parseApplyRefundToOrderBody(body: unknown): ApplyRefundToOrderRequest {
+  if (typeof body !== "object" || body == null || Array.isArray(body)) {
+    throw new SyncEndpointError("Invalid request body.", 400);
+  }
+
+  const typed = body as ApplyRefundToOrderBody;
+  const recordId = readOptionalTrimmedString(typed.recordId);
+  if (!recordId) throw new SyncEndpointError("Missing recordId.", 400);
+
+  return { recordId };
 }

@@ -1,5 +1,6 @@
 export {
   handleApplyInvoicePayment,
+  handleApplyRefundToOrder,
   handleSendInvoice,
   handleOpenOrder,
   handleProcessOrderBilling,
@@ -8,6 +9,8 @@ export {
 } from "./route";
 export {
   applyInvoicePaymentFailureFromError,
+  applyRefundToOrder,
+  applyRefundToOrderFailureFromError,
   sendInvoiceFailureFromError,
   failureFromError,
   runApplyInvoicePayment,
@@ -34,6 +37,9 @@ export type {
   ApplyInvoicePaymentFailureResponse,
   ApplyInvoicePaymentRequest,
   ApplyInvoicePaymentSuccessResponse,
+  ApplyRefundToOrderFailureResponse,
+  ApplyRefundToOrderRequest,
+  ApplyRefundToOrderSuccessResponse,
   OpenOrderRequest,
   OpenOrderResponse,
   OrderBillingRequest,

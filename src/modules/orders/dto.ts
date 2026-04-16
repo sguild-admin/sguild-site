@@ -223,3 +223,27 @@ export type BillingProcessErrorResponse = {
 };
 
 export type BillingProcessResponse = BillingProcessSuccessResponse | BillingProcessErrorResponse;
+
+export type ApplyRefundToOrderRequest = {
+  recordId: string;
+};
+
+export type ApplyRefundToOrderSuccessResponse = {
+  ok: true;
+  endpoint: "/api/orders/apply-refund";
+  recordId: string;
+  result: "succeeded" | "noop";
+  orderStatusBefore: string;
+  orderStatusAfter: string;
+  amountPaidBefore: number;
+  amountPaidAfter: number;
+  writebackStatus: "Succeeded" | "Failed";
+};
+
+export type ApplyRefundToOrderFailureResponse = {
+  ok: false;
+  endpoint: "/api/orders/apply-refund";
+  recordId: string;
+  stage: "validation" | "writeback";
+  error: string;
+};

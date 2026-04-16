@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { assertJsonRequest, parseJsonBody } from "@/lib/http/request";
 import { assertAuthorizedSyncRequest } from "@/modules/integrations";
-import { processRefundFailureFromError, runProcessRefund } from "./service";
+import {
+  processRefundExternalFailureFromError,
+  runProcessRefundExternal,
+} from "./service";
 
 export function methodNotAllowed(): NextResponse {
   return NextResponse.json(
@@ -10,7 +13,7 @@ export function methodNotAllowed(): NextResponse {
   );
 }
 
-export async function handleProcessRefund(request: Request): Promise<NextResponse> {
+export async function handleProcessRefundExternal(request: Request): Promise<NextResponse> {
   let recordId: string | null = null;
   try {
     assertAuthorizedSyncRequest(request);
@@ -21,10 +24,10 @@ export async function handleProcessRefund(request: Request): Promise<NextRespons
       recordId = typed.recordId.trim();
     }
 
-    const response = await runProcessRefund(body);
+    const response = await runProcessRefundExternal(body);
     return NextResponse.json(response, { status: 200 });
   } catch (error) {
-    const { status, body } = processRefundFailureFromError(error, recordId);
+    const { status, body } = processRefundExternalFailureFromError(error, recordId);
     return NextResponse.json(body, { status });
   }
 }

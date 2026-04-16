@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import {
   applyInvoicePaymentFailureFromError,
+  applyRefundToOrder,
+  applyRefundToOrderFailureFromError,
   assertAuthorizedOrderBillingRequest,
   failureFromError,
   runApplyInvoicePayment,
@@ -112,6 +114,24 @@ export async function handleApplyInvoicePayment(request: Request) {
     return NextResponse.json(response, { status: 200 });
   } catch (error) {
     const { status, body } = applyInvoicePaymentFailureFromError(error, recordId);
+    return NextResponse.json(body, { status });
+  }
+}
+
+export async function handleApplyRefundToOrder(request: Request) {
+  let recordId: string | null = null;
+  try {
+    assertAuthorizedOrderBillingRequest(request);
+    assertJsonRequest(request);
+    const body = await parseJsonBody(request);
+    const parsed = body as { recordId?: unknown };
+    if (typeof parsed.recordId === "string" && parsed.recordId.trim()) {
+      recordId = parsed.recordId.trim();
+    }
+    const response = await applyRefundToOrder(body);
+    return NextResponse.json(response, { status: 200 });
+  } catch (error) {
+    const { status, body } = applyRefundToOrderFailureFromError(error, recordId);
     return NextResponse.json(body, { status });
   }
 }

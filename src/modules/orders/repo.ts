@@ -24,6 +24,7 @@ import { clientSyncRepo } from "@/modules/clients";
 const ORDER_EXTERNALS_TABLE = airtableSchema.operations.tables.orderExternals;
 const EXTERNAL_ACTIONS_TABLE = airtableSchema.operations.tables.externalActions;
 const ORDERS_TABLE = airtableSchema.operations.tables.orders;
+const REFUNDS_TABLE = airtableSchema.operations.tables.refunds;
 const ORGANIZATIONS_TABLE = "Organizations";
 const INVOICES_TABLE = airtableSchema.operations.tables.invoices;
 const INVOICE_EXTERNALS_TABLE = airtableSchema.operations.tables.invoiceExternals;
@@ -35,6 +36,7 @@ const CLIENT_EXTERNALS_TABLE = airtableSchema.operations.tables.clientExternals;
 const CARD_EXTERNALS_TABLE = airtableSchema.operations.tables.cardExternals;
 const CLIENT_PROFILES_TABLE = airtableSchema.operations.tables.clientProfiles;
 const ORDER_FIELDS = airtableSchema.operations.fields.orders;
+const REFUND_FIELDS = airtableSchema.operations.fields.refunds;
 const ORDER_ITEM_FIELDS = airtableSchema.operations.fields.orderItems;
 const PROMOTION_REDEMPTION_FIELDS = airtableSchema.operations.fields.promotionRedemptions;
 const ORDER_EXTERNAL_FIELDS = airtableSchema.operations.fields.orderExternals;
@@ -169,6 +171,21 @@ export type CardExternalRecord = {
   recordId: string;
   externalCardId: string | null;
   modifiedAt: string | null;
+};
+
+export type RefundApplyRecord = {
+  recordId: string;
+  status: string | null;
+  refundAmount: number | null;
+  orderId: string | null;
+};
+
+export type OrderApplyRefundRecord = {
+  recordId: string;
+  status: string | null;
+  total: number | null;
+  amountPaid: number | null;
+  orderItemsCompletedRefundAmount: number | null;
 };
 
 export type InvoiceExternalRecord = {
@@ -619,6 +636,30 @@ async function findOrderExternalByExternalInvoiceId(
   if (!response.ok) {
     const message = await parseAirtableError(response);
     throw new SyncEndpointError(`Failed to find Order External by External Invoice ID: ${message}`, 502);
+  }
+
+  const body = (await response.json()) as { records?: AirtableRecord[] };
+  const record = body.records?.[0];
+  if (!record) return null;
+  return toOrderExternalRecord(record);
+}
+
+async function findOrderExternalByExternalPaymentId(
+  externalPaymentId: string,
+): Promise<OrderExternalRecord | null> {
+  const escaped = escapeAirtableFormulaString(externalPaymentId);
+  const params = new URLSearchParams({
+    pageSize: "1",
+    filterByFormula: `{External Payment ID}='${escaped}'`,
+  });
+
+  const response = await airtableRequest(
+    `${encodeURIComponent(ORDER_EXTERNALS_TABLE)}?${params.toString()}`,
+    { method: "GET" },
+  );
+  if (!response.ok) {
+    const message = await parseAirtableError(response);
+    throw new SyncEndpointError(`Failed to find Order External by External Payment ID: ${message}`, 502);
   }
 
   const body = (await response.json()) as { records?: AirtableRecord[] };
@@ -2586,6 +2627,29 @@ async function updateOrderExternal(
   }
 }
 
+async function getRefundApplyRecord(refundRecordId: string): Promise<RefundApplyRecord> {
+  const record = await getRecord(REFUNDS_TABLE, refundRecordId, "Refund");
+  const fields = record.fields ?? {};
+  return {
+    recordId: record.id,
+    status: readString(fields[REFUND_FIELDS.status]),
+    refundAmount: readNumber(fields[REFUND_FIELDS.refundAmount]),
+    orderId: readFirstLinkedId(fields[REFUND_FIELDS.order]),
+  };
+}
+
+async function getOrderApplyRefundRecord(orderRecordId: string): Promise<OrderApplyRefundRecord> {
+  const record = await getRecord(ORDERS_TABLE, orderRecordId, "Order");
+  const fields = record.fields ?? {};
+  return {
+    recordId: record.id,
+    status: readString(fields[ORDER_FIELDS.status]),
+    total: readNumber(fields[ORDER_FIELDS.total]),
+    amountPaid: readNumber(fields[ORDER_FIELDS.amountPaid]),
+    orderItemsCompletedRefundAmount: readNumber(fields[ORDER_FIELDS.orderItemsCompletedRefundAmount]),
+  };
+}
+
 async function updateOrderBillingStatus(
   orderRecordId: string,
   billingStatus:
@@ -2750,6 +2814,8 @@ function validateOrdersSecret(request: Request): void {
 export const ordersRepo = {
   getOrderRecord,
   getOrderSendInvoiceRecord,
+  getRefundApplyRecord,
+  getOrderApplyRefundRecord,
   getOrderResolveLifecycleRecord,
   getOrderOpenRecord,
   getOrderExternalRecord,
@@ -2760,6 +2826,7 @@ export const ordersRepo = {
   getClientIdFromClientProfile,
   getClientExternalRecord,
   findOrderExternalByExternalInvoiceId,
+  findOrderExternalByExternalPaymentId,
   findOrderExternalByExternalOrderId,
   findClientExternalByContext,
   listClientExternalsByContext,

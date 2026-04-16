@@ -1,0 +1,57 @@
+
+> sguild-site@0.1.0 dev
+> next dev --turbopack --port 3000
+
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.247:3000
+- Environments: .env.local
+
+✓ Starting...
+✓ Ready in 1509ms
+ GET /api/orders/apply-refund 405 in 990ms (compile: 954ms, render: 36ms)
+ POST /api/orders/apply-refund 409 in 450ms (compile: 17ms, render: 433ms)
+ POST /api/refunds/process 200 in 7.4s (compile: 119ms, render: 7.3s)
+ POST /api/orders/apply-refund 409 in 668ms (compile: 198ms, render: 470ms)
+ POST /api/orders/apply-refund 409 in 435ms (compile: 15ms, render: 419ms)
+ POST /api/orders/apply-refund 200 in 701ms (compile: 11ms, render: 690ms)
+ POST /api/orders/apply-refund 200 in 836ms (compile: 8ms, render: 828ms)
+ POST /api/orders/apply-refund 200 in 748ms (compile: 7ms, render: 741ms)
+ POST /api/refunds/process 200 in 7.3s (compile: 281ms, render: 7.0s)
+ POST /api/refunds/process 200 in 3.2s (compile: 130ms, render: 3.1s)
+ POST /api/refunds/process 200 in 7.6s (compile: 16ms, render: 7.5s)
+ POST /api/refunds/process 200 in 8.0s (compile: 314ms, render: 7.7s)
+ POST /api/refunds/process 200 in 7.6s (compile: 13ms, render: 7.6s)
+ POST /api/refunds/process 200 in 3.1s (compile: 14ms, render: 3.0s)
+[OPEN_ORDER] Opening order: recQKyVJA5wZEaRid
+[GET_ORDER_OPEN_RECORD] Order recQKyVJA5wZEaRid: readyToOpen field value = undefined, parsed = false
+[GET_ORDER_OPEN_RECORD] Order recQKyVJA5wZEaRid: openingRequested field value = true, parsed = true
+[OPEN_ORDER] Order status: Draft, readyToOpen: false, openingRequested: true
+[OPEN_ORDER] Ready to proceed: force=false, readyToOpen=false, openingRequested=true
+[OPEN_ORDER] Found 1 order items
+[OPEN_ORDER] All validations passed, updating order status to Open
+[OPEN_ORDER] Item recaukpi5t126ATbS: status=Draft, readyToActivate=true
+[OPEN_ORDER] Activating item recaukpi5t126ATbS
+[UPDATE_ORDER_ITEM_STATUS] Setting item recaukpi5t126ATbS to status: Active
+[UPDATE_ORDER_ITEM_STATUS] Successfully updated item recaukpi5t126ATbS to Active
+[OPEN_ORDER] Complete: activated=1, skipped=0
+ POST /api/orders/open 200 in 2.4s (compile: 263ms, render: 2.1s)
+ POST /api/orders/send-invoice 200 in 9.2s (compile: 175ms, render: 9.1s)
+[GRANT_CREDITS] Trying formula with field: Order
+[GRANT_CREDITS] Trying formula with field: Orders
+[GRANT_CREDITS] Trying formula with field: Parent Order
+[GRANT_CREDITS] Using fallback scan for Order ID: recQKyVJA5wZEaRid
+[GRANT_CREDITS] Fallback found match: Order Item recaukpi5t126ATbS
+[GRANT_CREDITS] Fallback complete: scanned 12 total items, found 1 matches
+[GRANT_CREDITS] Looking for Credit Account for Client Profile: recB5vhnMOo6pYmQp
+[GRANT_CREDITS] Trying formula with field: Client Profile
+[GRANT_CREDITS] Trying formula with field: Client Profiles
+[GRANT_CREDITS] Field Client Profiles not found, trying next...
+[GRANT_CREDITS] Trying formula with field: Profile
+[GRANT_CREDITS] Field Profile not found, trying next...
+[GRANT_CREDITS] Using fallback scan for Credit Accounts
+[GRANT_CREDITS] Fallback found Credit Account: recvxqh0tXZwUAvRY
+[GRANT_CREDITS] Credit Account status: Active
+ POST /api/orders/grant-credits 200 in 2.3s (compile: 111ms, render: 2.2s)
+ POST /api/refunds/process 200 in 6.6s (compile: 7ms, render: 6.6s)
+[?25h
