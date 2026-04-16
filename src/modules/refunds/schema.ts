@@ -3,7 +3,7 @@ import { SyncEndpointError } from "@/lib/errors";
 import type { ProcessRefundRequestDto } from "./dto";
 
 export function parseRefundWebhookEvent(input: ProcessRefundWebhookEventInput): RefundEvent {
-  if (input.eventType !== "invoice.refunded" && input.eventType !== "refund.updated") {
+  if (input.eventType !== "refund.updated") {
     throw new Error("Unsupported refund event type.");
   }
 

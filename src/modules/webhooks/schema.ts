@@ -10,7 +10,6 @@ import type {
 export const SUPPORTED_SQUARE_WEBHOOK_EVENTS = new Set([
   "invoice.payment_made",
   "invoice.canceled",
-  "invoice.refunded",
   "refund.updated",
 ]);
 

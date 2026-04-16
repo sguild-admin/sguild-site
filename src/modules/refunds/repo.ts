@@ -5,7 +5,7 @@ import { SyncEndpointError } from "@/lib/errors";
 
 export async function markInvoiceExternalRefundSignals(input: {
   invoiceExternalRecordId: string;
-  eventType: "invoice.refunded" | "refund.updated";
+  eventType: "refund.updated";
   providerEventId: string;
   payloadJson: string;
 }) {

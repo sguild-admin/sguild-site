@@ -520,14 +520,14 @@ async function upsertSquareInboundExternalAction(input: {
     readAtPath(input.payload, ["data", "object", "invoice", "order_id"]) ??
     readAtPath(input.payload, ["data", "object", "order", "id"]);
   const providerReferenceId = (
-    input.eventType === "refund.updated" || input.eventType === "invoice.refunded"
+    input.eventType === "refund.updated"
   )
     ? input.providerEventId
     : (externalInvoiceId ?? externalOrderId ?? input.providerEventId);
   // Refund events own a Refund External, not an Order External, so use "Refund" for those.
   // Invoice/payment events are applied through Order Externals so they stay "Order".
   const externalEntityType = (
-    input.eventType === "refund.updated" || input.eventType === "invoice.refunded"
+    input.eventType === "refund.updated"
   ) ? "Refund" as const : "Order" as const;
 
   if (existing) {
@@ -776,10 +776,7 @@ async function ingestSquareEvent(input: {
         idempotencyKey: `apply-invoice-payment|Square|${identity.providerEventId}`,
         providerEvent,
       });
-    } else if (
-      identity.eventType === "refund.updated" ||
-      identity.eventType === "invoice.refunded"
-    ) {
+    } else if (identity.eventType === "refund.updated") {
       await runRefundWebhookWriteback({
         payload: input.payload,
         occurredAt: identity.occurredAt,
@@ -797,8 +794,7 @@ async function ingestSquareEvent(input: {
     if (
       externalActionRecordId &&
       identity.eventType !== "invoice.payment_made" &&
-      identity.eventType !== "refund.updated" &&
-      identity.eventType !== "invoice.refunded"
+      identity.eventType !== "refund.updated"
     ) {
       await webhooksIngestRepo.updateExternalAction(externalActionRecordId, {
         status: "Succeeded",
@@ -834,8 +830,7 @@ async function ingestSquareEvent(input: {
       const nowIso = new Date().toISOString();
       if (
         identity.eventType === "invoice.payment_made" ||
-        identity.eventType === "refund.updated" ||
-        identity.eventType === "invoice.refunded"
+        identity.eventType === "refund.updated"
       ) {
         // Scalar fields only — no linked records to avoid table-mismatch blocking the status write.
         try {
@@ -1226,10 +1221,7 @@ export async function backfillExternalActionsFromWebhookEvents(
               idempotencyKey: `apply-invoice-payment|Square|${event.providerEventId}`,
               providerEvent,
             });
-          } else if (
-            event.eventType === "refund.updated" ||
-            event.eventType === "invoice.refunded"
-          ) {
+          } else if (event.eventType === "refund.updated") {
             // Inbound EA writeback fields are set inside runRefundWebhookWriteback.
             await runRefundWebhookWriteback({
               payload,

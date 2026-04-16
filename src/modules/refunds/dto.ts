@@ -8,7 +8,7 @@ export type ProcessRefundWebhookEventInput = {
 
 export type RefundEvent = {
   provider: "Square";
-  eventType: "invoice.refunded" | "refund.updated";
+  eventType: "refund.updated";
   providerEventId: string;
   merchantId: string | null;
   occurredAt: string | null;
