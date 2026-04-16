@@ -3,13 +3,20 @@ import type { LeadRequestBody, Utms } from "./dto";
 
 const LESSON_LOCATIONS = new Set([
   "Home Pool",
+  "Condo or Community Pool",
+  "Condo/Public Pool",
   "Condo/Public Pool (I have access)",
+  "Condo/Public Pool (Access Required)",
+  "Ocean / Open Water",
   "Open Water (Ocean)",
+  "Ocean",
 ]);
-const LESSON_FOR_OPTIONS = new Set(["Adult", "Child"]);
+const LESSON_FOR_OPTIONS = new Set(["Adults", "Adult", "Kids", "Child", "Mixed Ages"]);
 const LESSON_TIMELINES = new Set([
   "Within the Next 2 Weeks",
   "Within the Next Month",
+  "This summer",
+  "This Summer",
   "This Spring/Summer",
   "Just Exploring Options",
 ]);
@@ -96,17 +103,24 @@ export function normalizeLeadFields(input: LeadRequestBody) {
   const lessonSetting =
     input.lessonLocation === "Home Pool"
       ? "home_pool"
-      : input.lessonLocation === "Condo/Public Pool (I have access)"
+      : input.lessonLocation === "Condo or Community Pool" ||
+          input.lessonLocation === "Condo/Public Pool" ||
+          input.lessonLocation === "Condo/Public Pool (I have access)" ||
+          input.lessonLocation === "Condo/Public Pool (Access Required)"
         ? "public_pool"
-        : input.lessonLocation === "Open Water (Ocean)"
+        : input.lessonLocation === "Ocean / Open Water" ||
+            input.lessonLocation === "Open Water (Ocean)" ||
+            input.lessonLocation === "Ocean"
           ? "open_water"
           : input.lessonLocation!.toLowerCase().replace(/\s+/g, "_");
 
   const ageGroup =
-    input.lessonFor === "Adult"
+    input.lessonFor === "Adults" || input.lessonFor === "Adult"
       ? "adult"
-      : input.lessonFor === "Child"
+      : input.lessonFor === "Kids" || input.lessonFor === "Child"
         ? "child"
+        : input.lessonFor === "Mixed Ages"
+          ? "mixed_ages"
         : input.lessonFor!.toLowerCase().replace(/\s+/g, "_");
 
   const startTimeline =
@@ -114,7 +128,9 @@ export function normalizeLeadFields(input: LeadRequestBody) {
       ? "2_weeks"
       : input.lessonTimeline === "Within the Next Month"
         ? "1_month"
-        : input.lessonTimeline === "This Spring/Summer"
+        : input.lessonTimeline === "This summer" ||
+            input.lessonTimeline === "This Summer" ||
+            input.lessonTimeline === "This Spring/Summer"
           ? "spring_summer"
           : input.lessonTimeline === "Just Exploring Options"
             ? "unsure"
