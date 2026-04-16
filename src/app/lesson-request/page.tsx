@@ -360,8 +360,8 @@ export default function LessonRequestPage() {
     <PageContainer className="!bg-slate-100">
       <section className="mx-auto max-w-xl px-4 py-6 md:py-10">
         <div className="space-y-1">
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-700 md:text-[2.1rem]">
-            Check Availability
+          <h1 className="font-['Inter'] text-3xl font-extrabold tracking-tight text-slate-900 md:text-[2.1rem]">
+            Request Lessons
           </h1>
           <p className="font-sf-pro text-sm text-slate-500">
             Tell us what you&apos;re looking for and we&apos;ll help you get started.
@@ -554,7 +554,7 @@ export default function LessonRequestPage() {
                 <fieldset ref={contactRef} disabled={isSubmitting}>
                   <div className="space-y-2">
                     <legend className="text-lg font-semibold tracking-tight text-slate-800">
-                      Your Contact Information
+                      Check Availability
                     </legend>
                     <p className="max-w-2xl font-sf-pro text-sm text-slate-400">
                       We&apos;ll reach out to schedule your first lesson - no commitment required.
