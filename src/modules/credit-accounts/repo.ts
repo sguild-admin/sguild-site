@@ -2,7 +2,6 @@ import { airtableSchema } from "@/config/airtable-schema";
 import { SyncEndpointError } from "@/lib/errors";
 import {
   airtableRequest,
-  escapeAirtableFormulaString,
   parseAirtableError,
 } from "@/lib/airtable/client";
 import type { CreditAccountRecordDto, CreditAccountStatus } from "./dto";
@@ -63,6 +62,18 @@ function readFirstLinkedId(value: unknown): string | null {
   if (!Array.isArray(value) || value.length === 0) return null;
   const first = value[0];
   return typeof first === "string" && first.trim().length > 0 ? first.trim() : null;
+}
+
+function readLinkedIds(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const ids: string[] = [];
+  for (const item of value) {
+    if (typeof item === "string") {
+      const trimmed = item.trim();
+      if (trimmed) ids.push(trimmed);
+    }
+  }
+  return ids;
 }
 
 function readFirstLinkedIdFromFields(
@@ -134,23 +145,32 @@ export async function getClientProfileIdentity(
 export async function findCreditAccountByProfile(
   clientProfileRecordId: string,
 ): Promise<CreditAccountRecordDto | null> {
-  const escaped = escapeAirtableFormulaString(clientProfileRecordId);
-  const params = new URLSearchParams({
-    maxRecords: "2",
-    filterByFormula: `FIND('${escaped}', ARRAYJOIN({Client Profile}))`,
-  });
+  let offset: string | undefined;
+  const rows: CreditAccountRecordDto[] = [];
 
-  const response = await airtableRequest(
-    `${encodeURIComponent(CREDIT_ACCOUNTS_TABLE)}?${params.toString()}`,
-    { method: "GET" },
-  );
-  if (!response.ok) {
-    const message = await parseAirtableError(response);
-    throw new SyncEndpointError(`Failed to find Credit Account by Client Profile: ${message}`, 502);
-  }
+  do {
+    const params = new URLSearchParams({ pageSize: "100" });
+    if (offset) params.set("offset", offset);
 
-  const body = (await response.json()) as { records?: AirtableRecord[] };
-  const rows = (body.records ?? []).map((record) => toCreditAccountRecord(record));
+    const response = await airtableRequest(
+      `${encodeURIComponent(CREDIT_ACCOUNTS_TABLE)}?${params.toString()}`,
+      { method: "GET" },
+    );
+    if (!response.ok) {
+      const message = await parseAirtableError(response);
+      throw new SyncEndpointError(`Failed to find Credit Account by Client Profile: ${message}`, 502);
+    }
+
+    const body = (await response.json()) as { records?: AirtableRecord[]; offset?: string };
+    for (const record of body.records ?? []) {
+      const linkedProfiles = readLinkedIds(record.fields?.["Client Profile"]);
+      if (linkedProfiles.includes(clientProfileRecordId)) {
+        rows.push(toCreditAccountRecord(record));
+      }
+    }
+    offset = body.offset;
+  } while (offset);
+
   if (rows.length === 0) return null;
   if (rows.length > 1) {
     throw new SyncEndpointError(

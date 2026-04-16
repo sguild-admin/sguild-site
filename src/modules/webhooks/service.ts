@@ -272,69 +272,20 @@ async function runRefundWebhookWriteback(input: {
     payload: input.payload,
     occurredAt: input.occurredAt,
   });
-  let refundExternal = await refundExternalsRepo.findRefundExternalByExternalRefundId(
-    signal.externalRefundId ?? "",
-  );
   if (!signal.externalRefundId) {
-    refundExternal = null;
+    throw new SyncEndpointError(
+      "refund.updated payload is missing External Refund ID.",
+      422,
+    );
   }
-  if (!refundExternal) {
-    let matchedOrderExternalId = await resolveOrderExternalLinkFromSquareWebhook(input.payload);
-    if (!matchedOrderExternalId && signal.externalPaymentId) {
-      const matchedByPayment = await webhooksIngestRepo.findOrderExternalByExternalPaymentId(
-        signal.externalPaymentId,
-      );
-      matchedOrderExternalId = matchedByPayment?.recordId ?? null;
-    }
-    if (!matchedOrderExternalId && signal.externalOrderId) {
-      const matchedByOrder = await webhooksIngestRepo.findOrderExternalByExternalOrderId(
-        signal.externalOrderId,
-      );
-      matchedOrderExternalId = matchedByOrder?.recordId ?? null;
-    }
-    if (!matchedOrderExternalId && signal.externalInvoiceId) {
-      const matchedByInvoice = await webhooksIngestRepo.findOrderExternalByExternalInvoiceId(
-        signal.externalInvoiceId,
-      );
-      matchedOrderExternalId = matchedByInvoice?.recordId ?? null;
-    }
 
-    if (matchedOrderExternalId) {
-      const orderExternal = await ordersRepo.getOrderExternalRecord(matchedOrderExternalId);
-      if (orderExternal.orderId) {
-        const candidates = await refundExternalsRepo.listRefundExternalsByOrder(orderExternal.orderId);
-        const candidatePool = signal.externalRefundId
-          ? candidates.filter((row) => {
-              const syncStatus = (row.syncStatus ?? "").trim().toLowerCase();
-              const refundStatus = (row.refundStatus ?? "").trim().toLowerCase();
-              if (row.externalRefundId) return false;
-              if (syncStatus && syncStatus !== "pending" && syncStatus !== "failed") return false;
-              if (refundStatus && refundStatus !== "approved" && refundStatus !== "completed") return false;
-              return true;
-            })
-          : candidates;
-        const canonicalCandidates =
-          candidatePool.length === 1
-            ? candidatePool
-            : candidatePool.filter((row) => (row.refundStatus ?? "").trim().toLowerCase() === "approved");
-        const resolvedCandidates =
-          canonicalCandidates.length === 1 ? canonicalCandidates : candidatePool;
-        if (resolvedCandidates.length > 1) {
-          throw new SyncEndpointError(
-            `Multiple Refund Externals matched webhook context for ${signal.externalRefundId ?? signal.externalInvoiceId ?? signal.externalOrderId ?? "refund webhook"}.`,
-            409,
-          );
-        }
-        refundExternal = resolvedCandidates[0] ?? null;
-      }
-    }
-  }
+  const refundExternal = await refundExternalsRepo.findRefundExternalByExternalRefundId(
+    signal.externalRefundId,
+  );
 
   if (!refundExternal) {
     throw new SyncEndpointError(
-      signal.externalRefundId
-        ? `No Refund External found for External Refund ID ${signal.externalRefundId}.`
-        : "No Refund External found for refund webhook context.",
+      `No Refund External found for External Refund ID ${signal.externalRefundId}.`,
       409,
     );
   }
@@ -406,11 +357,27 @@ async function runRefundWebhookWriteback(input: {
     }
   }
 
+  const refundExternalWritebackAt = new Date().toISOString();
+  try {
+    await refundExternalsRepo.updateRefundExternalRecord(refundExternal.recordId, {
+      [airtableSchema.operations.fields.refundExternals.writebackStatus]:
+        writebackErrorMessage ? "Failed" : "Succeeded",
+      [airtableSchema.operations.fields.refundExternals.writebackAt]: refundExternalWritebackAt,
+      [airtableSchema.operations.fields.refundExternals.writebackError]:
+        writebackErrorMessage ?? "",
+    });
+  } catch (err) {
+    console.error("runRefundWebhookWriteback: failed to set writeback status on Refund External", {
+      refundExternalRecordId: refundExternal.recordId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+
   // Update the inbound External Action with writeback outcome.
   // Step 1: scalar writeback fields only — these are safe and must not be blocked by
   // linked-record operations, which can throw non-strippable table-mismatch errors.
   if (input.externalActionRecordId) {
-    const nowIso = new Date().toISOString();
+    const nowIso = refundExternalWritebackAt;
     try {
       await externalActionsRepo.updateExternalAction({
         recordId: input.externalActionRecordId,
