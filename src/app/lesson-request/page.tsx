@@ -427,7 +427,7 @@ export default function LessonRequestPage() {
                               onChange={() => selectLessonFor(option.value)}
                               className="sr-only"
                             />
-                            <div className="flex w-full items-start gap-3">
+                            <div className="flex w-full items-center gap-3 sm:items-start">
                               <span className={getChoiceIconClass(selected)}>
                                 <option.icon className="h-5 w-5" strokeWidth={2.25} />
                               </span>
