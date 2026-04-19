@@ -175,7 +175,7 @@ function toFields(input: CreateExternalActionInput | UpdateExternalActionInput):
   if (input.writebackError != null) fields["Writeback Error"] = input.writebackError;
   if (input.writebackRetryCount != null) fields["Writeback Retry Count"] = input.writebackRetryCount;
   if (input.writebackLastAttemptAt) fields["Writeback Last Attempt At"] = input.writebackLastAttemptAt;
-  if (input.orgIntegrationRecordId) fields["Org Integration"] = [input.orgIntegrationRecordId];
+  if (input.orgIntegrationRecordId) fields["Organization Integration"] = [input.orgIntegrationRecordId];
   if (input.providerAccountRecordId) fields["Provider Account"] = [input.providerAccountRecordId];
   if (input.orderExternalRecordId) fields["Order External"] = [input.orderExternalRecordId];
   if (input.invoiceExternalRecordId) fields["Invoice External"] = [input.invoiceExternalRecordId];

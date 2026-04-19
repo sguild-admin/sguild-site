@@ -7,7 +7,9 @@ import type {
   OrderExternalsResponseDto,
 } from "./dto";
 import { orderExternalsRepo } from "./repo";
-import { parseOrderExternalsRequestBody } from "./schema";
+import {
+  parseOrderExternalsRequestBody,
+} from "./schema";
 
 function toErrorResponse(
   error: unknown,
@@ -67,4 +69,3 @@ export async function handleOrderExternals(request: Request): Promise<NextRespon
     return NextResponse.json(body, { status });
   }
 }
-

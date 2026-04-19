@@ -30,6 +30,7 @@ export type SquareCustomerSyncResult = {
   squareGivenName: string | null;
   squareFamilyName: string | null;
   squareNickname: string | null;
+  rawProviderPayload: string | null;
 };
 
 export type SquareOrderItemInput = {

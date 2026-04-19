@@ -42,6 +42,7 @@ const PROMOTION_REDEMPTION_FIELDS = airtableSchema.operations.fields.promotionRe
 const ORDER_EXTERNAL_FIELDS = airtableSchema.operations.fields.orderExternals;
 const PROVIDER_ACCOUNT_FIELDS = airtableSchema.operations.fields.providerAccounts;
 const CLIENT_EXTERNAL_FIELDS = airtableSchema.operations.fields.clientExternals;
+const CARD_EXTERNAL_FIELDS = airtableSchema.operations.fields.cardExternals;
 const EXTERNAL_ACTION_FIELDS = airtableSchema.operations.fields.externalActions;
 
 type AirtableRecord = {
@@ -100,6 +101,7 @@ export type OrderSendInvoiceRecord = {
   hasException: boolean;
   orderedAt: string | null;
   modifiedAt: string | null;
+  orderExternalIds: string[];
 };
 
 export type InvoiceRecord = {
@@ -165,6 +167,21 @@ export type ExternalActionRecord = {
   attemptNumber: number;
   orderExternalId: string | null;
   providerAccountId: string | null;
+};
+
+export type OrderReadinessRecord = {
+  recordId: string;
+  status: string | null;
+  paymentCollectionMethod: string | null;
+  organizationId: string | null;
+  clientProfileId: string | null;
+  clientId: string | null;
+  readyForProviderAction: boolean;
+  hasException: boolean;
+  cardReadiness: string | null;
+  cardReadinessError: string | null;
+  invoiceReadiness: string | null;
+  invoiceReadinessError: string | null;
 };
 
 export type CardExternalRecord = {
@@ -452,27 +469,54 @@ function readOrderItemNetAmount(fields: Record<string, unknown>): number | null 
   );
 }
 
-function isEnabled(value: unknown): boolean {
-  if (value == null) return true;
+function readCardActiveState(value: unknown): boolean | null {
+  if (value == null) return null;
   if (typeof value === "boolean") return value;
   if (typeof value === "number") return value !== 0;
   if (typeof value === "string") {
     const normalized = value.trim().toLowerCase();
-    if (normalized === "") return true;
-    return normalized === "true" || normalized === "yes" || normalized === "enabled";
+    if (normalized === "") return null;
+    if (
+      normalized === "true" ||
+      normalized === "yes" ||
+      normalized === "enabled" ||
+      normalized === "active"
+    ) {
+      return true;
+    }
+    if (
+      normalized === "false" ||
+      normalized === "no" ||
+      normalized === "disabled" ||
+      normalized === "failed"
+    ) {
+      return false;
+    }
+    return null;
   }
   if (Array.isArray(value)) {
-    if (value.length === 0) return true;
-    return value.some((item) => isEnabled(item));
+    for (const item of value) {
+      const parsed = readCardActiveState(item);
+      if (parsed != null) return parsed;
+    }
+    return null;
   }
   if (typeof value === "object") {
     const asRecord = value as Record<string, unknown>;
     const name = readString(asRecord.name);
-    if (name) return isEnabled(name);
+    if (name) return readCardActiveState(name);
     const id = readString(asRecord.id);
     if (id) return true;
   }
-  return false;
+  return null;
+}
+
+function isActiveCardExternal(fields: Record<string, unknown>): boolean {
+  const active =
+    readCardActiveState(fields[CARD_EXTERNAL_FIELDS.status]) ??
+    readCardActiveState(fields[CARD_EXTERNAL_FIELDS.isActive]) ??
+    readCardActiveState(fields.Enabled);
+  return active ?? true;
 }
 
 function toOrderExternalRecord(record: AirtableRecord): OrderExternalRecord {
@@ -488,8 +532,7 @@ function toOrderExternalRecord(record: AirtableRecord): OrderExternalRecord {
       readFirstLinkedId(fields[ORDER_EXTERNAL_FIELDS.clientExternal]) ??
       readFirstLinkedId(fields["Client External"]),
     orgIntegrationId:
-      readFirstLinkedId(fields[ORDER_EXTERNAL_FIELDS.orgIntegration]) ??
-      readFirstLinkedId(fields["Org Integration"]),
+      readFirstLinkedId(fields[ORDER_EXTERNAL_FIELDS.orgIntegration]),
     providerAccountId:
       readFirstLinkedId(fields[ORDER_EXTERNAL_FIELDS.globalProviderAccount]) ??
       readFirstLinkedId(fields["Global Provider Account"]) ??
@@ -727,7 +770,56 @@ async function getOrderSendInvoiceRecord(recordId: string): Promise<OrderSendInv
     hasException: readFlag(fields[ORDER_FIELDS.hasException]),
     orderedAt: readString(fields[ORDER_FIELDS.orderedAt]),
     modifiedAt: readString(fields[ORDER_FIELDS.modifiedAt]),
+    orderExternalIds: readLinkedIds(fields[ORDER_FIELDS.orderExternal]),
   };
+}
+
+async function getOrderReadinessRecord(recordId: string): Promise<OrderReadinessRecord> {
+  const record = await getRecord(ORDERS_TABLE, recordId, "Order");
+  const fields = record.fields ?? {};
+
+  return {
+    recordId: record.id,
+    status: readString(fields[ORDER_FIELDS.status]),
+    paymentCollectionMethod: readString(fields[ORDER_FIELDS.paymentCollectionMethod]),
+    organizationId: readFirstLinkedId(fields[ORDER_FIELDS.organization]),
+    clientProfileId: readFirstLinkedId(fields[ORDER_FIELDS.clientProfile]),
+    clientId: readFirstLinkedId(fields[ORDER_FIELDS.client]),
+    readyForProviderAction: readFlag(fields[ORDER_FIELDS.readyForProviderAction]),
+    hasException: readFlag(fields[ORDER_FIELDS.hasException]),
+    cardReadiness: readString(fields[ORDER_FIELDS.cardReadiness]),
+    cardReadinessError: readString(fields[ORDER_FIELDS.cardReadinessError]),
+    invoiceReadiness: readString(fields[ORDER_FIELDS.invoiceReadiness]),
+    invoiceReadinessError: readString(fields[ORDER_FIELDS.invoiceReadinessError]),
+  };
+}
+
+async function updateOrderReadiness(input: {
+  orderRecordId: string;
+  cardReadiness?: string;
+  cardReadinessError?: string;
+  invoiceReadiness?: string;
+  invoiceReadinessError?: string;
+}): Promise<void> {
+  const fields: Record<string, unknown> = {};
+  if (input.cardReadiness != null) fields[ORDER_FIELDS.cardReadiness] = input.cardReadiness;
+  if (input.cardReadinessError != null) fields[ORDER_FIELDS.cardReadinessError] = input.cardReadinessError;
+  if (input.invoiceReadiness != null) fields[ORDER_FIELDS.invoiceReadiness] = input.invoiceReadiness;
+  if (input.invoiceReadinessError != null) fields[ORDER_FIELDS.invoiceReadinessError] = input.invoiceReadinessError;
+
+  if (Object.keys(fields).length === 0) return;
+
+  const response = await airtableRequest(
+    `${encodeURIComponent(ORDERS_TABLE)}/${encodeURIComponent(input.orderRecordId)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ fields }),
+    },
+  );
+  if (!response.ok) {
+    const message = await parseAirtableError(response);
+    throw new SyncEndpointError(`Failed to update Order readiness: ${message}`, 502);
+  }
 }
 
 async function getOrderResolveLifecycleRecord(recordId: string): Promise<OrderResolveLifecycleRecord> {
@@ -1130,7 +1222,7 @@ async function linkOrderExternalToInvoice(
 }
 
 async function getOrgIntegrationRecord(recordId: string): Promise<OrgIntegrationRecord> {
-  const record = await getRecord(ORG_INTEGRATIONS_TABLE, recordId, "Org Integration");
+  const record = await getRecord(ORG_INTEGRATIONS_TABLE, recordId, "Organization Integration");
   const fields = record.fields ?? {};
 
   return {
@@ -1153,12 +1245,8 @@ async function listOrgIntegrationsLinkedToOrganization(
   const fields = organization.fields ?? {};
 
   const preferredFieldNames = [
-    "Org Integration",
-    "Org Integrations",
     "Organization Integration",
     "Organization Integrations",
-    "Active Org Integration",
-    "Active Org Integrations",
   ];
 
   const candidateIds = new Set<string>();
@@ -1563,17 +1651,19 @@ async function findActiveCardExternalsByClientExternal(
     clientExternalRecordId,
     "Client External",
   );
-  const linkedCardExternalIds = readLinkedIds((clientExternal.fields ?? {})["Card Externals"]);
+  const linkedCardExternalIds = readLinkedIds(
+    (clientExternal.fields ?? {})[CLIENT_EXTERNAL_FIELDS.cardExternals],
+  );
 
   if (linkedCardExternalIds.length > 0) {
     for (const cardExternalId of linkedCardExternalIds) {
       const record = await getRecord(CARD_EXTERNALS_TABLE, cardExternalId, "Card External");
       const fields = record.fields ?? {};
-      if (!isEnabled(fields.Enabled)) continue;
+      if (!isActiveCardExternal(fields)) continue;
       rows.push({
         recordId: record.id,
-        externalCardId: readString(fields["External Card ID"]),
-        modifiedAt: readString(fields["Modified At"]),
+        externalCardId: readString(fields[CARD_EXTERNAL_FIELDS.externalCardId]),
+        modifiedAt: readString(fields[CARD_EXTERNAL_FIELDS.modifiedAt]),
       });
     }
   } else {
@@ -1605,11 +1695,11 @@ async function findActiveCardExternalsByClientExternal(
 
       for (const record of body.records ?? []) {
         const fields = record.fields ?? {};
-        if (!isEnabled(fields.Enabled)) continue;
+        if (!isActiveCardExternal(fields)) continue;
         rows.push({
           recordId: record.id,
-          externalCardId: readString(fields["External Card ID"]),
-          modifiedAt: readString(fields["Modified At"]),
+          externalCardId: readString(fields[CARD_EXTERNAL_FIELDS.externalCardId]),
+          modifiedAt: readString(fields[CARD_EXTERNAL_FIELDS.modifiedAt]),
         });
       }
 
@@ -2157,7 +2247,7 @@ function toInvoiceExternalRecord(record: AirtableRecord): InvoiceExternalRecord 
     recordId: record.id,
     invoiceId: readFirstLinkedId(fields.Invoice),
     orderId: readFirstLinkedId(fields.Order),
-    orgIntegrationId: readFirstLinkedId(fields["Org Integration"]),
+    orgIntegrationId: readFirstLinkedId(fields["Organization Integration"]),
     externalInvoiceId: readString(fields["External Invoice ID"]),
     externalOrderId: readString(fields["External Order ID"]),
     externalStatus: readString(fields["External Status"]),
@@ -2251,7 +2341,7 @@ async function getInvoiceExternalById(
 type InvoiceExternalWriteFields = {
   Invoice?: string[];
   Order?: string[];
-  "Org Integration"?: string[];
+  "Organization Integration"?: string[];
   "External Invoice ID"?: string;
   "External Order ID"?: string;
   "External Status"?: string;
@@ -2475,7 +2565,7 @@ async function listOrderExternalsByInvoice(
 }
 
 type OrderExternalWritebackFields = {
-  "Org Integration"?: string[];
+  "Organization Integration"?: string[];
   "Global Provider Account"?: string[];
   "Client External"?: string[];
   "External Actions"?: string[];
@@ -2561,7 +2651,7 @@ async function updateOrderExternal(
 ): Promise<void> {
   const path = `${encodeURIComponent(ORDER_EXTERNALS_TABLE)}/${encodeURIComponent(orderExternalRecordId)}`;
   const optionalFields = new Set([
-    "Org Integration",
+    "Organization Integration",
     "Global Provider Account",
     "Client External",
     "External Actions",
@@ -2849,6 +2939,8 @@ export const ordersRepo = {
   createOrderExternal,
   updateOrderExternal,
   writeOrderExternalFailure,
+  getOrderReadinessRecord,
+  updateOrderReadiness,
 };
 
 export const invoicesRepo = {

@@ -13,7 +13,7 @@ import {
   findInboundExternalActionByIdentity,
   updateExternalAction,
 } from "@/modules/integrations";
-import { classifyRetryability, inferErrorType } from "@/modules/external-actions";
+import { externalActionsRepo, classifyRetryability, inferErrorType } from "@/modules/external-actions";
 import { appendPurchaseCreditEntriesForOrder } from "@/modules/credit-ledger-entries";
 import type { BillingAction } from "@/lib/types/billing";
 import {
@@ -21,6 +21,9 @@ import {
   syncSquareCustomer,
 } from "@/lib/providers/square/customers";
 import { clientSyncRepo } from "@/modules/clients";
+import { orderExternalsRepo } from "@/modules/order-externals";
+import { createProviderCharge, getProviderPayment } from "@/modules/order-externals/adapter";
+import { runClientExternalSync } from "@/modules/clients";
 import type {
   BillingProcessExternalIds,
   BillingProcessErrorResponse,
@@ -31,6 +34,16 @@ import type {
   ApplyInvoicePaymentSuccessResponse,
   ApplyRefundToOrderFailureResponse,
   ApplyRefundToOrderSuccessResponse,
+  ChargeOrderFailureResponse,
+  ChargeOrderProviderResult,
+  ChargeOrderResponse,
+  ChargeOrderStage,
+  ChargeOrderSuccessResponse,
+  ChargeOrderWritebackStatus,
+  CheckProviderReadinessFailureResponse,
+  CheckProviderReadinessResponse,
+  ClientSyncStep,
+  ReadinessField,
   OpenOrderResponse,
   ApplyInvoicePaymentRequest,
   OrderBillingRequest,
@@ -41,6 +54,8 @@ import type {
 import {
   parseApplyInvoicePaymentBody,
   parseApplyRefundToOrderBody,
+  parseChargeOrderBody,
+  parseCheckProviderReadinessBody,
   parseOpenOrderBody,
   parseProcessOrderBillingBody,
   parseResolvePromotionRedemptionsBody,
@@ -847,7 +862,7 @@ export async function runOrderBillingProcessor(
             const createdInvoiceExternal = await invoicesRepo.createInvoiceExternal({
               Invoice: [recoveredInvoiceRecordId],
               Order: [request.orderRecordId],
-              "Org Integration": [request.orgIntegrationRecordId],
+              "Organization Integration": [request.orgIntegrationRecordId],
               "External Invoice ID": recoveredExternalInvoiceId,
               ...(createOrderResult.externalOrderId
                 ? { "External Order ID": createOrderResult.externalOrderId }
@@ -1244,7 +1259,7 @@ export async function runOrderBillingProcessor(
       const createdInvoiceExternal = await invoicesRepo.createInvoiceExternal({
         Invoice: [invoice.recordId],
         Order: [request.orderRecordId],
-        "Org Integration": [request.orgIntegrationRecordId],
+        "Organization Integration": [request.orgIntegrationRecordId],
         "External Invoice ID": resolvedExternalInvoiceId as string,
         ...(externalOrderIdForInvoice ? { "External Order ID": externalOrderIdForInvoice } : {}),
         "External Status": invoice.status ?? "Draft",
@@ -2494,7 +2509,7 @@ export async function runSendInvoice(body: unknown): Promise<SendInvoiceSuccessR
   if (!orderExternal) {
     orderExternal = await ordersRepo.createOrderExternal({
       Order: [order.recordId],
-      "Org Integration": [orgIntegrationRecordId],
+      "Organization Integration": [orgIntegrationRecordId],
       "Global Provider Account": [providerAccountRecordId],
       "Sync Status": "Pending",
       "Writeback Status": "Pending",
@@ -2524,7 +2539,7 @@ export async function runSendInvoice(body: unknown): Promise<SendInvoiceSuccessR
     }
     if (!orderExternal.orgIntegrationId || !orderExternal.providerAccountId) {
       await ordersRepo.updateOrderExternal(orderExternal.recordId, {
-        "Org Integration": [orgIntegrationRecordId],
+        "Organization Integration": [orgIntegrationRecordId],
         "Global Provider Account": [providerAccountRecordId],
       });
       orderExternal = {
@@ -3320,4 +3335,1144 @@ export async function applyRefundToOrder(
   throw new SyncEndpointError("Unexpected apply-refund-to-order control flow.", 500, {
     exposeMessage: false,
   });
+}
+
+// ---------------------------------------------------------------------------
+// Charge Order
+// ---------------------------------------------------------------------------
+
+const CHARGE_ENDPOINT = "/api/orders/charge" as const;
+
+type SyncEndpointErrorWithPayload = SyncEndpointError & {
+  rawPayload?: unknown;
+};
+
+class ChargeOrderError extends SyncEndpointError {
+  readonly stage: ChargeOrderStage;
+  readonly recordId: string;
+  readonly orderExternalRecordId?: string;
+  readonly crossedProviderBoundary: boolean;
+  readonly externalActionId?: string;
+
+  constructor(input: {
+    message: string;
+    status: number;
+    stage: ChargeOrderStage;
+    recordId: string;
+    orderExternalRecordId?: string;
+    crossedProviderBoundary: boolean;
+    externalActionId?: string;
+  }) {
+    super(input.message, input.status);
+    this.stage = input.stage;
+    this.recordId = input.recordId;
+    this.orderExternalRecordId = input.orderExternalRecordId;
+    this.crossedProviderBoundary = input.crossedProviderBoundary;
+    this.externalActionId = input.externalActionId;
+  }
+}
+
+function chargeNormalize(value: string | null | undefined): string {
+  return (value ?? "").trim().toLowerCase();
+}
+
+function isProviderAccountActive(status: string | null): boolean {
+  const normalized = chargeNormalize(status);
+  if (!normalized) return true;
+  return !["inactive", "disabled", "archived", "failed", "off"].includes(normalized);
+}
+
+function isLinkedRecordTableMismatchError(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return normalized.includes("belongs to table") && normalized.includes("field links to table");
+}
+
+function buildChargeIdempotencyKey(input: {
+  explicit: string | null;
+  recordId: string;
+  attemptNumber: number;
+}): string {
+  if (input.explicit) return input.explicit;
+  return `orders.charge:${input.recordId}:${input.attemptNumber}`;
+}
+
+function toMinorUnits(amount: number): number {
+  return Math.round(amount * 100);
+}
+
+const COMPLETED_STATUSES = new Set(["COMPLETED", "APPROVED"]);
+
+function readChargeRawPayload(error: unknown): string | undefined {
+  if (!(error instanceof SyncEndpointError)) return undefined;
+  const withPayload = error as SyncEndpointErrorWithPayload;
+  if (typeof withPayload.rawPayload === "string") return withPayload.rawPayload;
+  if (withPayload.rawPayload == null) return undefined;
+  try {
+    return JSON.stringify(withPayload.rawPayload);
+  } catch {
+    return String(withPayload.rawPayload);
+  }
+}
+
+function chargeSuccessResponse(input: {
+  recordId: string;
+  orderExternalRecordId: string;
+  crossedProviderBoundary: boolean;
+  providerResult: ChargeOrderProviderResult;
+  externalActionId: string;
+  externalPaymentId: string;
+  chargeAmountCents: number;
+  writebackStatus: ChargeOrderWritebackStatus;
+  idempotencyKey: string;
+}): ChargeOrderSuccessResponse {
+  return {
+    ok: true,
+    endpoint: CHARGE_ENDPOINT,
+    recordId: input.recordId,
+    orderExternalRecordId: input.orderExternalRecordId,
+    crossedProviderBoundary: input.crossedProviderBoundary,
+    providerResult: input.providerResult,
+    externalActionId: input.externalActionId,
+    externalPaymentId: input.externalPaymentId,
+    chargeAmountCents: input.chargeAmountCents,
+    writebackStatus: input.writebackStatus,
+    idempotencyKey: input.idempotencyKey,
+  };
+}
+
+async function createChargeExternalAction(input: {
+  orderExternalRecordId: string;
+  attemptNumber: number;
+  idempotencyKey: string;
+  force: boolean;
+  retryExternalActionId: string | null;
+  provider: string | null;
+  orgIntegrationRecordId: string | null;
+  providerAccountRecordId: string | null;
+}): Promise<string> {
+  const base = {
+    externalEntityType: "Order" as const,
+    actionType: "Create" as const,
+    direction: "Outbound" as const,
+    triggerSource: "Automation" as const,
+    occurredAt: new Date().toISOString(),
+    status: "Pending" as const,
+    attemptNumber: input.attemptNumber,
+    retryable: true,
+    provider: input.provider ?? undefined,
+    providerEventType: "Charge Order",
+    requestPayload: JSON.stringify({
+      orderExternalRecordId: input.orderExternalRecordId,
+      force: input.force,
+      retryExternalActionId: input.retryExternalActionId,
+      idempotencyKey: input.idempotencyKey,
+    }),
+    writebackStatus: "Pending" as const,
+    writebackLastAttemptAt: new Date().toISOString(),
+    orgIntegrationRecordId: input.orgIntegrationRecordId ?? undefined,
+    providerAccountRecordId: input.providerAccountRecordId ?? undefined,
+  };
+
+  try {
+    return await externalActionsRepo.createExternalAction({
+      ...base,
+      orderExternalRecordId: input.orderExternalRecordId,
+    });
+  } catch (error) {
+    if (
+      error instanceof SyncEndpointError &&
+      isLinkedRecordTableMismatchError(error.message)
+    ) {
+      return externalActionsRepo.createExternalAction(base);
+    }
+    throw error;
+  }
+}
+
+async function updateChargeExternalActionFailed(input: {
+  recordId: string;
+  message: string;
+  statusCode: number;
+  stage: ChargeOrderStage;
+  writebackStatus: "Not Started" | "Failed" | "Succeeded";
+  rawPayload?: string;
+  providerReferenceId?: string;
+  responsePayload?: string;
+}): Promise<void> {
+  const classification = classifyRetryability({
+    stage: input.stage,
+    httpStatus: input.statusCode,
+    errorType: inferErrorType(input.message),
+  });
+  const retryable = input.stage === "provider" ? true : classification.retryable;
+
+  await externalActionsRepo.updateExternalAction({
+    recordId: input.recordId,
+    status: input.stage === "writeback" ? "Succeeded" : "Failed",
+    occurredAt: new Date().toISOString(),
+    httpStatusCode: input.statusCode,
+    errorSummary: input.message,
+    retryable,
+    retryClassification: classification.classification,
+    providerReferenceId: input.providerReferenceId,
+    responsePayload: input.responsePayload,
+    rawProviderPayload: input.rawPayload,
+    writebackStatus: input.writebackStatus,
+    writebackError: input.writebackStatus === "Failed" ? input.message : "",
+    writebackLastAttemptAt: new Date().toISOString(),
+    ...(input.writebackStatus === "Succeeded"
+      ? { writebackSucceededAt: new Date().toISOString() }
+      : {}),
+  });
+}
+
+async function updateChargeExternalActionSucceeded(input: {
+  recordId: string;
+  providerReferenceId: string;
+  httpStatusCode: number;
+  responsePayload: string;
+  writebackStatus: "Succeeded" | "Failed";
+  writebackError?: string;
+}): Promise<void> {
+  await externalActionsRepo.updateExternalAction({
+    recordId: input.recordId,
+    status: "Succeeded",
+    occurredAt: new Date().toISOString(),
+    providerReferenceId: input.providerReferenceId,
+    httpStatusCode: input.httpStatusCode,
+    responsePayload: input.responsePayload,
+    rawProviderPayload: input.responsePayload,
+    retryable: false,
+    retryClassification: "Policy Failure",
+    writebackStatus: input.writebackStatus,
+    writebackError: input.writebackError ?? "",
+    writebackLastAttemptAt: new Date().toISOString(),
+    ...(input.writebackStatus === "Succeeded"
+      ? { writebackSucceededAt: new Date().toISOString() }
+      : {}),
+  });
+}
+
+function pickSingleClientExternalForCharge(
+  rows: Awaited<ReturnType<typeof ordersRepo.listClientExternalsByContext>>,
+): Awaited<ReturnType<typeof ordersRepo.listClientExternalsByContext>>[number] {
+  const usable = rows.filter(
+    (row) =>
+      chargeNormalize(row.status) === "active" &&
+      chargeNormalize(row.syncStatus) === "synced" &&
+      Boolean(row.externalCustomerId),
+  );
+
+  if (usable.length === 0) {
+    throw new SyncEndpointError(
+      "No active, synced Client External with External Customer ID found for this client and provider.",
+      422,
+    );
+  }
+  if (usable.length > 1) {
+    throw new SyncEndpointError(
+      "Multiple active Client Externals found for the same client and provider.",
+      409,
+    );
+  }
+  return usable[0];
+}
+
+function pickChargeCard(input: {
+  cards: Awaited<ReturnType<typeof ordersRepo.findActiveCardExternalsByClientExternal>>;
+  selectedExternalCardId: string | null;
+}): Awaited<ReturnType<typeof ordersRepo.findActiveCardExternalsByClientExternal>>[number] {
+  const usable = input.cards.filter((card) => Boolean(card.externalCardId));
+  if (usable.length === 0) {
+    throw new SyncEndpointError("No usable Card External found for charge.", 422);
+  }
+
+  if (input.selectedExternalCardId) {
+    const matched = usable.find((card) => card.externalCardId === input.selectedExternalCardId);
+    if (!matched) {
+      throw new SyncEndpointError(
+        "Card ID Snapshot does not match a usable Card External.",
+        422,
+      );
+    }
+    return matched;
+  }
+
+  return usable[0];
+}
+
+export function chargeOrderFailureFromError(
+  error: unknown,
+  fallbackRecordId: string | null,
+): { status: number; body: ChargeOrderFailureResponse } {
+  if (error instanceof ChargeOrderError) {
+    return {
+      status: error.status,
+      body: {
+        ok: false,
+        endpoint: CHARGE_ENDPOINT,
+        recordId: error.recordId,
+        ...(error.orderExternalRecordId ? { orderExternalRecordId: error.orderExternalRecordId } : {}),
+        crossedProviderBoundary: error.crossedProviderBoundary,
+        stage: error.stage,
+        error: error.message,
+        ...(error.externalActionId ? { externalActionId: error.externalActionId } : {}),
+      },
+    };
+  }
+
+  if (error instanceof SyncEndpointError) {
+    return {
+      status: error.status,
+      body: {
+        ok: false,
+        endpoint: CHARGE_ENDPOINT,
+        recordId: fallbackRecordId ?? "",
+        crossedProviderBoundary: false,
+        stage: error.status === 409 ? "ambiguity" : error.status >= 500 ? "writeback" : "validation",
+        error: error.exposeMessage ? error.message : "Unexpected server error.",
+      },
+    };
+  }
+
+  return {
+    status: 500,
+    body: {
+      ok: false,
+      endpoint: CHARGE_ENDPOINT,
+      recordId: fallbackRecordId ?? "",
+      crossedProviderBoundary: false,
+      stage: "validation",
+      error: error instanceof Error ? error.message : "Unexpected server error.",
+    },
+  };
+}
+
+export async function runChargeOrder(
+  body: unknown,
+): Promise<ChargeOrderResponse> {
+  const parsed = parseChargeOrderBody(body);
+  const orderRecordId = parsed.recordId;
+
+  // Resolve Order External from Order's backlink
+  const order = await ordersRepo.getOrderSendInvoiceRecord(orderRecordId);
+  const orderExternalIds = order.orderExternalIds ?? [];
+  if (orderExternalIds.length === 0) {
+    throw new SyncEndpointError("No Order External found for this Order.", 422);
+  }
+  if (orderExternalIds.length > 1) {
+    throw new SyncEndpointError("Multiple Order Externals found for this Order.", 409);
+  }
+  const orderExternal = await orderExternalsRepo.getOrderExternal(orderExternalIds[0]);
+  const orderExternalRecordId = orderExternal.recordId;
+
+  const attemptNumber =
+    (await externalActionsRepo.countExternalActionsByExternalLink({
+      externalLinkType: "Order External",
+      externalRecordId: orderExternalRecordId,
+      direction: "Outbound",
+    })) + 1;
+  const idempotencyKey = buildChargeIdempotencyKey({
+    explicit: parsed.idempotencyKey,
+    recordId: orderExternalRecordId,
+    attemptNumber,
+  });
+  const externalActionId = await createChargeExternalAction({
+    orderExternalRecordId,
+    attemptNumber,
+    idempotencyKey,
+    force: parsed.force,
+    retryExternalActionId: parsed.retryExternalActionId,
+    provider: orderExternal.provider,
+    orgIntegrationRecordId: orderExternal.orgIntegrationRecordId,
+    providerAccountRecordId: orderExternal.globalProviderAccountRecordId,
+  });
+  let externalActionFinalized = false;
+
+  const fail = (input: {
+    message: string;
+    status: number;
+    stage: ChargeOrderStage;
+    crossedProviderBoundary?: boolean;
+    externalActionId?: string;
+  }): never => {
+    throw new ChargeOrderError({
+      message: input.message,
+      status: input.status,
+      stage: input.stage,
+      recordId: orderRecordId,
+      orderExternalRecordId,
+      crossedProviderBoundary: input.crossedProviderBoundary ?? false,
+      externalActionId: input.externalActionId ?? externalActionId,
+    });
+  };
+
+  try {
+  let resolvedOrgIntegrationRecordId = orderExternal.orgIntegrationRecordId;
+  let resolvedProviderAccountRecordId = orderExternal.globalProviderAccountRecordId;
+
+  if (!resolvedOrgIntegrationRecordId) {
+    const organizationId = orderExternal.organizationRecordId;
+    if (organizationId) {
+      const linkedOrgIntegrations = await providerContextRepo.listOrgIntegrationsLinkedToOrganization(
+        organizationId,
+      );
+      const orgIntegrations =
+        linkedOrgIntegrations.length > 0
+          ? linkedOrgIntegrations
+          : await providerContextRepo.listOrgIntegrationsByOrganization(organizationId);
+
+      const pickedOrgIntegrationId = pickDeterministicOrgIntegration({
+        rows: orgIntegrations,
+        preferredProviderAccountId: resolvedProviderAccountRecordId,
+      });
+
+      if (!pickedOrgIntegrationId) {
+        fail({
+          message: "Unable to deterministically resolve Org Integration for this Order.",
+          status: 409,
+          stage: "ambiguity",
+        });
+      }
+
+      const resolvedOrgIntegration = await providerContextRepo.getOrgIntegrationRecord(
+        pickedOrgIntegrationId as string,
+      );
+      resolvedOrgIntegrationRecordId = resolvedOrgIntegration.recordId;
+      resolvedProviderAccountRecordId =
+        resolvedProviderAccountRecordId ?? resolvedOrgIntegration.providerAccountId;
+
+      await externalActionsRepo.updateExternalAction({
+        recordId: externalActionId,
+        provider: resolvedOrgIntegration.provider ?? undefined,
+        orgIntegrationRecordId: resolvedOrgIntegrationRecordId,
+        providerAccountRecordId: resolvedProviderAccountRecordId ?? undefined,
+      });
+    }
+  }
+
+  if (!resolvedOrgIntegrationRecordId) {
+    fail({
+      message: "Order External is missing Org Integration and it could not be resolved.",
+      status: 422,
+      stage: "validation",
+    });
+  }
+
+  if (orderExternal.canonicalOrgMismatch) {
+    fail({ message: "Order External has Canonical Org Mismatch.", status: 422, stage: "validation" });
+  }
+
+  if (orderExternal.syncStatus === "Synced" && orderExternal.externalPaymentId) {
+    await externalActionsRepo.updateExternalAction({
+      recordId: externalActionId,
+      status: "Ignored",
+      retryable: false,
+      retryClassification: "Policy Failure",
+      providerReferenceId: orderExternal.externalPaymentId ?? undefined,
+      responsePayload: JSON.stringify({
+        providerResult: "noop",
+        externalPaymentId: orderExternal.externalPaymentId,
+      }),
+      rawProviderPayload: JSON.stringify({
+        providerResult: "noop",
+        externalPaymentId: orderExternal.externalPaymentId,
+      }),
+      writebackStatus: "Succeeded",
+      writebackSucceededAt: new Date().toISOString(),
+      writebackLastAttemptAt: new Date().toISOString(),
+    });
+    externalActionFinalized = true;
+
+    // Fetch the payment status from the provider to get the source of truth.
+    const orgIntegration = await providerContextRepo.getOrgIntegrationRecord(
+      resolvedOrgIntegrationRecordId as string,
+    );
+    const providerContext = providerContextRepo.resolveSquareProviderContext(orgIntegration, "Charge");
+    const providerPayment = await getProviderPayment({
+      provider: orgIntegration.provider ?? "square",
+      context: providerContext,
+      externalPaymentId: orderExternal.externalPaymentId,
+    });
+
+    // Resync the Order External with fresh provider data.
+    await orderExternalsRepo.updateOrderExternal({
+      recordId: orderExternalRecordId,
+      syncStatus: "Synced",
+      writebackStatus: "Succeeded",
+      currentExternalStatus: providerPayment.status,
+      externalPaymentStatusSnapshot: providerPayment.status,
+      amountSnapshotCents: providerPayment.amountCents || (orderExternal.amountSnapshotCents ?? 0),
+      lastSyncedAt: new Date().toISOString(),
+      lastProviderActivityAt: providerPayment.completedAt ?? new Date().toISOString(),
+      writebackAt: new Date().toISOString(),
+      writebackError: "",
+      syncError: "",
+    });
+
+    // Update the Order canonical payment state based on the provider's payment status.
+    const chargeAmountCents = providerPayment.amountCents || (orderExternal.amountSnapshotCents ?? 0);
+    if (COMPLETED_STATUSES.has(providerPayment.status) && chargeNormalize(order.status) !== "paid") {
+      await ordersRepo.updateOrderCanonicalPayment({
+        orderRecordId: order.recordId,
+        amountPaid: (order.amountPaid ?? 0) + (chargeAmountCents / 100),
+        status: "Paid",
+        billingState: "Paid",
+        paidAt: providerPayment.completedAt ?? new Date().toISOString(),
+      });
+    }
+
+    return chargeSuccessResponse({
+      recordId: orderRecordId,
+      orderExternalRecordId,
+      crossedProviderBoundary: true,
+      providerResult: "noop",
+      externalActionId,
+      externalPaymentId: orderExternal.externalPaymentId,
+      chargeAmountCents,
+      writebackStatus: "Succeeded",
+      idempotencyKey,
+    });
+  }
+
+  if (orderExternal.syncStatus === "Synced" && !orderExternal.externalPaymentId) {
+    fail({
+      message: "Order External is Synced but missing External Payment ID.",
+      status: 409,
+      stage: "validation",
+    });
+  }
+
+  if (orderExternal.syncStatus !== "Pending" && orderExternal.syncStatus !== "Failed") {
+    fail({
+      message: 'Order External Sync Status must be "Pending" or "Failed" before charge.',
+      status: 422,
+      stage: "validation",
+    });
+  }
+
+  if (parsed.retryExternalActionId) {
+    const priorAction = await externalActionsRepo.getExternalAction(parsed.retryExternalActionId);
+    const linkedOrderExternalIds = priorAction.orderExternalRecordIds.length
+      ? priorAction.orderExternalRecordIds
+      : priorAction.orderExternalRecordId
+        ? [priorAction.orderExternalRecordId]
+        : [];
+    if (!linkedOrderExternalIds.includes(orderExternalRecordId)) {
+      fail({
+        message: "retryExternalActionId does not belong to this Order External.",
+        status: 409,
+        stage: "ambiguity",
+      });
+    }
+    if (priorAction.direction !== "Outbound") {
+      fail({ message: "retryExternalActionId must be outbound.", status: 422, stage: "validation" });
+    }
+    if (priorAction.status !== "Failed" && priorAction.writebackStatus !== "Failed") {
+      fail({
+        message: "retryExternalActionId must reference a failed action or writeback-failed action.",
+        status: 422,
+        stage: "validation",
+      });
+    }
+  }
+
+  if (chargeNormalize(order.status) !== "open") {
+    fail({ message: 'Order Status must be "Open".', status: 422, stage: "validation" });
+  }
+  if (chargeNormalize(order.paymentCollectionMethod) !== "card on file") {
+    fail({
+      message: 'Payment Collection Method must be "Card on File".',
+      status: 422,
+      stage: "validation",
+    });
+  }
+  if (typeof order.total !== "number" || !(order.total > 0)) {
+    fail({ message: "Order Total must be present and greater than 0.", status: 422, stage: "validation" });
+  }
+  const chargeAmount = order.total as number;
+
+  if ((order.balanceDue ?? (chargeAmount - (order.amountPaid ?? 0))) <= 0) {
+    fail({ message: "Nothing to charge. Order balance is already paid.", status: 422, stage: "validation" });
+  }
+  if (!order.currency) {
+    fail({ message: "Order Currency is required.", status: 422, stage: "validation" });
+  }
+
+  const resolvedClientId =
+    order.clientId ??
+    (order.clientProfileId
+      ? await ordersRepo.getClientIdFromClientProfile(order.clientProfileId)
+      : null);
+  if (!resolvedClientId) {
+    fail({ message: "Unable to resolve Client from Order.", status: 422, stage: "validation" });
+  }
+
+  const orgIntegration = await providerContextRepo.getOrgIntegrationRecord(
+    resolvedOrgIntegrationRecordId as string,
+  );
+  if (!orgIntegration.providerAccountId) {
+    fail({ message: "Org Integration is missing Provider Account.", status: 422, stage: "validation" });
+  }
+  if (
+    resolvedProviderAccountRecordId &&
+    orgIntegration.providerAccountId !== resolvedProviderAccountRecordId
+  ) {
+    fail({
+      message: "Org Integration Provider Account does not match Order External Global Provider Account.",
+      status: 422,
+      stage: "validation",
+    });
+  }
+
+  const providerAccount = await ordersRepo.getProviderAccountRecord(orgIntegration.providerAccountId as string);
+  if (!isProviderAccountActive(providerAccount.status)) {
+    fail({ message: "Provider Account must be active.", status: 422, stage: "validation" });
+  }
+  if (!providerAccount.apiCredentialAlias) {
+    fail({ message: "Provider Account is missing API Credential Alias.", status: 422, stage: "validation" });
+  }
+  if (!providerAccount.apiBaseUrl) {
+    fail({ message: "Provider Account is missing API Base URL.", status: 422, stage: "validation" });
+  }
+
+  const clientExternals = await ordersRepo.listClientExternalsByContext(
+    resolvedClientId as string,
+    providerAccount.recordId,
+  );
+  let resolvedClientExternal;
+  try {
+    resolvedClientExternal = pickSingleClientExternalForCharge(clientExternals);
+  } catch (error) {
+    if (error instanceof SyncEndpointError && error.status === 409) {
+      fail({ message: error.message, status: 409, stage: "ambiguity" });
+    }
+    throw error;
+  }
+
+  const cardExternals = await ordersRepo.findActiveCardExternalsByClientExternal(resolvedClientExternal.recordId);
+  let resolvedCardExternal;
+  try {
+    resolvedCardExternal = pickChargeCard({
+      cards: cardExternals,
+      selectedExternalCardId: orderExternal.cardIdSnapshot,
+    });
+  } catch (error) {
+    if (error instanceof SyncEndpointError && error.status === 409) {
+      fail({ message: error.message, status: 409, stage: "ambiguity" });
+    }
+    throw error;
+  }
+
+  await externalActionsRepo.updateExternalAction({
+    recordId: externalActionId,
+    provider: orgIntegration.provider ?? undefined,
+    orgIntegrationRecordId: resolvedOrgIntegrationRecordId ?? undefined,
+    providerAccountRecordId: providerAccount.recordId,
+  });
+
+  try {
+    await orderExternalsRepo.updateOrderExternal({
+      recordId: orderExternalRecordId,
+      syncStatus: "Pending",
+      syncError: "",
+    });
+  } catch (error) {
+    await updateChargeExternalActionFailed({
+      recordId: externalActionId,
+      message: error instanceof Error ? error.message : "Failed to mark Order External pending.",
+      statusCode: error instanceof SyncEndpointError ? error.status : 500,
+      stage: "writeback",
+      writebackStatus: "Failed",
+      rawPayload: readChargeRawPayload(error),
+    });
+    fail({
+      message: error instanceof Error ? error.message : "Failed to update Order External before provider call.",
+      status: error instanceof SyncEndpointError ? error.status : 500,
+      stage: "writeback",
+      externalActionId,
+    });
+  }
+
+  try {
+    await ordersRepo.updateOrderBillingState(order.recordId, "In Progress");
+  } catch (error) {
+    await updateChargeExternalActionFailed({
+      recordId: externalActionId,
+      message: error instanceof Error ? error.message : "Failed to update Order Billing State to In Progress.",
+      statusCode: error instanceof SyncEndpointError ? error.status : 500,
+      stage: "writeback",
+      writebackStatus: "Failed",
+      rawPayload: readChargeRawPayload(error),
+    });
+    fail({
+      message: error instanceof Error ? error.message : "Failed to update Order Billing State to In Progress.",
+      status: error instanceof SyncEndpointError ? error.status : 500,
+      stage: "writeback",
+      externalActionId,
+    });
+  }
+
+  const chargeAmountCents = toMinorUnits(chargeAmount);
+  const providerContext = providerContextRepo.resolveSquareProviderContext(orgIntegration, "Charge");
+
+  try {
+    const providerResult = await createProviderCharge({
+      provider: orgIntegration.provider ?? providerAccount.provider ?? "",
+      context: providerContext,
+      externalCustomerId: resolvedClientExternal.externalCustomerId as string,
+      externalCardId: resolvedCardExternal.externalCardId as string,
+      amount: chargeAmount,
+      currency: order.currency as string,
+      idempotencyKey,
+      referenceId: orderExternalRecordId,
+      note: `Charge Order ${orderRecordId}`,
+    });
+
+    try {
+      await orderExternalsRepo.updateOrderExternal({
+        recordId: orderExternalRecordId,
+        orgIntegrationRecordId: resolvedOrgIntegrationRecordId ?? undefined,
+        clientExternalRecordId: resolvedClientExternal.recordId,
+        globalProviderAccountRecordId: providerAccount.recordId,
+        syncStatus: "Synced",
+        writebackStatus: "Succeeded",
+        externalPaymentId: providerResult.externalPaymentId,
+        externalOrderId: providerResult.externalOrderId ?? undefined,
+        currentExternalStatus: providerResult.externalStatus,
+        externalPaymentStatusSnapshot: providerResult.externalStatus,
+        customerIdSnapshot: resolvedClientExternal.externalCustomerId ?? undefined,
+        cardIdSnapshot: resolvedCardExternal.externalCardId ?? undefined,
+        amountSnapshotCents: chargeAmountCents,
+        lastSyncedAt: new Date().toISOString(),
+        lastProviderActivityAt: providerResult.activityAt ?? new Date().toISOString(),
+        writebackAt: new Date().toISOString(),
+        writebackError: "",
+        syncError: "",
+        rawPayloadSnapshot: providerResult.responsePayload,
+      });
+
+      await updateChargeExternalActionSucceeded({
+        recordId: externalActionId,
+        providerReferenceId: providerResult.providerReferenceId,
+        httpStatusCode: providerResult.httpStatusCode,
+        responsePayload: providerResult.responsePayload,
+        writebackStatus: "Succeeded",
+      });
+      externalActionFinalized = true;
+    } catch (error) {
+      await updateChargeExternalActionSucceeded({
+        recordId: externalActionId,
+        providerReferenceId: providerResult.providerReferenceId,
+        httpStatusCode: providerResult.httpStatusCode,
+        responsePayload: providerResult.responsePayload,
+        writebackStatus: "Failed",
+        writebackError: error instanceof Error ? error.message : "Failed to write provider success back to Airtable.",
+      });
+      externalActionFinalized = true;
+      fail({
+        message: error instanceof Error ? error.message : "Failed to write provider success back to Airtable.",
+        status: error instanceof SyncEndpointError ? error.status : 500,
+        stage: "writeback",
+        crossedProviderBoundary: true,
+        externalActionId,
+      });
+    }
+
+    // Update Order canonical payment state from the provider's immediate response.
+    if (COMPLETED_STATUSES.has(providerResult.externalStatus)) {
+      await ordersRepo.updateOrderCanonicalPayment({
+        orderRecordId: order.recordId,
+        amountPaid: (order.amountPaid ?? 0) + chargeAmount,
+        status: "Paid",
+        billingState: "Paid",
+        paidAt: providerResult.activityAt ?? new Date().toISOString(),
+      });
+    }
+
+    return chargeSuccessResponse({
+      recordId: orderRecordId,
+      orderExternalRecordId,
+      crossedProviderBoundary: true,
+      providerResult: providerResult.result,
+      externalActionId,
+      externalPaymentId: providerResult.externalPaymentId,
+      chargeAmountCents,
+      writebackStatus: "Succeeded",
+      idempotencyKey,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Provider charge failed.";
+    const statusCode = error instanceof SyncEndpointError ? error.status : 502;
+    const rawPayload = readChargeRawPayload(error);
+
+    try {
+      await orderExternalsRepo.updateOrderExternal({
+        recordId: orderExternalRecordId,
+        syncStatus: "Failed",
+        syncError: message,
+        lastProviderActivityAt: new Date().toISOString(),
+        writebackStatus: "Not Started",
+      });
+      await updateChargeExternalActionFailed({
+        recordId: externalActionId,
+        message,
+        statusCode,
+        stage: "provider",
+        writebackStatus: "Not Started",
+        rawPayload,
+      });
+      externalActionFinalized = true;
+    } catch (writebackError) {
+      await updateChargeExternalActionFailed({
+        recordId: externalActionId,
+        message: writebackError instanceof Error ? writebackError.message : "Failed to write provider failure back to Airtable.",
+        statusCode: writebackError instanceof SyncEndpointError ? writebackError.status : 500,
+        stage: "writeback",
+        writebackStatus: "Failed",
+        rawPayload: readChargeRawPayload(writebackError),
+      });
+      externalActionFinalized = true;
+      fail({
+        message: writebackError instanceof Error ? writebackError.message : "Failed to write provider failure back to Airtable.",
+        status: writebackError instanceof SyncEndpointError ? writebackError.status : 500,
+        stage: "writeback",
+        crossedProviderBoundary: true,
+        externalActionId,
+      });
+    }
+
+    try {
+      await ordersRepo.updateOrderBillingState(order.recordId, "Needs Review");
+    } catch {
+      // Best effort secondary canonical control write.
+    }
+
+    fail({
+      message,
+      status: statusCode,
+      stage: statusCode === 409 ? "ambiguity" : "provider",
+      crossedProviderBoundary: true,
+      externalActionId,
+    });
+  }
+  } catch (error) {
+    if (
+      error instanceof ChargeOrderError &&
+      !externalActionFinalized &&
+      error.externalActionId
+    ) {
+      await updateChargeExternalActionFailed({
+        recordId: error.externalActionId,
+        message: error.message,
+        statusCode: error.status,
+        stage: error.stage,
+        writebackStatus: error.stage === "writeback" ? "Failed" : "Not Started",
+        rawPayload: readChargeRawPayload(error),
+      });
+      externalActionFinalized = true;
+    }
+    throw error;
+  }
+
+  throw new Error("Unreachable");
+}
+
+// ---------------------------------------------------------------------------
+// Check Provider Readiness
+// ---------------------------------------------------------------------------
+
+const CHECK_READINESS_ENDPOINT = "/api/orders/check-provider-readiness" as const;
+
+function readinessFailure(input: {
+  recordId: string;
+  crossedProviderBoundary: boolean;
+  stage: CheckProviderReadinessFailureResponse["stage"];
+  step: CheckProviderReadinessFailureResponse["step"];
+  error: string;
+}): CheckProviderReadinessFailureResponse {
+  return {
+    ok: false,
+    endpoint: CHECK_READINESS_ENDPOINT,
+    recordId: input.recordId,
+    crossedProviderBoundary: input.crossedProviderBoundary,
+    stage: input.stage,
+    step: input.step,
+    error: input.error,
+  };
+}
+
+export function checkProviderReadinessFailureFromError(
+  error: unknown,
+  fallbackRecordId: string | null,
+): { status: number; body: CheckProviderReadinessFailureResponse } {
+  if (error instanceof SyncEndpointError) {
+    return {
+      status: error.status,
+      body: {
+        ok: false,
+        endpoint: CHECK_READINESS_ENDPOINT,
+        recordId: fallbackRecordId ?? "",
+        crossedProviderBoundary: false,
+        stage: error.status === 409 ? "ambiguity" : error.status >= 500 ? "writeback" : "validation",
+        step: "readinessCheck",
+        error: error.exposeMessage ? error.message : "Unexpected server error.",
+      },
+    };
+  }
+
+  return {
+    status: 500,
+    body: {
+      ok: false,
+      endpoint: CHECK_READINESS_ENDPOINT,
+      recordId: fallbackRecordId ?? "",
+      crossedProviderBoundary: false,
+      stage: "validation",
+      step: "readinessCheck",
+      error: error instanceof Error ? error.message : "Unexpected server error.",
+    },
+  };
+}
+
+export async function runCheckProviderReadiness(
+  body: unknown,
+): Promise<CheckProviderReadinessResponse> {
+  const parsed = parseCheckProviderReadinessBody(body);
+  const recordId = parsed.recordId;
+
+  // 1. Load Order
+  const order = await ordersRepo.getOrderReadinessRecord(recordId);
+
+  // 2. Validate Order state
+  if ((order.status ?? "").trim().toLowerCase() !== "open") {
+    throw new SyncEndpointError('Order Status must be "Open".', 422);
+  }
+
+  const collectionMethod = (order.paymentCollectionMethod ?? "").trim();
+  const collectionMethodLower = collectionMethod.toLowerCase();
+  if (collectionMethodLower !== "card on file" && collectionMethodLower !== "invoice link") {
+    throw new SyncEndpointError(
+      'Payment Collection Method must be "Card on File" or "Invoice Link".',
+      422,
+    );
+  }
+
+  const isCardPath = collectionMethodLower === "card on file";
+  const readinessField: ReadinessField = isCardPath ? "Card Readiness" : "Invoice Readiness";
+
+  // 3. Check noop — already Ready and not forced
+  const currentReadiness = isCardPath ? order.cardReadiness : order.invoiceReadiness;
+  if (!parsed.force && currentReadiness === "Ready") {
+    return {
+      ok: true,
+      endpoint: CHECK_READINESS_ENDPOINT,
+      recordId,
+      result: "noop",
+      field: readinessField,
+      currentValue: "Ready",
+    };
+  }
+
+  // 4. Resolve Org Integration
+  const organizationId = order.organizationId;
+  if (!organizationId) {
+    throw new SyncEndpointError("Order is missing Organization.", 422);
+  }
+
+  const linkedOrgIntegrations = await providerContextRepo.listOrgIntegrationsLinkedToOrganization(organizationId);
+  const orgIntegrations =
+    linkedOrgIntegrations.length > 0
+      ? linkedOrgIntegrations
+      : await providerContextRepo.listOrgIntegrationsByOrganization(organizationId);
+
+  const pickedOrgIntegrationId = pickDeterministicOrgIntegration({
+    rows: orgIntegrations,
+  });
+
+  if (!pickedOrgIntegrationId) {
+    throw new SyncEndpointError(
+      "Unable to deterministically resolve Org Integration for this Order.",
+      409,
+    );
+  }
+
+  const orgIntegration = await providerContextRepo.getOrgIntegrationRecord(pickedOrgIntegrationId);
+  if (!orgIntegration.providerAccountId) {
+    throw new SyncEndpointError("Org Integration is missing Provider Account.", 422);
+  }
+
+  const providerAccount = await ordersRepo.getProviderAccountRecord(orgIntegration.providerAccountId);
+  if (!isProviderAccountActive(providerAccount.status)) {
+    throw new SyncEndpointError("Provider Account must be active.", 422);
+  }
+
+  // 5. Resolve Client
+  const resolvedClientId =
+    order.clientId ??
+    (order.clientProfileId
+      ? await ordersRepo.getClientIdFromClientProfile(order.clientProfileId)
+      : null);
+  if (!resolvedClientId) {
+    throw new SyncEndpointError("Unable to resolve Client from Order.", 422);
+  }
+
+  // 6. Find Client External
+  const clientExternals = await ordersRepo.listClientExternalsByContext(
+    resolvedClientId,
+    providerAccount.recordId,
+  );
+
+  if (clientExternals.length === 0) {
+    // No Client External — write Not Ready
+    const errorField = isCardPath ? "cardReadinessError" : "invoiceReadinessError";
+    const readinessKey = isCardPath ? "cardReadiness" : "invoiceReadiness";
+    await ordersRepo.updateOrderReadiness({
+      orderRecordId: recordId,
+      [readinessKey]: "Not Ready",
+      [errorField]: "No Client External",
+    });
+    return {
+      ok: true,
+      endpoint: CHECK_READINESS_ENDPOINT,
+      recordId,
+      crossedProviderBoundary: false,
+      steps: { clientSync: "skipped", readinessCheck: "Not Ready" },
+      field: readinessField,
+      result: "Not Ready",
+      error: null,
+      writebackStatus: "Succeeded",
+    };
+  }
+
+  if (clientExternals.length > 1) {
+    throw new SyncEndpointError(
+      "Multiple active Client Externals found for the same client and provider.",
+      409,
+    );
+  }
+
+  let clientExternal = clientExternals[0];
+  let crossedProviderBoundary = false;
+  let clientSyncStep: ClientSyncStep = "skipped";
+
+  // 7. Sync Client External if needed
+  const needsSync =
+    chargeNormalize(clientExternal.syncStatus) !== "synced" ||
+    !clientExternal.externalCustomerId;
+
+  if (needsSync) {
+    try {
+      await runClientExternalSync(clientExternal.recordId);
+      crossedProviderBoundary = true;
+      clientSyncStep = "succeeded";
+
+      // Re-fetch after sync
+      const refreshed = await ordersRepo.listClientExternalsByContext(
+        resolvedClientId,
+        providerAccount.recordId,
+      );
+      if (refreshed.length > 0) {
+        clientExternal = refreshed[0];
+      }
+    } catch {
+      // Sync failed — write Not Ready
+      const errorField = isCardPath ? "cardReadinessError" : "invoiceReadinessError";
+      const readinessKey = isCardPath ? "cardReadiness" : "invoiceReadiness";
+      await ordersRepo.updateOrderReadiness({
+        orderRecordId: recordId,
+        [readinessKey]: "Not Ready",
+        [errorField]: "Client External Sync Failed",
+      });
+      return readinessFailure({
+        recordId,
+        crossedProviderBoundary: true,
+        stage: "provider",
+        step: "clientSync",
+        error: "Client External Sync Failed",
+      });
+    }
+  } else {
+    clientSyncStep = "noop";
+  }
+
+  // 8. Determine readiness based on collection method
+  if (isCardPath) {
+    // Card on File: check for usable cards
+    const cardExternals = await ordersRepo.findActiveCardExternalsByClientExternal(clientExternal.recordId);
+    const usableCards = cardExternals.filter((card) => Boolean(card.externalCardId));
+
+    if (usableCards.length > 0) {
+      await ordersRepo.updateOrderReadiness({
+        orderRecordId: recordId,
+        cardReadiness: "Ready",
+        cardReadinessError: "",
+      });
+      return {
+        ok: true,
+        endpoint: CHECK_READINESS_ENDPOINT,
+        recordId,
+        crossedProviderBoundary,
+        steps: { clientSync: clientSyncStep, readinessCheck: "Ready" },
+        field: "Card Readiness",
+        result: "Ready",
+        error: null,
+        writebackStatus: "Succeeded",
+      };
+    } else {
+      await ordersRepo.updateOrderReadiness({
+        orderRecordId: recordId,
+        cardReadiness: "Not Ready",
+        cardReadinessError: "No Usable Card on File",
+      });
+      return {
+        ok: true,
+        endpoint: CHECK_READINESS_ENDPOINT,
+        recordId,
+        crossedProviderBoundary,
+        steps: { clientSync: clientSyncStep, readinessCheck: "Not Ready" },
+        field: "Card Readiness",
+        result: "Not Ready",
+        error: null,
+        writebackStatus: "Succeeded",
+      };
+    }
+  } else {
+    // Invoice Link: check for External Customer ID
+    if (clientExternal.externalCustomerId) {
+      await ordersRepo.updateOrderReadiness({
+        orderRecordId: recordId,
+        invoiceReadiness: "Ready",
+        invoiceReadinessError: "",
+      });
+      return {
+        ok: true,
+        endpoint: CHECK_READINESS_ENDPOINT,
+        recordId,
+        crossedProviderBoundary,
+        steps: { clientSync: clientSyncStep, readinessCheck: "Ready" },
+        field: "Invoice Readiness",
+        result: "Ready",
+        error: null,
+        writebackStatus: "Succeeded",
+      };
+    } else {
+      await ordersRepo.updateOrderReadiness({
+        orderRecordId: recordId,
+        invoiceReadiness: "Not Ready",
+        invoiceReadinessError: "Missing External Customer ID",
+      });
+      return {
+        ok: true,
+        endpoint: CHECK_READINESS_ENDPOINT,
+        recordId,
+        crossedProviderBoundary,
+        steps: { clientSync: clientSyncStep, readinessCheck: "Not Ready" },
+        field: "Invoice Readiness",
+        result: "Not Ready",
+        error: null,
+        writebackStatus: "Succeeded",
+      };
+    }
+  }
 }

@@ -82,7 +82,7 @@ async function reconcileOneInvoice(input: {
       const created = await invoicesRepo.createInvoiceExternal({
         Invoice: [input.invoiceId],
         Order: [input.orderRecordId],
-        "Org Integration": [input.orgIntegrationRecordId],
+        "Organization Integration": [input.orgIntegrationRecordId],
         "External Invoice ID": canonicalPick.externalInvoiceId,
         "External Status": canonicalDetails.status ?? "UNKNOWN",
         "Amount Due": 0,
@@ -242,7 +242,7 @@ export async function sendInvoice(body: unknown): Promise<SendInvoiceResponseDto
     invoiceExternal = await invoicesRepo.createInvoiceExternal({
       Invoice: [parsed.invoiceRecordId],
       Order: [resolvedOrderRecordId],
-      "Org Integration": [parsed.orgIntegrationRecordId],
+      "Organization Integration": [parsed.orgIntegrationRecordId],
       "External Invoice ID": externalInvoiceId,
       "External Status": "Draft",
       "Amount Due": invoice.amountDue ?? order.amountDue ?? 0,

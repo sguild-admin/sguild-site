@@ -257,9 +257,7 @@ function toRefundExternalProcessRecord(record: AirtableRecord): RefundExternalPr
       readFirstLinkedId(fields["Refund"]) ??
       readFirstLinkedId(fields["Refunds"]),
     orgIntegrationId:
-      readFirstLinkedId(fields[REFUND_EXTERNAL_FIELDS.orgIntegration]) ??
-      readFirstLinkedId(fields["Organization Integration"]) ??
-      readFirstLinkedId(fields["Org Integration"]),
+      readFirstLinkedId(fields[REFUND_EXTERNAL_FIELDS.orgIntegration]),
     provider: readString(fields[REFUND_EXTERNAL_FIELDS.provider]),
     providerAccountId: readFirstLinkedId(fields[REFUND_EXTERNAL_FIELDS.providerAccount]),
     organization: readString(fields[REFUND_EXTERNAL_FIELDS.organization]),
@@ -472,7 +470,7 @@ async function getOrderRecord(recordId: string): Promise<OrderRecord> {
 
 async function getOrgIntegrationRecord(recordId: string): Promise<OrgIntegrationRecord> {
   return toOrgIntegrationRecord(
-    await getRecord(ORG_INTEGRATIONS_TABLE, recordId, "Org Integration"),
+    await getRecord(ORG_INTEGRATIONS_TABLE, recordId, "Organization Integration"),
   );
 }
 
@@ -642,24 +640,12 @@ async function getRefundIdFromRefundExternalRecord(recordId: string): Promise<st
 
 async function updateRefundExternalRecord(recordId: string, fields: Record<string, unknown>): Promise<void> {
   const nextFields: Record<string, unknown> = { ...fields };
-  const orgIntegrationValue =
-    nextFields["Organization Integration"] ??
-    nextFields["Org Integration"] ??
-    nextFields[REFUND_EXTERNAL_FIELDS.orgIntegration];
-  if (orgIntegrationValue !== undefined) {
-    // Be tolerant to schema drift across environments.
-    nextFields["Organization Integration"] = orgIntegrationValue;
-    nextFields["Org Integration"] = orgIntegrationValue;
-  }
-
   await patchRecord(
     REFUND_EXTERNALS_TABLE,
     recordId,
     nextFields,
     new Set([
       REFUND_EXTERNAL_FIELDS.orgIntegration,
-      "Organization Integration",
-      "Org Integration",
       REFUND_EXTERNAL_FIELDS.syncStatus,
       REFUND_EXTERNAL_FIELDS.writebackStatus,
       REFUND_EXTERNAL_FIELDS.externalRefundId,

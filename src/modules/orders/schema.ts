@@ -5,6 +5,8 @@ import type { BillingAction } from "@/lib/types/billing";
 import type {
   ApplyInvoicePaymentRequest,
   ApplyRefundToOrderRequest,
+  ChargeOrderRequest,
+  CheckProviderReadinessRequest,
   GrantCreditsRequest,
   OpenOrderRequest,
   OrderBillingRequest,
@@ -265,6 +267,38 @@ export function parseGrantCreditsBody(body: unknown): GrantCreditsRequest {
 type ApplyRefundToOrderBody = {
   recordId?: unknown;
 };
+
+export function parseCheckProviderReadinessBody(body: unknown): CheckProviderReadinessRequest {
+  if (typeof body !== "object" || body == null || Array.isArray(body)) {
+    throw new SyncEndpointError("Invalid request body.", 400);
+  }
+
+  const typed = body as { recordId?: unknown; force?: unknown };
+  const recordId = readOptionalTrimmedString(typed.recordId);
+  if (!recordId) throw new SyncEndpointError("Missing recordId.", 400);
+
+  return {
+    recordId,
+    force: typed.force === true,
+  };
+}
+
+export function parseChargeOrderBody(body: unknown): ChargeOrderRequest {
+  if (typeof body !== "object" || body == null || Array.isArray(body)) {
+    throw new SyncEndpointError("Invalid request body.", 400);
+  }
+
+  const typed = body as { recordId?: unknown; force?: unknown; retryExternalActionId?: unknown; idempotencyKey?: unknown };
+  const recordId = readOptionalTrimmedString(typed.recordId);
+  if (!recordId) throw new SyncEndpointError("Missing recordId.", 400);
+
+  return {
+    recordId,
+    force: typed.force === true,
+    retryExternalActionId: readOptionalTrimmedString(typed.retryExternalActionId) ?? null,
+    idempotencyKey: readOptionalTrimmedString(typed.idempotencyKey) ?? null,
+  };
+}
 
 export function parseApplyRefundToOrderBody(body: unknown): ApplyRefundToOrderRequest {
   if (typeof body !== "object" || body == null || Array.isArray(body)) {

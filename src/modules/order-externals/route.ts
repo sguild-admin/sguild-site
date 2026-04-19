@@ -9,4 +9,3 @@ export function methodNotAllowed(): NextResponse {
 }
 
 export { handleOrderExternals };
-

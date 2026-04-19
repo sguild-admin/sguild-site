@@ -247,3 +247,95 @@ export type ApplyRefundToOrderFailureResponse = {
   stage: "validation" | "writeback";
   error: string;
 };
+
+// ---------------------------------------------------------------------------
+// Check Provider Readiness
+// ---------------------------------------------------------------------------
+
+export type CheckProviderReadinessRequest = {
+  recordId: string;
+  force: boolean;
+};
+
+export type ReadinessField = "Card Readiness" | "Invoice Readiness";
+export type ReadinessValue = "Ready" | "Not Ready" | "Not Checked";
+export type ClientSyncStep = "succeeded" | "skipped" | "noop";
+
+export type CheckProviderReadinessSuccessResponse = {
+  ok: true;
+  endpoint: "/api/orders/check-provider-readiness";
+  recordId: string;
+  crossedProviderBoundary: boolean;
+  steps: {
+    clientSync: ClientSyncStep;
+    readinessCheck: "Ready" | "Not Ready";
+  };
+  field: ReadinessField;
+  result: "Ready" | "Not Ready";
+  error: null;
+  writebackStatus: "Succeeded";
+};
+
+export type CheckProviderReadinessNoopResponse = {
+  ok: true;
+  endpoint: "/api/orders/check-provider-readiness";
+  recordId: string;
+  result: "noop";
+  field: ReadinessField;
+  currentValue: "Ready";
+};
+
+export type CheckProviderReadinessFailureResponse = {
+  ok: false;
+  endpoint: "/api/orders/check-provider-readiness";
+  recordId: string;
+  crossedProviderBoundary: boolean;
+  stage: "validation" | "provider" | "writeback" | "ambiguity";
+  step: "clientSync" | "readinessCheck" | "writeback";
+  error: string;
+};
+
+export type CheckProviderReadinessResponse =
+  | CheckProviderReadinessSuccessResponse
+  | CheckProviderReadinessNoopResponse
+  | CheckProviderReadinessFailureResponse;
+
+export type ChargeOrderRequest = {
+  recordId: string;
+  force: boolean;
+  retryExternalActionId: string | null;
+  idempotencyKey: string | null;
+};
+
+export type ChargeOrderStage = "validation" | "provider" | "writeback" | "ambiguity";
+export type ChargeOrderProviderResult = "succeeded" | "noop";
+export type ChargeOrderWritebackStatus = "Succeeded" | "Failed" | "Pending";
+
+export type ChargeOrderSuccessResponse = {
+  ok: true;
+  endpoint: "/api/orders/charge";
+  recordId: string;
+  orderExternalRecordId: string;
+  crossedProviderBoundary: boolean;
+  providerResult: ChargeOrderProviderResult;
+  externalActionId: string;
+  externalPaymentId: string;
+  chargeAmountCents: number;
+  writebackStatus: ChargeOrderWritebackStatus;
+  idempotencyKey: string;
+};
+
+export type ChargeOrderFailureResponse = {
+  ok: false;
+  endpoint: "/api/orders/charge";
+  recordId: string;
+  orderExternalRecordId?: string;
+  crossedProviderBoundary: boolean;
+  stage: ChargeOrderStage;
+  error: string;
+  externalActionId?: string;
+};
+
+export type ChargeOrderResponse =
+  | ChargeOrderSuccessResponse
+  | ChargeOrderFailureResponse;

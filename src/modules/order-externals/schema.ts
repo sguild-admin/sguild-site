@@ -32,6 +32,12 @@ function readTrimmedString(value: unknown): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
+function readOptionalTrimmedString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 function readOptionalInteger(value: unknown, fieldName: string): number | undefined {
   if (value == null) return undefined;
   if (typeof value === "number" && Number.isInteger(value)) return value;
@@ -191,4 +197,3 @@ export function parseOrderExternalsRequestBody(body: unknown): OrderExternalsReq
 
   throw new SyncEndpointError("Unsupported operation.", 400);
 }
-

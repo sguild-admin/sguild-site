@@ -12,23 +12,17 @@ import { clientSyncRepo } from "@/modules/clients";
 const CLIENT_EXTERNALS_TABLE = airtableSchema.operations.tables.clientExternals;
 const CARD_EXTERNALS_TABLE = airtableSchema.operations.tables.cardExternals;
 const PROVIDER_ACCOUNTS_TABLE = airtableSchema.operations.tables.providerAccounts;
+const CLIENT_EXTERNAL_FIELDS = airtableSchema.operations.fields.clientExternals;
+const CARD_EXTERNAL_FIELDS = airtableSchema.operations.fields.cardExternals;
 
 type AirtableRecord = {
   id: string;
   fields?: Record<string, unknown>;
 };
 
-export type CardExternalFields = {
-  "External Card ID": string;
-  "Client External": string[];
-  "Card Brand": string;
-  "Last 4": string;
-  "Exp Month": number | null;
-  "Exp Year": number | null;
-  "Cardholder Name": string;
-  Enabled: boolean;
-  "Card Summary": string;
-};
+export type CardExternalFields = Partial<
+  Record<string, string | number | boolean | string[] | null>
+>;
 
 export type ClientExternalRecord = {
   recordId: string;
@@ -43,7 +37,7 @@ export type ClientExternalRecord = {
 export type ExistingCardExternal = {
   recordId: string;
   externalCardId: string | null;
-  enabled: boolean;
+  active: boolean;
   clientExternalIds: string[];
 };
 
@@ -95,14 +89,46 @@ function readNullableBoolean(value: unknown): boolean | null {
   return null;
 }
 
-function isEnabled(value: unknown): boolean {
+function readActiveState(value: unknown): boolean | null {
+  if (value == null) return null;
   if (typeof value === "boolean") return value;
   if (typeof value === "number") return value !== 0;
   if (typeof value === "string") {
     const normalized = value.trim().toLowerCase();
-    return normalized === "true" || normalized === "yes" || normalized === "enabled";
+    if (!normalized) return null;
+    if (
+      normalized === "true" ||
+      normalized === "yes" ||
+      normalized === "enabled" ||
+      normalized === "active"
+    ) {
+      return true;
+    }
+    if (
+      normalized === "false" ||
+      normalized === "no" ||
+      normalized === "disabled" ||
+      normalized === "failed"
+    ) {
+      return false;
+    }
   }
-  return false;
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const parsed = readActiveState(item);
+      if (parsed != null) return parsed;
+    }
+  }
+  return null;
+}
+
+function isActiveCardExternal(fields: Record<string, unknown>): boolean {
+  const explicitStatus =
+    readActiveState(fields[CARD_EXTERNAL_FIELDS.status]) ??
+    readActiveState(fields[CARD_EXTERNAL_FIELDS.isActive]);
+  if (explicitStatus != null) return explicitStatus;
+
+  return readActiveState(fields.Enabled) ?? true;
 }
 
 async function getRecord(
@@ -127,7 +153,7 @@ async function getRecord(
   return (await response.json()) as AirtableRecord;
 }
 
-function validateCardsSecret(request: Request): void {
+function validateCardExternalsSecret(request: Request): void {
   clientSyncRepo.validateAirtableSecret(request);
 }
 
@@ -135,7 +161,7 @@ async function loadClientExternal(recordId: string): Promise<ClientExternalRecor
   const clientExternal = await getRecord(CLIENT_EXTERNALS_TABLE, recordId, "Client External");
   const fields = clientExternal.fields ?? {};
 
-  const providerAccountId = readFirstLinkedId(fields["Provider Account"]);
+  const providerAccountId = readFirstLinkedId(fields[CLIENT_EXTERNAL_FIELDS.providerAccount]);
   const providerAccount =
     providerAccountId != null
       ? await getRecord(PROVIDER_ACCOUNTS_TABLE, providerAccountId, "Provider account")
@@ -144,11 +170,13 @@ async function loadClientExternal(recordId: string): Promise<ClientExternalRecor
 
   return {
     recordId: clientExternal.id,
-    externalCustomerId: readString(fields["External Customer ID"]),
+    externalCustomerId: readString(fields[CLIENT_EXTERNAL_FIELDS.externalCustomerId]),
     providerAccountId,
-    clientId: readFirstLinkedId(fields.Client),
+    clientId: readFirstLinkedId(fields[CLIENT_EXTERNAL_FIELDS.client]),
     cardSyncEligible: readNullableBoolean(fields["Card Sync Eligible"]),
-    provider: readString(fields.Provider) ?? readString(providerFields.Provider),
+    provider:
+      readString(fields[CLIENT_EXTERNAL_FIELDS.provider]) ??
+      readString(providerFields.Provider),
     providerAccessTokenAlias:
       readString(providerFields["API Credential Alias"]) ??
       readString(providerFields["Access Token Alias"]) ??
@@ -166,7 +194,7 @@ async function listExistingCardExternals(
   do {
     const params = new URLSearchParams({
       pageSize: "100",
-      filterByFormula: `FIND('${escapedId}', ARRAYJOIN({Client External}))`,
+      filterByFormula: `FIND('${escapedId}', ARRAYJOIN({${CARD_EXTERNAL_FIELDS.clientExternal}}))`,
     });
     if (offset) params.set("offset", offset);
 
@@ -185,12 +213,12 @@ async function listExistingCardExternals(
     };
 
     for (const record of body.records ?? []) {
-      const f = record.fields ?? {};
+      const fields = record.fields ?? {};
       rows.push({
         recordId: record.id,
-        externalCardId: readString(f["External Card ID"]),
-        enabled: isEnabled(f.Enabled),
-        clientExternalIds: readLinkedIds(f["Client External"]),
+        externalCardId: readString(fields[CARD_EXTERNAL_FIELDS.externalCardId]),
+        active: isActiveCardExternal(fields),
+        clientExternalIds: readLinkedIds(fields[CARD_EXTERNAL_FIELDS.clientExternal]),
       });
     }
 
@@ -207,7 +235,7 @@ async function findExistingCardExternalByKey(
   const escapedCardId = escapeAirtableFormulaString(externalCardId);
   const params = new URLSearchParams({
     maxRecords: "20",
-    filterByFormula: `{External Card ID}='${escapedCardId}'`,
+    filterByFormula: `{${CARD_EXTERNAL_FIELDS.externalCardId}}='${escapedCardId}'`,
   });
 
   const response = await airtableRequest(
@@ -227,14 +255,14 @@ async function findExistingCardExternalByKey(
   };
 
   for (const record of body.records ?? []) {
-    const f = record.fields ?? {};
-    const linkedIds = readLinkedIds(f["Client External"]);
+    const fields = record.fields ?? {};
+    const linkedIds = readLinkedIds(fields[CARD_EXTERNAL_FIELDS.clientExternal]);
     if (!linkedIds.includes(clientExternalRecordId)) continue;
 
     return {
       recordId: record.id,
-      externalCardId: readString(f["External Card ID"]),
-      enabled: isEnabled(f.Enabled),
+      externalCardId: readString(fields[CARD_EXTERNAL_FIELDS.externalCardId]),
+      active: isActiveCardExternal(fields),
       clientExternalIds: linkedIds,
     };
   }
@@ -275,7 +303,9 @@ async function updateCardExternalRecord(
 }
 
 async function disableCardExternalRecord(recordId: string): Promise<void> {
-  await updateCardExternalRecord(recordId, { Enabled: false });
+  await updateCardExternalRecord(recordId, {
+    [CARD_EXTERNAL_FIELDS.status]: "Disabled",
+  });
 }
 
 async function fetchSquareCardsForCustomer(
@@ -285,8 +315,8 @@ async function fetchSquareCardsForCustomer(
   return fetchSquareCards(context, externalCustomerId);
 }
 
-export const cardsRepo = {
-  validateCardsSecret,
+export const cardExternalsRepo = {
+  validateCardExternalsSecret,
   loadClientExternal,
   findExistingCardExternalByKey,
   listExistingCardExternals,

@@ -1,9 +1,9 @@
-import { handleCardExternalSync, methodNotAllowed } from "@/modules/card-externals";
+import { handleCheckProviderReadiness, methodNotAllowed } from "@/modules/orders";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  return handleCardExternalSync(request);
+  return handleCheckProviderReadiness(request);
 }
 
 export async function GET() {

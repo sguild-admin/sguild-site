@@ -130,6 +130,20 @@ function toRecord(record: AirtableRecord): OrderExternalRecordDto {
     amountSnapshotCents: readNumber(fields[ORDER_EXTERNAL_FIELDS.amountSnapshotCents]),
     rawPayloadSnapshot: readString(fields[ORDER_EXTERNAL_FIELDS.rawPayloadSnapshot]),
     provider: readString(fields[ORDER_EXTERNAL_FIELDS.provider]),
+    organizationRecordId: readFirstLinkedId(fields[ORDER_EXTERNAL_FIELDS.orderOrganization]),
+    clientProfileRecordId: readFirstLinkedId(fields[ORDER_EXTERNAL_FIELDS.clientProfile]),
+    clientRecordId: readFirstLinkedId(fields[ORDER_EXTERNAL_FIELDS.client]),
+    orderStatus: readString(fields[ORDER_EXTERNAL_FIELDS.orderStatus]),
+    billingState: readString(fields[ORDER_EXTERNAL_FIELDS.billingState]),
+    paymentCollectionMethod: readString(fields[ORDER_EXTERNAL_FIELDS.paymentCollectionMethod]),
+    orderTotal: readNumber(fields[ORDER_EXTERNAL_FIELDS.orderTotal]),
+    orderAmountPaid: readNumber(fields[ORDER_EXTERNAL_FIELDS.orderAmountPaid]),
+    hasExternalIdentity: readFlag(fields[ORDER_EXTERNAL_FIELDS.hasExternalIdentity]),
+    needsProviderReview: readFlag(fields[ORDER_EXTERNAL_FIELDS.needsProviderReview]),
+    missingRequiredLinks: readFlag(fields[ORDER_EXTERNAL_FIELDS.missingRequiredLinks]),
+    canonicalOrgMismatch:
+      readFlag(fields[ORDER_EXTERNAL_FIELDS.orgIntegrationOrderOrgMismatch]) ||
+      readFlag(fields["Canonical Org Mismatch"]),
     hasException: readFlag(fields[ORDER_EXTERNAL_FIELDS.hasException]),
     exceptionReason: readString(fields[ORDER_EXTERNAL_FIELDS.exceptionReason]),
   };
@@ -139,7 +153,12 @@ function toFields(input: Partial<CreateOrderExternalDto | UpdateOrderExternalDto
   const fields: Record<string, unknown> = {};
 
   if ("orderRecordId" in input && input.orderRecordId) fields[ORDER_EXTERNAL_FIELDS.order] = [input.orderRecordId];
-  if (input.orgIntegrationRecordId) fields[ORDER_EXTERNAL_FIELDS.orgIntegration] = [input.orgIntegrationRecordId];
+  if (input.orgIntegrationRecordId) {
+    fields[ORDER_EXTERNAL_FIELDS.orgIntegration] = [input.orgIntegrationRecordId];
+  }
+  if ("clientExternalRecordId" in input && input.clientExternalRecordId) {
+    fields[ORDER_EXTERNAL_FIELDS.clientExternal] = [input.clientExternalRecordId];
+  }
   if (input.globalProviderAccountRecordId) {
     fields[ORDER_EXTERNAL_FIELDS.globalProviderAccount] = [input.globalProviderAccountRecordId];
   }
@@ -182,7 +201,7 @@ function toFields(input: Partial<CreateOrderExternalDto | UpdateOrderExternalDto
 }
 
 async function createOrderExternal(input: CreateOrderExternalDto): Promise<OrderExternalRecordDto> {
-  const fields = toFields(input);
+  let fields = toFields(input);
   const response = await airtableRequest(encodeURIComponent(ORDER_EXTERNALS_TABLE), {
     method: "POST",
     body: JSON.stringify({ fields }),
@@ -198,7 +217,7 @@ async function createOrderExternal(input: CreateOrderExternalDto): Promise<Order
 
 async function updateOrderExternal(input: UpdateOrderExternalDto): Promise<OrderExternalRecordDto> {
   const { recordId, ...rest } = input;
-  const fields = toFields(rest);
+  let fields = toFields(rest);
   if (Object.keys(fields).length === 0) {
     return getOrderExternal(recordId);
   }
@@ -316,4 +335,3 @@ export const orderExternalsRepo = {
   findOrderExternalsByOrder,
   findOrderExternalByExternalIds,
 };
-

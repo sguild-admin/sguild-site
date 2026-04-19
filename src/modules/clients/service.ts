@@ -1,4 +1,5 @@
 import { SyncEndpointError } from "@/lib/errors";
+import { createExternalAction, updateExternalAction } from "@/modules/integrations";
 import { clientSyncRepo } from "./repo";
 import { parseSyncRecordId, resolveSquareContext } from "./schema";
 import type { SyncErrorResponse, SyncSuccessResponse } from "./dto";
@@ -115,27 +116,81 @@ export async function runClientExternalSync(recordId: string): Promise<SyncSucce
   let provider: string | null = clientExternal.provider ?? null;
   let providerAccountId: string | null = clientExternal.providerAccountId ?? null;
 
+  await clientSyncRepo.writeClientExternalSyncPending(clientExternal.recordId);
+
+  let externalActionId: string | null = null;
+
   try {
     const squareContext = resolveSquareContext(syncInput);
     provider = squareContext.provider;
     providerAccountId = squareContext.providerAccountId;
 
+    const actionType = clientExternal.externalCustomerId ? "Refresh" : "Create";
+    externalActionId = await createExternalAction({
+      externalEntityType: "Client",
+      actionType,
+      direction: "Outbound",
+      triggerSource: "Automation",
+      occurredAt: new Date().toISOString(),
+      status: "Pending",
+      attemptNumber: 1,
+      retryable: true,
+      providerAccountRecordId: clientExternal.providerAccountId ?? undefined,
+      provider: provider ?? undefined,
+      providerReferenceId: clientExternal.recordId,
+      requestPayload: JSON.stringify({
+        action: actionType,
+        clientExternalRecordId: clientExternal.recordId,
+        clientId: clientExternal.clientId,
+        externalCustomerId: clientExternal.externalCustomerId,
+        nameSnapshot: effectiveNameSnapshot,
+        phoneSnapshot: effectivePhoneSnapshot,
+      }),
+      writebackStatus: "Pending",
+      writebackLastAttemptAt: new Date().toISOString(),
+    });
+
     const syncResult = await clientSyncRepo.runSquareClientSync(syncInput, squareContext);
 
-    const postSyncSnapshotPatch: Partial<Record<"Name Snapshot" | "Phone Snapshot", string>> = {
-      ...snapshotPatch,
-    };
     const desiredNameSnapshot = buildSquareSnapshotName(syncResult) ?? effectiveNameSnapshot;
-    if (desiredNameSnapshot && desiredNameSnapshot !== (clientExternal.nameSnapshot ?? null)) {
-      postSyncSnapshotPatch["Name Snapshot"] = desiredNameSnapshot;
-    }
     const desiredPhoneSnapshot = syncResult.squarePhoneNumber ?? effectivePhoneSnapshot;
-    if (desiredPhoneSnapshot && desiredPhoneSnapshot !== (clientExternal.phoneSnapshot ?? null)) {
-      postSyncSnapshotPatch["Phone Snapshot"] = desiredPhoneSnapshot;
-    }
-    if (Object.keys(postSyncSnapshotPatch).length > 0) {
-      await clientSyncRepo.persistClientExternalSnapshots(clientExternal.recordId, postSyncSnapshotPatch);
-    }
+
+    await clientSyncRepo.writeClientExternalSyncSuccess({
+      recordId: clientExternal.recordId,
+      externalCustomerId: syncResult.externalCustomerId,
+      nameSnapshot: desiredNameSnapshot,
+      phoneSnapshot: desiredPhoneSnapshot,
+      externalActionId,
+    });
+
+    const providerEventType =
+      syncResult.path === "create" ? "CreateCustomer"
+      : syncResult.path === "matched" && syncResult.mode === "updated" ? "UpdateCustomer"
+      : syncResult.path === "matched" ? "RetrieveCustomer"
+      : syncResult.path === "verify" ? "RetrieveCustomer"
+      : "UpdateCustomer";
+
+    const nowIso = new Date().toISOString();
+    await updateExternalAction(externalActionId, {
+      status: "Succeeded",
+      httpStatusCode: 200,
+      providerEventType,
+      providerEventId: syncResult.externalCustomerId,
+      rawProviderPayload: syncResult.rawProviderPayload ?? undefined,
+      responsePayload: JSON.stringify({
+        path: syncResult.path,
+        mode: syncResult.mode,
+        externalCustomerId: syncResult.externalCustomerId,
+        squareGivenName: syncResult.squareGivenName,
+        squareFamilyName: syncResult.squareFamilyName,
+        squarePhoneNumber: syncResult.squarePhoneNumber,
+      }),
+      writebackStatus: "Succeeded",
+      writebackSucceededAt: nowIso,
+      writebackLastAttemptAt: nowIso,
+      writebackError: "",
+      retryable: false,
+    });
 
     console.info("Client external sync completed", {
       operation: OPERATION,
@@ -145,10 +200,42 @@ export async function runClientExternalSync(recordId: string): Promise<SyncSucce
       path: syncResult.path,
       outcome: "success",
       mode: syncResult.mode,
+      externalActionId,
     });
 
     return successResponse(syncResult.externalCustomerId, syncResult.mode);
   } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+
+    if (externalActionId) {
+      const httpCode = error instanceof SyncEndpointError ? error.status : 500;
+      try {
+        await updateExternalAction(externalActionId, {
+          status: "Failed",
+          httpStatusCode: httpCode,
+          errorSummary: message,
+          writebackStatus: "Failed",
+          writebackError: message,
+          writebackLastAttemptAt: new Date().toISOString(),
+          retryable: true,
+        });
+      } catch (eaErr) {
+        console.error("Failed to update EA on client sync failure", {
+          externalActionId,
+          error: eaErr instanceof Error ? eaErr.message : String(eaErr),
+        });
+      }
+    }
+
+    try {
+      await clientSyncRepo.writeClientExternalSyncFailure(clientExternal.recordId, message);
+    } catch (writeErr) {
+      console.error("Failed to write sync failure status", {
+        recordId: clientExternal.recordId,
+        error: writeErr instanceof Error ? writeErr.message : String(writeErr),
+      });
+    }
+
     console.error("Client external sync failed", {
       operation: OPERATION,
       recordId: clientExternal.recordId,
@@ -156,7 +243,8 @@ export async function runClientExternalSync(recordId: string): Promise<SyncSucce
       providerAccountId,
       path: requestedPath,
       outcome: "failed",
-      error: error instanceof Error ? error.message : "Unknown error",
+      error: message,
+      externalActionId,
     });
     throw error;
   }

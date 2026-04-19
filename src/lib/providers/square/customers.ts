@@ -158,7 +158,7 @@ function assertSquareRequiredIdentity(desired: {
 async function retrieveSquareCustomer(
   externalCustomerId: string,
   context: SquareAuthContext,
-): Promise<SquareCustomer> {
+): Promise<{ customer: SquareCustomer; rawJson: string }> {
   const response = await squareRawRequest(
     `/v2/customers/${encodeURIComponent(externalCustomerId)}`,
     { method: "GET" },
@@ -190,7 +190,10 @@ async function retrieveSquareCustomer(
     throw new SyncEndpointError("Square customer lookup returned no customer.", 502);
   }
 
-  return (data as SquareRetrieveCustomerResponse).customer as SquareCustomer;
+  return {
+    customer: (data as SquareRetrieveCustomerResponse).customer as SquareCustomer,
+    rawJson: JSON.stringify(data),
+  };
 }
 
 export async function getSquareCustomerContactIdentity(
@@ -200,7 +203,7 @@ export async function getSquareCustomerContactIdentity(
   emailAddress: string | null;
   phoneNumber: string | null;
 }> {
-  const customer = await retrieveSquareCustomer(externalCustomerId, context);
+  const { customer } = await retrieveSquareCustomer(externalCustomerId, context);
   return {
     emailAddress: customer.email_address?.trim() || null,
     phoneNumber: normalizePhone(customer.phone_number ?? null),
@@ -243,7 +246,7 @@ async function updateSquareCustomer(
   externalCustomerId: string,
   updatePatch: Record<string, string>,
   context: SquareAuthContext,
-): Promise<void> {
+): Promise<string> {
   const response = await squareRawRequest(
     `/v2/customers/${encodeURIComponent(externalCustomerId)}`,
     {
@@ -266,6 +269,8 @@ async function updateSquareCustomer(
       502,
     );
   }
+
+  return JSON.stringify(data);
 }
 
 async function createSquareCustomer(
@@ -277,6 +282,7 @@ async function createSquareCustomer(
   givenName: string | null;
   familyName: string | null;
   nickname: string | null;
+  rawJson: string;
 }> {
   const desired = buildDesiredCustomerPayload(input);
   assertSquareRequiredIdentity(desired);
@@ -332,6 +338,7 @@ async function createSquareCustomer(
     givenName: createdGivenName ?? desired.givenName ?? null,
     familyName: createdFamilyName ?? desired.familyName ?? null,
     nickname: createdNickname ?? desired.nickname ?? null,
+    rawJson: JSON.stringify(data),
   };
 }
 
@@ -412,8 +419,9 @@ export async function syncSquareCustomer(
     const existingByPhoneAndName = await findExistingSquareCustomerByPhoneAndName(desired, context);
     if (existingByPhoneAndName) {
       const updatePatch = applyConservativeChanges(existingByPhoneAndName, desired);
+      let matchedRawJson: string | null = JSON.stringify(existingByPhoneAndName);
       if (Object.keys(updatePatch).length > 0) {
-        await updateSquareCustomer(existingByPhoneAndName.id, updatePatch, context);
+        matchedRawJson = await updateSquareCustomer(existingByPhoneAndName.id, updatePatch, context);
       }
 
       return {
@@ -432,6 +440,7 @@ export async function syncSquareCustomer(
         squareNickname:
           (updatePatch.nickname?.trim() || null) ??
           (existingByPhoneAndName.nickname?.trim() || null),
+        rawProviderPayload: matchedRawJson,
       };
     }
 
@@ -444,10 +453,11 @@ export async function syncSquareCustomer(
       squareGivenName: created.givenName,
       squareFamilyName: created.familyName,
       squareNickname: created.nickname,
+      rawProviderPayload: created.rawJson,
     };
   }
 
-  const existing = await retrieveSquareCustomer(input.externalCustomerId, context);
+  const { customer: existing, rawJson: retrieveRawJson } = await retrieveSquareCustomer(input.externalCustomerId, context);
   const updatePatch = applyConservativeChanges(existing, desired);
   if (Object.keys(updatePatch).length === 0) {
     return {
@@ -458,10 +468,11 @@ export async function syncSquareCustomer(
       squareGivenName: existing.given_name?.trim() || null,
       squareFamilyName: existing.family_name?.trim() || null,
       squareNickname: existing.nickname?.trim() || null,
+      rawProviderPayload: retrieveRawJson,
     };
   }
 
-  await updateSquareCustomer(existing.id, updatePatch, context);
+  const updateRawJson = await updateSquareCustomer(existing.id, updatePatch, context);
   const squarePhoneAfterUpdate =
     normalizePhone(updatePatch.phone_number ?? null) ??
     normalizePhone(existing.phone_number ?? null);
@@ -476,5 +487,6 @@ export async function syncSquareCustomer(
       (updatePatch.family_name?.trim() || null) ?? (existing.family_name?.trim() || null),
     squareNickname:
       (updatePatch.nickname?.trim() || null) ?? (existing.nickname?.trim() || null),
+    rawProviderPayload: updateRawJson,
   };
 }

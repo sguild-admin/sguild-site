@@ -1,5 +1,6 @@
 import { SyncEndpointError } from "@/lib/errors";
-import { cardsRepo } from "./repo";
+import { airtableSchema } from "@/config/airtable-schema";
+import { cardExternalsRepo } from "./repo";
 import {
   parseSyncRecordId,
   resolveSquareContext,
@@ -7,18 +8,7 @@ import {
 import type { CardSyncErrorResponse, CardSyncSuccessResponse } from "./dto";
 
 const OPERATION = "sync_card_external";
-
-function toCardSummary(card: {
-  brand: string;
-  last4: string;
-  expMonth: number | null;
-  expYear: number | null;
-}): string {
-  const mm = card.expMonth != null ? String(card.expMonth).padStart(2, "0") : "??";
-  const yyyy = card.expYear != null ? String(card.expYear) : "????";
-  const last4 = card.last4 || "????";
-  return `${card.brand} •••• ${last4} | ${mm}/${yyyy}`;
-}
+const CARD_EXTERNAL_FIELDS = airtableSchema.operations.fields.cardExternals;
 
 function assertOperationalPrerequisites(clientExternal: {
   providerAccountId: string | null;
@@ -44,9 +34,9 @@ function assertOperationalPrerequisites(clientExternal: {
 }
 
 function existingByExternalCardId(
-  existingRows: Array<{ externalCardId: string | null; recordId: string; enabled: boolean }>,
-): Map<string, { externalCardId: string | null; recordId: string; enabled: boolean }> {
-  const map = new Map<string, { externalCardId: string | null; recordId: string; enabled: boolean }>();
+  existingRows: Array<{ externalCardId: string | null; recordId: string; active: boolean }>,
+): Map<string, { externalCardId: string | null; recordId: string; active: boolean }> {
+  const map = new Map<string, { externalCardId: string | null; recordId: string; active: boolean }>();
   for (const row of existingRows) {
     if (row.externalCardId) map.set(row.externalCardId, row);
   }
@@ -82,13 +72,13 @@ export function mapCardSyncError(error: unknown): { status: number; body: CardSy
 }
 
 export async function runCardExternalSync(recordId: string): Promise<CardSyncSuccessResponse> {
-  const clientExternal = await cardsRepo.loadClientExternal(recordId);
+  const clientExternal = await cardExternalsRepo.loadClientExternal(recordId);
   assertOperationalPrerequisites(clientExternal);
 
   const squareContext = resolveSquareContext(clientExternal);
   const externalCustomerId = clientExternal.externalCustomerId as string;
-  const cards = await cardsRepo.fetchSquareCardsForCustomer(squareContext, externalCustomerId);
-  const existingRows = await cardsRepo.listExistingCardExternals(clientExternal.recordId);
+  const cards = await cardExternalsRepo.fetchSquareCardsForCustomer(squareContext, externalCustomerId);
+  const existingRows = await cardExternalsRepo.listExistingCardExternals(clientExternal.recordId);
   const existingMap = existingByExternalCardId(existingRows);
 
   let createdCount = 0;
@@ -99,28 +89,27 @@ export async function runCardExternalSync(recordId: string): Promise<CardSyncSuc
   for (const card of cards) {
     returnedIds.add(card.id);
     const baseFields = {
-      "External Card ID": card.id,
-      "Client External": [clientExternal.recordId],
-      "Card Brand": card.brand,
-      "Last 4": card.last4,
-      "Exp Month": card.expMonth,
-      "Exp Year": card.expYear,
-      "Cardholder Name": card.cardholderName,
-      Enabled: true,
-      "Card Summary": toCardSummary(card),
+      [CARD_EXTERNAL_FIELDS.externalCardId]: card.id,
+      [CARD_EXTERNAL_FIELDS.clientExternal]: [clientExternal.recordId],
+      [CARD_EXTERNAL_FIELDS.status]: "Active",
+      [CARD_EXTERNAL_FIELDS.brand]: card.brand,
+      [CARD_EXTERNAL_FIELDS.last4]: card.last4,
+      [CARD_EXTERNAL_FIELDS.expMonth]: card.expMonth,
+      [CARD_EXTERNAL_FIELDS.expYear]: card.expYear,
+      [CARD_EXTERNAL_FIELDS.cardholderName]: card.cardholderName,
     };
 
     const existing = existingMap.get(card.id);
     const fallbackExisting =
       existing ??
-      (await cardsRepo.findExistingCardExternalByKey(clientExternal.recordId, card.id));
+      (await cardExternalsRepo.findExistingCardExternalByKey(clientExternal.recordId, card.id));
 
     if (fallbackExisting) {
-      await cardsRepo.updateCardExternalRecord(fallbackExisting.recordId, baseFields);
+      await cardExternalsRepo.updateCardExternalRecord(fallbackExisting.recordId, baseFields);
       updatedCount += 1;
       existingMap.set(card.id, fallbackExisting);
     } else {
-      await cardsRepo.createCardExternalRecord(baseFields);
+      await cardExternalsRepo.createCardExternalRecord(baseFields);
       createdCount += 1;
     }
   }
@@ -128,8 +117,8 @@ export async function runCardExternalSync(recordId: string): Promise<CardSyncSuc
   for (const row of existingRows) {
     if (!row.externalCardId) continue;
     if (returnedIds.has(row.externalCardId)) continue;
-    if (!row.enabled) continue;
-    await cardsRepo.disableCardExternalRecord(row.recordId);
+    if (!row.active) continue;
+    await cardExternalsRepo.disableCardExternalRecord(row.recordId);
     disabledCount += 1;
   }
 
@@ -153,4 +142,3 @@ export async function runCardSync(body: unknown) {
   const recordId = parseSyncRecordId(body);
   return runCardExternalSync(recordId);
 }
-

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { assertJsonRequest, parseJsonBody } from "@/lib/http/request";
-import { cardsRepo } from "./repo";
+import { cardExternalsRepo } from "./repo";
 import { mapCardSyncError, runCardSync } from "./service";
 
 export function methodNotAllowed(): NextResponse {
@@ -13,7 +13,7 @@ export function methodNotAllowed(): NextResponse {
 export async function handleCardExternalSync(request: Request) {
   let parsedBody: unknown;
   try {
-    cardsRepo.validateCardsSecret(request);
+    cardExternalsRepo.validateCardExternalsSecret(request);
     assertJsonRequest(request);
     parsedBody = await parseJsonBody(request);
     const response = await runCardSync(parsedBody);

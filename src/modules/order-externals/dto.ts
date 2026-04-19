@@ -29,6 +29,18 @@ export type OrderExternalRecordDto = {
   amountSnapshotCents: number | null;
   rawPayloadSnapshot: string | null;
   provider: string | null;
+  organizationRecordId: string | null;
+  clientProfileRecordId: string | null;
+  clientRecordId: string | null;
+  orderStatus: string | null;
+  billingState: string | null;
+  paymentCollectionMethod: string | null;
+  orderTotal: number | null;
+  orderAmountPaid: number | null;
+  hasExternalIdentity: boolean;
+  needsProviderReview: boolean;
+  missingRequiredLinks: boolean;
+  canonicalOrgMismatch: boolean;
   hasException: boolean;
   exceptionReason: string | null;
 };
@@ -63,6 +75,7 @@ export type CreateOrderExternalDto = {
 export type UpdateOrderExternalDto = {
   recordId: string;
   orgIntegrationRecordId?: string;
+  clientExternalRecordId?: string;
   globalProviderAccountRecordId?: string;
   syncStatus?: OrderExternalSyncStatus;
   writebackStatus?: OrderExternalWritebackStatus;
@@ -115,4 +128,3 @@ export type OrderExternalsErrorResponseDto = {
   ok: false;
   error: string;
 };
-
